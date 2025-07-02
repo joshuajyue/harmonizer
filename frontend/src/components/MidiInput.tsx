@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import PianoKeyboard from "./PianoKeyboard";
+import Soundfont from "soundfont-player";
+import { Midi } from "@tonejs/midi";
+import { useNavigate } from "react-router-dom";
 
 const TEMPOS = [60, 80, 100, 120, 140, 160];
 const NUM_BARS = 8;
@@ -8,6 +11,18 @@ const TOTAL_BOXES = NUM_BARS * DIVISIONS_PER_BAR;
 const MIDI_LOW = 48; // C3
 const MIDI_HIGH = 79; // G5
 const PITCHES = MIDI_HIGH - MIDI_LOW + 1; // 32
+
+const INSTRUMENTS = [
+  "acoustic_grand_piano",
+  "electric_piano_1",
+  "electric_guitar_jazz",
+  "violin",
+  "cello",
+  "flute",
+  "trumpet",
+  "clarinet",
+  "synth_drum"
+];
 
 function playClick(frequency = 1000, duration = 0.05) {
   const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -24,6 +39,7 @@ function playClick(frequency = 1000, duration = 0.05) {
 }
 
 const MidiInput: React.FC = () => {
+  const navigate = useNavigate();
   const [midiSupported, setMidiSupported] = useState<boolean | null>(null);
   const [tempo, setTempo] = useState<number>(120);
   const [isCountingIn, setIsCountingIn] = useState(false);
@@ -34,6 +50,7 @@ const MidiInput: React.FC = () => {
   const [cursorTime, setCursorTime] = useState(0);
   const [isReplaying, setIsReplaying] = useState(false);
   const replayTimeouts = useRef<number[]>([]);
+  const [instrument, setInstrument] = useState("acoustic_grand_piano");
 
   // MIDI setup (as before)
   useEffect(() => {
@@ -155,14 +172,16 @@ const MidiInput: React.FC = () => {
     setCursorTime(0);
 
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const inst = await Soundfont.instrument(ctx, "acoustic_grand_piano");
-    let start = notes[0]?.time ?? 0;
+    // Wait for instrument to load before scheduling notes
+    const inst = await Soundfont.instrument(ctx, instrument);
+    let start = 0;
     let lastTime = 0;
 
     notes.forEach((note, i) => {
       const delay = (note.time - start) / 1000;
       // Play note
       const t1 = window.setTimeout(() => {
+        console.log("Playing", note.midi, midiToNoteName(note.midi));
         inst.play(midiToNoteName(note.midi));
       }, delay * 1000);
       replayTimeouts.current.push(t1);
@@ -183,17 +202,61 @@ const MidiInput: React.FC = () => {
       ctx.close();
     }, (lastTime + 2) * 1000);
     replayTimeouts.current.push(t3);
+
+    // Schedule metronome clicks for each beat during replay
+    const totalDuration = getTotalDurationMs();
+    const beatInterval = getSixteenthNoteMs() * 4; // quarter note
+    const numBeats = Math.ceil(totalDuration / beatInterval);
+
+    for (let i = 0; i < numBeats; i++) {
+      const beatTime = i * beatInterval;
+      const delay = (beatTime - (notes[0]?.time ?? 0)) / 1000;
+      const t = window.setTimeout(() => {
+        playClick(900); // Lower pitch for replay metronome
+      }, delay * 1000);
+      replayTimeouts.current.push(t);
+    }
   };
 
   // Handle virtual piano note (quantized)
   const handleVirtualNote = (midi: number) => {
-    if (isRecording && startTimeRef.current !== null) {
+    if (isCountingIn) {
+      // During count-in, treat as first beat (time = 0)
+      setNotes((prev) => [...prev, { midi, time: 0 }]);
+    } else if (isRecording && startTimeRef.current !== null) {
       const elapsed = performance.now() - startTimeRef.current;
       const quantized = quantizeTime(elapsed);
       setNotes((prev) => [...prev, { midi, time: quantized }]);
     }
   };
+  
+  const exportToMidi = () => {
+  // Debug: See if this runs
+  console.log("Exporting MIDI", notes);
 
+  const midi = new Midi();
+  const track = midi.addTrack();
+  midi.header.setTempo(tempo);
+
+  notes.forEach(note => {
+    track.addNote({
+      midi: note.midi,
+      time: note.time / 1000,
+      duration: getSixteenthNoteMs() / 1000,
+      velocity: 0.8,
+    });
+  });
+
+  const blob = new Blob([new Uint8Array(midi.toArray())], { type: "audio/midi" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "export.mid";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
   // --- Piano roll grid with more notes ---
   const renderPianoRoll = () => {
     const width = 1280;
@@ -204,6 +267,7 @@ const MidiInput: React.FC = () => {
     // midiOrder: top row is highest note, bottom is lowest
     const midiOrder = Array.from({ length: PITCHES }, (_, i) => MIDI_HIGH - i); // Top is G5, bottom is C3
 
+    
     return (
       <svg width={width} height={height} style={{ background: "#222", borderRadius: 8 }}>
         {/* Grid */}
@@ -298,12 +362,31 @@ const MidiInput: React.FC = () => {
       <div style={{ display: "flex", gap: 16, margin: 24, marginTop: 80 }}>
         <label>
           Tempo:
-          <select value={tempo} onChange={e => setTempo(Number(e.target.value))}>
-            {TEMPOS.map(t => (
-              <option key={t} value={t}>{t} BPM</option>
-            ))}
-          </select>
+          <input
+            type="number"
+            min={30}
+            max={300}
+            value={tempo}
+            onChange={e => setTempo(Number(e.target.value))}
+            style={{ width: 60, marginLeft: 8 }}
+          /> BPM
         </label>
+        <div style={{ marginBottom: 16 }}>
+          <label>
+            Instrument:&nbsp;
+            <select
+              value={instrument}
+              onChange={e => setInstrument(e.target.value)}
+              style={{ fontSize: 16, padding: "2px 8px" }}
+            >
+              {INSTRUMENTS.map(inst => (
+                <option key={inst} value={inst}>
+                  {inst.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <button onClick={startRecording} disabled={isCountingIn || isRecording || isReplaying}>
           {isCountingIn ? `Count-in: ${count + 1}` : isRecording ? "Recording..." : "Record"}
         </button>
@@ -312,6 +395,26 @@ const MidiInput: React.FC = () => {
         </button>
         <button onClick={replayNotes} disabled={isRecording || notes.length === 0 || isReplaying}>
           Replay
+        </button>
+        <button onClick={exportToMidi} disabled={notes.length === 0}>
+          Export MIDI
+        </button>
+        <button
+          onClick={() => navigate("/ml")}
+          style={{
+            background: "linear-gradient(90deg, #4fd1c5 0%, #1976d2 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            padding: "10px 32px",
+            fontSize: 18,
+            fontWeight: 600,
+            boxShadow: "0 2px 8px rgba(80,120,180,0.08)",
+            cursor: "pointer",
+            marginLeft: 16,
+          }}
+        >
+          Go to ML Harmonizer
         </button>
       </div>
       {/* Piano Roll */}
@@ -323,5 +426,15 @@ const MidiInput: React.FC = () => {
     </div>
   );
 };
+
+function midiToNoteName(midi: number) {
+  const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const note = NOTES[midi % 12];
+  const octave = Math.floor(midi / 12) - 1;
+  return note + octave;
+}
+
+
+
 
 export default MidiInput;

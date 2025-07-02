@@ -25,7 +25,7 @@ function midiToNoteName(midi: number) {
 const isWhite = (midi: number) => !midiToNoteName(midi).includes("#");
 
 const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, highNote }) => {
-  const [pressed, setPressed] = useState<number | null>(null);
+  const [pressed, setPressed] = useState<Set<number>>(new Set());
   const [audio, setAudio] = useState<any>(null);
 
   useEffect(() => {
@@ -37,16 +37,34 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
     return () => { isMounted = false; ctx.close(); };
   }, []);
 
+  const handleDown = (midi: number) => {
+    setPressed(prev => new Set(prev).add(midi));
+    if (audio) audio.play(midiToNoteName(midi));
+    onPlayNote(midi);
+  };
+
+  const handleUp = (midi: number) => {
+    setPressed(prev => {
+      const next = new Set(prev);
+      next.delete(midi);
+      return next;
+    });
+  };
+
   useEffect(() => {
     const downHandler = (e: KeyboardEvent) => {
+      if (e.repeat) return; // Prevent repeated firing when holding a key
       const mapping = KEYBOARD_LAYOUT.find(k => k.key === e.key);
       if (mapping && mapping.midi >= lowNote && mapping.midi <= highNote) {
-        setPressed(mapping.midi);
-        if (audio) audio.play(midiToNoteName(mapping.midi));
-        onPlayNote(mapping.midi);
+        handleDown(mapping.midi);
       }
     };
-    const upHandler = () => setPressed(null);
+    const upHandler = (e: KeyboardEvent) => {
+      const mapping = KEYBOARD_LAYOUT.find(k => k.key === e.key);
+      if (mapping && mapping.midi >= lowNote && mapping.midi <= highNote) {
+        handleUp(mapping.midi);
+      }
+    };
     window.addEventListener("keydown", downHandler);
     window.addEventListener("keyup", upHandler);
     return () => {
@@ -77,7 +95,7 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
           style={{
             width: WHITE_KEY_WIDTH,
             height: WHITE_KEY_HEIGHT,
-            background: pressed === key.midi ? "#b3e5fc" : "#fff",
+            background: pressed.has(key.midi) ? "#b3e5fc" : "#fff",
             border: "1px solid #bbb",
             marginLeft: i === 0 ? 0 : -1,
             zIndex: 1,
@@ -87,16 +105,13 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
             fontFamily: "'Montserrat', 'Arial Rounded MT Bold', Arial, sans-serif",
             fontSize: 22,
             borderRadius: 6,
-            boxShadow: pressed === key.midi ? "0 0 8px #4fd1c5" : "none",
+            boxShadow: pressed.has(key.midi) ? "0 0 8px #4fd1c5" : "none",
             position: "relative",
             transition: "background 0.1s, box-shadow 0.1s"
           }}
-          onMouseDown={() => {
-            setPressed(key.midi);
-            if (audio) audio.play(midiToNoteName(key.midi));
-            onPlayNote(key.midi);
-          }}
-          onMouseUp={() => setPressed(null)}
+          onMouseDown={() => handleDown(key.midi)}
+          onMouseUp={() => handleUp(key.midi)}
+          onMouseLeave={() => handleUp(key.midi)}
         >
           <span style={{
             color: "#888",
@@ -114,23 +129,12 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
         </div>
       ))}
       {/* Black keys */}
-      {blackKeys.map((key) => {
-        // Find the index of this key in the full keys array
-        const keyIdx = keys.findIndex(k => k.midi === key.midi);
-
-        // Find previous white key
-        let prevWhiteIdx = keyIdx - 1;
-        while (prevWhiteIdx >= 0 && !isWhite(keys[prevWhiteIdx].midi)) prevWhiteIdx--;
-
-        // Find next white key
-        let nextWhiteIdx = keyIdx + 1;
-        while (nextWhiteIdx < keys.length && !isWhite(keys[nextWhiteIdx].midi)) nextWhiteIdx++;
-
-        // If either white key is missing, skip rendering this black key
-        if (prevWhiteIdx < 0 || nextWhiteIdx >= keys.length) return null;
-
-        // Calculate the left position: midpoint between the two adjacent white keys
-        const left = (prevWhiteIdx * WHITE_KEY_WIDTH + nextWhiteIdx * WHITE_KEY_WIDTH) / 2 + (WHITE_KEY_WIDTH - BLACK_KEY_WIDTH) / 2;
+      {blackKeys.map((key, i) => {
+        const prevWhiteIdx = whiteKeys.findIndex(wk => wk.midi > key.midi) - 1;
+        if (prevWhiteIdx < 0) return null;
+        // Add extra space between black keys
+        const EXTRA_SPACE = 3; // <-- Change this value to increase/decrease spacing
+        const left = (prevWhiteIdx + 1) * (WHITE_KEY_WIDTH - 1) - (BLACK_KEY_WIDTH / 2) + i * EXTRA_SPACE;
 
         return (
           <div
@@ -138,7 +142,7 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
             style={{
               width: BLACK_KEY_WIDTH,
               height: BLACK_KEY_HEIGHT,
-              background: pressed === key.midi ? "#0288d1" : "#222",
+              background: pressed.has(key.midi) ? "#0288d1" : "#222",
               color: "#fff",
               border: "1px solid #333",
               position: "absolute",
@@ -151,16 +155,13 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
               fontFamily: "'Montserrat', 'Arial Rounded MT Bold', Arial, sans-serif",
               fontSize: 16,
               borderRadius: 4,
-              boxShadow: pressed === key.midi ? "0 0 8px #4fd1c5" : "0 2px 8px #111",
+              boxShadow: pressed.has(key.midi) ? "0 0 8px #4fd1c5" : "0 2px 8px #111",
               pointerEvents: "auto",
               transition: "background 0.1s, box-shadow 0.1s"
             }}
-            onMouseDown={() => {
-              setPressed(key.midi);
-              if (audio) audio.play(midiToNoteName(key.midi));
-              onPlayNote(key.midi);
-            }}
-            onMouseUp={() => setPressed(null)}
+            onMouseDown={() => handleDown(key.midi)}
+            onMouseUp={() => handleUp(key.midi)}
+            onMouseLeave={() => handleUp(key.midi)}
           >
             <span style={{
               color: "#fff",
