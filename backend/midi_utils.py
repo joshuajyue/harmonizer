@@ -35,33 +35,50 @@ def midi_to_piano_roll(midi_file, sequence_length=32):
         print(f"Error processing MIDI: {e}")
         return np.zeros((sequence_length, 13))
 
-def piano_roll_to_midi(piano_roll, output_file, tempo=120):
-    """Convert piano roll back to MIDI (expecting 12 pitch classes)"""
+def piano_roll_to_midi(melody_roll, harmony_roll, output_file, tempo=120):
+    """Convert melody and harmony piano rolls to MIDI with separate tracks"""
     mid = mido.MidiFile()
-    track = mido.MidiTrack()
-    mid.tracks.append(track)
     
-    track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(tempo)))
+    # Track 1: Melody
+    melody_track = mido.MidiTrack()
+    mid.tracks.append(melody_track)
+    melody_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(tempo)))
+    melody_track.append(mido.Message('program_change', program=0))  # Piano
+    
+    # Track 2: Harmony
+    harmony_track = mido.MidiTrack()
+    mid.tracks.append(harmony_track)
+    harmony_track.append(mido.Message('program_change', program=0))  # Piano
     
     ticks_per_beat = mid.ticks_per_beat
-    time_per_step = ticks_per_beat // 4
+    time_per_step = ticks_per_beat // 2  # Eighth notes instead of 16th
     
-    for step, notes in enumerate(piano_roll):
-        # Find active pitch classes (probability > 0.5)
-        if len(notes) == 12:  # Harmony output
-            active_pitch_classes = np.where(notes > 0.5)[0]
-        else:  # Combined output (13 features)
-            active_pitch_classes = np.where(notes[:12] > 0.5)[0]
+    # Process melody track
+    for step, notes in enumerate(melody_roll):
+        active_pitch_classes = np.where(notes > 0.5)[0]
         
         for pitch_class in active_pitch_classes:
-            # Convert pitch class back to MIDI note (use octave 4: C4=60)
-            midi_note = int(pitch_class) + 60
+            midi_note = int(pitch_class) + 72  # Higher octave for melody (C5)
             
             # Note on
-            track.append(mido.Message('note_on', note=midi_note, 
-                                    velocity=64, time=0))
-            # Note off
-            track.append(mido.Message('note_off', note=midi_note, 
-                                    velocity=64, time=time_per_step))
+            melody_track.append(mido.Message('note_on', note=midi_note, 
+                                           velocity=80, time=0))
+            # Note off (longer duration)
+            melody_track.append(mido.Message('note_off', note=midi_note, 
+                                           velocity=80, time=time_per_step * 2))
+    
+    # Process harmony track
+    for step, notes in enumerate(harmony_roll):
+        active_pitch_classes = np.where(notes > 0.5)[0]
+        
+        for pitch_class in active_pitch_classes:
+            midi_note = int(pitch_class) + 60  # Lower octave for harmony (C4)
+            
+            # Note on
+            harmony_track.append(mido.Message('note_on', note=midi_note, 
+                                            velocity=60, time=0))
+            # Note off (longer duration)
+            harmony_track.append(mido.Message('note_off', note=midi_note, 
+                                            velocity=60, time=time_per_step * 2))
     
     mid.save(output_file)

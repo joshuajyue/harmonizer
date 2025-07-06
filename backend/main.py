@@ -45,12 +45,9 @@ async def harmonize(midi: UploadFile = File(...)):
         # Extract melody pitch classes (first 12 columns) from melody_features
         melody_pitch_classes = melody_features[:, :12]  # Shape: (32, 12)
         
-        # Combine melody and harmony (both now have shape (32, 12))
-        combined = np.maximum(melody_pitch_classes, harmony_np * 0.7)
-        
-        # Convert harmony back to MIDI
+        # Create separate tracks: melody and harmony
         output_path = input_path.replace(".mid", "_harmonized.mid")
-        piano_roll_to_midi(combined, output_path)
+        piano_roll_to_midi(melody_pitch_classes, harmony_np, output_path)
         
         return FileResponse(output_path, filename="harmonized.mid")
         
