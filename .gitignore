@@ -136,8 +136,6 @@ dist
 # Serverless Webpack directories
 .webpack/
 
-# Optional stylelint cache
-
 # SvelteKit build / generate output
 .svelte-kit
 
@@ -324,3 +322,86 @@ thumb
 sketch
 
 # End of https://www.toptal.com/developers/gitignore/api/python,node,react
+
+### Project Specific ###
+
+# MIDI files (temporary processing files)
+*_harmonized.mid
+*_processed.mid
+temp_*.mid
+tmp_*.mid
+
+# Model files (optional - include if you want to track trained models)
+# models/*.pt
+# models/*.pth
+# models/*.pkl
+
+# Training data and datasets
+data/raw/
+data/processed/
+data/bach_chorales/
+data/midi_files/
+*.musicxml
+*.xml
+
+# Audio files
+*.wav
+*.mp3
+*.flac
+*.aac
+*.m4a
+
+# Large datasets
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# FastAPI specific
+.pytest_cache/
+
+# Machine Learning specific
+wandb/
+tensorboard_logs/
+checkpoints/
+experiments/
+
+# Local configuration
+config.local.py
+config.local.json
+secrets.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+*.log
+logs/
+
+# Package files for distribution
+*.tar.gz
+*.whl
