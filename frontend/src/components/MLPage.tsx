@@ -23,6 +23,7 @@ const cardStyle: React.CSSProperties = {
   flexDirection: "column",
   alignItems: "center",
   minWidth: 360,
+  maxWidth: 500,
 };
 
 const buttonStyle: React.CSSProperties = {
@@ -53,17 +54,60 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+const selectStyle: React.CSSProperties = {
+  border: "1.5px solid #b0bec5",
+  borderRadius: 8,
+  padding: "10px 14px",
+  fontSize: 16,
+  marginBottom: 12,
+  background: "#f8fafc",
+  color: "#222",
+  outline: "none",
+  width: "100%",
+  boxSizing: "border-box",
+  cursor: "pointer",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 16,
+  fontWeight: 600,
+  color: "#444",
+  marginBottom: 8,
+  alignSelf: "flex-start",
+  width: "100%",
+};
+
+const modelInfoStyle: React.CSSProperties = {
+  fontSize: 14,
+  color: "#666",
+  marginBottom: 18,
+  fontStyle: "italic",
+  textAlign: "center",
+  lineHeight: "1.4",
+};
+
 const MLPage: React.FC = () => {
   const [inputMidi, setInputMidi] = useState<File | null>(null);
   const [harmonizedUrl, setHarmonizedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>("creative");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Model descriptions
+  const modelDescriptions: { [key: string]: string } = {
+    'creative': 'Analyzes melody and applies music theory rules for harmonization',
+    'bach': 'Neural network trained on Bach chorales (if available, falls back to Creative)'
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setInputMidi(e.target.files[0]);
       setHarmonizedUrl(null);
     }
+  };
+
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedModel(e.target.value);
   };
 
   const handleHarmonize = async () => {
@@ -73,6 +117,7 @@ const MLPage: React.FC = () => {
 
     const formData = new FormData();
     formData.append("midi", inputMidi);
+    formData.append("model", selectedModel);
 
     try {
       const res = await fetch("/api/harmonize", {
@@ -110,6 +155,7 @@ const MLPage: React.FC = () => {
           HarmonAIzer
         </h1>
       </header>
+      
       <div style={cardStyle}>
         <h2 style={{
           color: "#1976d2",
@@ -118,15 +164,36 @@ const MLPage: React.FC = () => {
           fontSize: 28,
           letterSpacing: "0.03em"
         }}>
-          ML Harmonizer
+          🎵 MIDI Harmonizer
         </h2>
+        
+        {/* File Upload */}
+        <label style={labelStyle}>Upload MIDI File:</label>
         <input
           type="file"
-          accept=".mid,audio/midi"
+          accept=".mid,.midi,audio/midi"
           ref={fileInputRef}
           onChange={handleFileChange}
           style={inputStyle}
         />
+        
+        {/* Model Selection */}
+        <label style={labelStyle}>Harmonization Model:</label>
+        <select
+          value={selectedModel}
+          onChange={handleModelChange}
+          style={selectStyle}
+        >
+          <option value="creative">Creative Engine (Rule-Based)</option>
+          <option value="bach">Bach Neural Network</option>
+        </select>
+        
+        {/* Model Description */}
+        <div style={modelInfoStyle}>
+          {modelDescriptions[selectedModel]}
+        </div>
+        
+        {/* Harmonize Button */}
         <button
           onClick={handleHarmonize}
           disabled={!inputMidi || loading}
@@ -136,8 +203,10 @@ const MLPage: React.FC = () => {
             pointerEvents: !inputMidi || loading ? "none" : "auto"
           }}
         >
-          {loading ? "Harmonizing..." : "Harmonize"}
+          {loading ? `Harmonizing with ${selectedModel === 'creative' ? 'Creative Engine' : 'Bach Neural Network'}...` : "Harmonize MIDI"}
         </button>
+        
+        {/* Download Link */}
         {harmonizedUrl && (
           <a
             href={harmonizedUrl}
@@ -153,7 +222,7 @@ const MLPage: React.FC = () => {
               fontSize: 18,
             }}
           >
-            Download Harmonized MIDI
+            📥 Download Harmonized MIDI
           </a>
         )}
       </div>
