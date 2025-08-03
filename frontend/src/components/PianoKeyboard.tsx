@@ -2,9 +2,13 @@ import React, { useState, useEffect } from "react";
 import Soundfont from "soundfont-player";
 
 type PianoKeyboardProps = {
-  onPlayNote: (midi: number) => void;
+  onNoteOn: (midi: number, time: number) => void;
+  onNoteOff: (midi: number, time: number) => void;
   lowNote: number;
   highNote: number;
+  isRecording: boolean;
+  startTime: number | null;
+  instrument: string;
 };
 
 const KEYBOARD_CHROMATIC = [
@@ -24,23 +28,46 @@ function midiToNoteName(midi: number) {
 
 const isWhite = (midi: number) => !midiToNoteName(midi).includes("#");
 
-const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, highNote }) => {
+const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ 
+  onNoteOn, 
+  onNoteOff, 
+  lowNote, 
+  highNote, 
+  isRecording, 
+  startTime,
+  instrument
+}) => {
   const [pressed, setPressed] = useState<Set<number>>(new Set());
   const [audio, setAudio] = useState<any>(null);
+  const [activeAudioNotes, setActiveAudioNotes] = useState<Map<number, any>>(new Map());
 
   useEffect(() => {
     let isMounted = true;
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    Soundfont.instrument(ctx, "acoustic_grand_piano").then((inst) => {
+    Soundfont.instrument(ctx, instrument as any).then((inst) => {
       if (isMounted) setAudio(inst);
     });
     return () => { isMounted = false; ctx.close(); };
-  }, []);
+  }, [instrument]);
+
+  const getCurrentTime = () => {
+    if (isRecording && startTime !== null) {
+      return performance.now() - startTime;
+    }
+    return 0;
+  };
 
   const handleDown = (midi: number) => {
+    if (pressed.has(midi)) return; // Prevent multiple triggers for same note
     setPressed(prev => new Set(prev).add(midi));
-    if (audio) audio.play(midiToNoteName(midi));
-    onPlayNote(midi);
+    if (audio) {
+      const note = audio.play(midiToNoteName(midi));
+      // Store the note instance for later stopping
+      if (note && note.stop) {
+        setActiveAudioNotes(prev => new Map(prev).set(midi, note));
+      }
+    }
+    onNoteOn(midi, getCurrentTime());
   };
 
   const handleUp = (midi: number) => {
@@ -49,13 +76,26 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
       next.delete(midi);
       return next;
     });
+    
+    // Stop the audio note
+    const activeNote = activeAudioNotes.get(midi);
+    if (activeNote && activeNote.stop) {
+      activeNote.stop();
+    }
+    setActiveAudioNotes(prev => {
+      const next = new Map(prev);
+      next.delete(midi);
+      return next;
+    });
+    
+    onNoteOff(midi, getCurrentTime());
   };
 
   useEffect(() => {
     const downHandler = (e: KeyboardEvent) => {
       if (e.repeat) return; // Prevent repeated firing when holding a key
       const mapping = KEYBOARD_LAYOUT.find(k => k.key === e.key);
-      if (mapping && mapping.midi >= lowNote && mapping.midi <= highNote) {
+      if (mapping && mapping.midi >= lowNote && mapping.midi <= highNote && !pressed.has(mapping.midi)) {
         handleDown(mapping.midi);
       }
     };
@@ -72,7 +112,7 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
       window.removeEventListener("keyup", upHandler);
     };
     // eslint-disable-next-line
-  }, [audio, lowNote, highNote, onPlayNote]);
+  }, [audio, lowNote, highNote, onNoteOn, onNoteOff, pressed]);
 
   const WHITE_KEY_WIDTH = 36;
   const BLACK_KEY_WIDTH = 24;
@@ -95,8 +135,10 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
           style={{
             width: WHITE_KEY_WIDTH,
             height: WHITE_KEY_HEIGHT,
-            background: pressed.has(key.midi) ? "#b3e5fc" : "#fff",
-            border: "1px solid #bbb",
+            background: pressed.has(key.midi) 
+              ? "linear-gradient(135deg, #4fd1c5 0%, #38bdf8 50%, #1976d2 100%)" 
+              : "linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #e2e8f0 100%)",
+            border: pressed.has(key.midi) ? "2px solid #4fd1c5" : "1px solid #cbd5e0",
             marginLeft: i === 0 ? 0 : -1,
             zIndex: 1,
             display: "flex",
@@ -105,16 +147,19 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
             fontFamily: "'Montserrat', 'Arial Rounded MT Bold', Arial, sans-serif",
             fontSize: 22,
             borderRadius: 6,
-            boxShadow: pressed.has(key.midi) ? "0 0 8px #4fd1c5" : "none",
+            boxShadow: pressed.has(key.midi) 
+              ? "0 0 15px rgba(79, 209, 197, 0.6), 0 4px 15px rgba(0,0,0,0.2)" 
+              : "0 2px 8px rgba(0,0,0,0.1)",
             position: "relative",
-            transition: "background 0.1s, box-shadow 0.1s"
+            transition: "all 0.2s ease",
+            transform: pressed.has(key.midi) ? "translateY(2px)" : "translateY(0)"
           }}
           onMouseDown={() => handleDown(key.midi)}
           onMouseUp={() => handleUp(key.midi)}
           onMouseLeave={() => handleUp(key.midi)}
         >
           <span style={{
-            color: "#888",
+            color: pressed.has(key.midi) ? "#ffffff" : "#64748b",
             fontSize: 18,
             marginBottom: 10,
             position: "absolute",
@@ -122,19 +167,21 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
             left: 0,
             right: 0,
             textAlign: "center",
-            width: "100%"
+            width: "100%",
+            fontWeight: pressed.has(key.midi) ? 600 : 400,
+            textShadow: pressed.has(key.midi) ? "0 0 8px rgba(255,255,255,0.5)" : "none"
           }}>
             {key.key}
           </span>
         </div>
       ))}
       {/* Black keys */}
-      {blackKeys.map((key, i) => {
+      {blackKeys.map((key) => {
         const prevWhiteIdx = whiteKeys.findIndex(wk => wk.midi > key.midi) - 1;
         if (prevWhiteIdx < 0) return null;
-        // Add extra space between black keys
-        const EXTRA_SPACE = 3; // <-- Change this value to increase/decrease spacing
-        const left = (prevWhiteIdx + 1) * (WHITE_KEY_WIDTH - 1) - (BLACK_KEY_WIDTH / 2) + i * EXTRA_SPACE;
+        // Position black keys relative to white keys, using original EXTRA_SPACE logic
+        const EXTRA_SPACE = 2; // Space added between white keys for visual separation
+        const left = (prevWhiteIdx + 1) * (WHITE_KEY_WIDTH - 1) - (BLACK_KEY_WIDTH / 2) + prevWhiteIdx * EXTRA_SPACE;
 
         return (
           <div
@@ -142,9 +189,11 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
             style={{
               width: BLACK_KEY_WIDTH,
               height: BLACK_KEY_HEIGHT,
-              background: pressed.has(key.midi) ? "#0288d1" : "#222",
+              background: pressed.has(key.midi) 
+                ? "linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 50%, #ff4f4f 100%)" 
+                : "linear-gradient(135deg, #1e293b 0%, #334155 50%, #0f172a 100%)",
               color: "#fff",
-              border: "1px solid #333",
+              border: pressed.has(key.midi) ? "2px solid #ff6b6b" : "1px solid #475569",
               position: "absolute",
               left,
               zIndex: 2,
@@ -155,9 +204,12 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
               fontFamily: "'Montserrat', 'Arial Rounded MT Bold', Arial, sans-serif",
               fontSize: 16,
               borderRadius: 4,
-              boxShadow: pressed.has(key.midi) ? "0 0 8px #4fd1c5" : "0 2px 8px #111",
+              boxShadow: pressed.has(key.midi) 
+                ? "0 0 15px rgba(255, 107, 107, 0.6), 0 4px 15px rgba(0,0,0,0.4)" 
+                : "0 4px 12px rgba(0,0,0,0.3)",
               pointerEvents: "auto",
-              transition: "background 0.1s, box-shadow 0.1s"
+              transition: "all 0.2s ease",
+              transform: pressed.has(key.midi) ? "translateY(2px)" : "translateY(0)"
             }}
             onMouseDown={() => handleDown(key.midi)}
             onMouseUp={() => handleUp(key.midi)}
@@ -172,7 +224,9 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({ onPlayNote, lowNote, high
               left: 0,
               right: 0,
               textAlign: "center",
-              width: "100%"
+              width: "100%",
+              fontWeight: pressed.has(key.midi) ? 600 : 400,
+              textShadow: pressed.has(key.midi) ? "0 0 8px rgba(255,255,255,0.8)" : "0 1px 2px rgba(0,0,0,0.5)"
             }}>
               {key.key}
             </span>
