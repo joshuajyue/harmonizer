@@ -405,3 +405,10 @@ logs/
 # Package files for distribution
 *.tar.gz
 *.whl
+
+# model
+# model files
+*.pt
+*.pth
+# model checkpoints
+checkpoints/
