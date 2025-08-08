@@ -30,18 +30,100 @@ const INSTRUMENTS = [
   "synth_drum"
 ];
 
-function playClick(frequency = 1000, duration = 0.05) {
+function playClick(frequency = 1000, duration = 0.05, soundType = "click") {
   const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = "sine";
-  osc.frequency.value = frequency;
-  gain.gain.value = 0.2;
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + duration);
-  osc.onended = () => ctx.close();
+  
+  switch (soundType) {
+    case "beep":
+      const beepOsc = ctx.createOscillator();
+      const beepGain = ctx.createGain();
+      beepOsc.type = "sine";
+      beepOsc.frequency.value = frequency;
+      beepGain.gain.setValueAtTime(0.3, ctx.currentTime);
+      beepGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+      beepOsc.connect(beepGain);
+      beepGain.connect(ctx.destination);
+      beepOsc.start();
+      beepOsc.stop(ctx.currentTime + duration);
+      break;
+      
+    case "boop":
+      const boopOsc = ctx.createOscillator();
+      const boopGain = ctx.createGain();
+      boopOsc.type = "triangle";
+      boopOsc.frequency.setValueAtTime(frequency * 0.8, ctx.currentTime);
+      boopOsc.frequency.exponentialRampToValueAtTime(frequency * 0.6, ctx.currentTime + duration);
+      boopGain.gain.value = 0.25;
+      boopOsc.connect(boopGain);
+      boopGain.connect(ctx.destination);
+      boopOsc.start();
+      boopOsc.stop(ctx.currentTime + duration);
+      break;
+      
+    case "wood":
+      const woodOsc = ctx.createOscillator();
+      const woodGain = ctx.createGain();
+      const woodFilter = ctx.createBiquadFilter();
+      woodOsc.type = "square";
+      woodOsc.frequency.value = frequency * 2;
+      woodFilter.type = "bandpass";
+      woodFilter.frequency.value = frequency * 1.5;
+      woodGain.gain.setValueAtTime(0.4, ctx.currentTime);
+      woodGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration * 0.3);
+      woodOsc.connect(woodFilter);
+      woodFilter.connect(woodGain);
+      woodGain.connect(ctx.destination);
+      woodOsc.start();
+      woodOsc.stop(ctx.currentTime + duration * 0.3);
+      break;
+      
+    case "tick":
+      const tickOsc = ctx.createOscillator();
+      const tickGain = ctx.createGain();
+      tickOsc.type = "square";
+      tickOsc.frequency.value = frequency * 4;
+      tickGain.gain.setValueAtTime(0.2, ctx.currentTime);
+      tickGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration * 0.2);
+      tickOsc.connect(tickGain);
+      tickGain.connect(ctx.destination);
+      tickOsc.start();
+      tickOsc.stop(ctx.currentTime + duration * 0.2);
+      break;
+      
+    case "cowbell":
+      const cowOsc1 = ctx.createOscillator();
+      const cowOsc2 = ctx.createOscillator();
+      const cowGain = ctx.createGain();
+      cowOsc1.type = "square";
+      cowOsc2.type = "square";
+      cowOsc1.frequency.value = frequency * 2.5;
+      cowOsc2.frequency.value = frequency * 3.2;
+      cowGain.gain.setValueAtTime(0.3, ctx.currentTime);
+      cowGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration * 0.5);
+      cowOsc1.connect(cowGain);
+      cowOsc2.connect(cowGain);
+      cowGain.connect(ctx.destination);
+      cowOsc1.start();
+      cowOsc2.start();
+      cowOsc1.stop(ctx.currentTime + duration * 0.5);
+      cowOsc2.stop(ctx.currentTime + duration * 0.5);
+      break;
+      
+    default: // "click"
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = frequency;
+      gain.gain.value = 0.2;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+      break;
+  }
+  
+  // Clean up context after use
+  setTimeout(() => ctx.close(), (duration + 0.1) * 1000);
 }
 
 const MidiInput: React.FC = () => {
@@ -57,6 +139,7 @@ const MidiInput: React.FC = () => {
   const [instrument, setInstrument] = useState("acoustic_grand_piano");
   const [midiBlob, setMidiBlob] = useState<Blob | null>(null);
   const [harmonizerOpen, setHarmonizerOpen] = useState(false);
+  const [metronomeSound, setMetronomeSound] = useState("click");
   
   // Refs for measuring layout
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -146,20 +229,20 @@ const MidiInput: React.FC = () => {
   // Play click on count-in and on each beat during recording
   useEffect(() => {
     if (isCountingIn && count < 4) {
-      playClick(1200); // Higher pitch for count-in
+      playClick(1200, 0.05, metronomeSound); // Count-in
     }
     if (isRecording) {
       const beatInterval = getSixteenthNoteMs() * 4; // Quarter note
       const currentBeat = Math.floor(cursorTime / beatInterval);
       if (currentBeat !== lastBeatRef.current) {
-        playClick(800); // Lower pitch for recording
+        playClick(800, 0.05, metronomeSound); // Recording
         lastBeatRef.current = currentBeat;
       }
     } else {
       lastBeatRef.current = -1; // Reset when not recording
     }
     // eslint-disable-next-line
-  }, [count, cursorTime, isCountingIn, isRecording]);
+  }, [count, cursorTime, isCountingIn, isRecording, metronomeSound]);
 
   // Quantize function: snap to nearest 16th note
   const quantizeTime = (timeMs: number) => {
@@ -253,7 +336,7 @@ const MidiInput: React.FC = () => {
       for (let i = 0; i < numBeats; i++) {
         const beatTime = i * beatInterval;
         const clickTimeout = window.setTimeout(() => {
-          playClick(900); // Lower pitch for replay metronome
+          playClick(800, 0.05, metronomeSound); // Use same sound as recording
         }, beatTime);
         replayTimeouts.current.push(clickTimeout);
       }
@@ -366,6 +449,14 @@ const MidiInput: React.FC = () => {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+
+  const deleteMelody = () => {
+    setNotes([]);
+    setMidiBlob(null);
+    setCursorTime(0);
+    startTimeRef.current = null;
+  };
+
   // --- Piano roll grid with more notes ---
   const renderPianoRoll = (availableHeight: number) => {
     const width = 1280;
@@ -585,82 +676,7 @@ const MidiInput: React.FC = () => {
           boxSizing: "border-box",
           flexShrink: 0 // Prevent controls from shrinking
         }}>
-        {/* Settings Row */}
-        <div style={{ 
-          display: "flex", 
-          gap: "min(20px, 2vw)", 
-          alignItems: "center", 
-          flexWrap: "wrap",
-          justifyContent: "center",
-          width: "100%"
-        }}>
-          <label style={{ 
-            color: "#e2e8f0", 
-            fontWeight: 600, 
-            fontSize: "min(16px, 4vw)",
-            textShadow: "0 0 10px rgba(79, 209, 197, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            whiteSpace: "nowrap"
-          }}>
-            Tempo:
-            <input
-              type="number"
-              min={30}
-              max={300}
-              value={tempo}
-              onChange={e => setTempo(Number(e.target.value))}
-              style={{ 
-                width: "min(80px, 20vw)", 
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: "2px solid rgba(79, 209, 197, 0.3)",
-                background: "rgba(255, 255, 255, 0.1)",
-                color: "#fff",
-                fontSize: "min(16px, 4vw)",
-                textAlign: "center",
-                boxShadow: "0 0 10px rgba(79, 209, 197, 0.2)"
-              }}
-            />
-            <span>BPM</span>
-          </label>
-          
-          <label style={{ 
-            color: "#e2e8f0", 
-            fontWeight: 600, 
-            fontSize: "min(16px, 4vw)",
-            textShadow: "0 0 10px rgba(79, 209, 197, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            whiteSpace: "nowrap"
-          }}>
-            Instrument:
-            <select
-              value={instrument}
-              onChange={e => setInstrument(e.target.value)}
-              style={{ 
-                fontSize: "min(14px, 3.5vw)", 
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: "2px solid rgba(79, 209, 197, 0.3)",
-                background: "rgba(255, 255, 255, 0.1)",
-                color: "#fff",
-                boxShadow: "0 0 10px rgba(79, 209, 197, 0.2)",
-                minWidth: "min(180px, 35vw)",
-                maxWidth: "220px"
-              }}
-            >
-              {INSTRUMENTS.map(inst => (
-                <option key={inst} value={inst} style={{ background: "#1a1a2e", color: "#fff" }}>
-                  {inst.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
+        
         {/* Transport Controls Row */}
         <div style={{ 
           display: "flex", 
@@ -750,6 +766,32 @@ const MidiInput: React.FC = () => {
           </button>
           
           <button 
+            onClick={deleteMelody} 
+            disabled={notes.length === 0}
+            style={{
+              background: (notes.length === 0) 
+                ? "rgba(100, 100, 100, 0.5)" 
+                : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "12px 20px",
+              fontSize: "min(16px, 4vw)",
+              fontWeight: 600,
+              cursor: (notes.length === 0) ? "not-allowed" : "pointer",
+              transition: "all 0.2s",
+              boxShadow: (notes.length === 0) 
+                ? "none" 
+                : "0 0 15px rgba(239, 68, 68, 0.4), 0 4px 15px rgba(0,0,0,0.2)",
+              transform: (notes.length === 0) ? "none" : "translateY(-1px)",
+              minWidth: "min(100px, 25vw)",
+              maxWidth: "140px"
+            }}
+          >
+            Delete
+          </button>
+          
+          <button 
             onClick={exportToMidi} 
             disabled={notes.length === 0}
             style={{
@@ -813,6 +855,11 @@ const MidiInput: React.FC = () => {
           isRecording={isRecording}
           startTime={startTimeRef.current}
           instrument={instrument}
+          onInstrumentChange={setInstrument}
+          tempo={tempo}
+          onTempoChange={setTempo}
+          metronomeSound={metronomeSound}
+          onMetronomeSoundChange={setMetronomeSound}
         />
       </div>
 
