@@ -1,11 +1,10 @@
 services:
   api:
-    build: ./backend          # uses backend/Dockerfile
-    ports: ["8000:8000"]      # host:container
-    volumes: ["./backend:/app"]  # live-mount for hot reload
-  model:
-    build: ./model-service
-    ports: ["9000:9000"]
-  # web:
-  #   build: ./frontend         # (you’ll add a simple Node-alpine Dockerfile)
-  #   ports: ["5173:5173"]
+    build: ./backend
+    ports: ["8000:8000"]
+
+  web:
+    build: ./frontend
+    ports: ["5173:80"]
+    depends_on:
+      - api

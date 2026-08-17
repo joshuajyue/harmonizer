@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import Soundfont from "soundfont-player";
+import Soundfont, { type SoundfontInstrument, type SoundfontNode } from "soundfont-player";
 import Settings from "./Settings";
+import { createAudioContext } from "../audio/audioContext";
 
 type PianoKeyboardProps = {
   onNoteOn: (midi: number, time: number) => void;
@@ -49,8 +50,8 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
   onMetronomeSoundChange
 }) => {
   const [pressed, setPressed] = useState<Set<number>>(new Set());
-  const [audio, setAudio] = useState<any>(null);
-  const [activeAudioNotes, setActiveAudioNotes] = useState<Map<number, any>>(new Map());
+  const [audio, setAudio] = useState<SoundfontInstrument | null>(null);
+  const [activeAudioNotes, setActiveAudioNotes] = useState<Map<number, SoundfontNode>>(new Map());
   const [isConfigMode, setIsConfigMode] = useState(false);
   const [customKeyMappings, setCustomKeyMappings] = useState<Map<number, string>>(
     new Map(KEYBOARD_LAYOUT.map(k => [k.midi, k.key]))
@@ -61,8 +62,8 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    Soundfont.instrument(ctx, instrument as any).then((inst) => {
+    const ctx = createAudioContext();
+    Soundfont.instrument(ctx, instrument).then((inst) => {
       if (isMounted) setAudio(inst);
     });
     return () => { isMounted = false; ctx.close(); };
@@ -80,10 +81,7 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
     setPressed(prev => new Set(prev).add(midi));
     if (audio) {
       const note = audio.play(midiToNoteName(midi));
-      // Store the note instance for later stopping
-      if (note && note.stop) {
-        setActiveAudioNotes(prev => new Map(prev).set(midi, note));
-      }
+      setActiveAudioNotes(prev => new Map(prev).set(midi, note));
     }
     onNoteOn(midi, getCurrentTime());
   };
@@ -95,11 +93,8 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
       return next;
     });
     
-    // Stop the audio note
-    const activeNote = activeAudioNotes.get(midi);
-    if (activeNote && activeNote.stop) {
-      activeNote.stop();
-    }
+    // Stop the audio note, if one is currently playing for this key
+    activeAudioNotes.get(midi)?.stop();
     setActiveAudioNotes(prev => {
       const next = new Map(prev);
       next.delete(midi);
@@ -161,6 +156,9 @@ const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
       window.removeEventListener("keydown", downHandler);
       window.removeEventListener("keyup", upHandler);
     };
+    // handleDown/handleUp intentionally omitted: they're recreated each render but only
+    // close over state already listed below, so adding them would just force a needless resubscribe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audio, lowNote, highNote, onNoteOn, onNoteOff, pressed, isConfigMode, customKeyMappings, remappingNote, allowSharedKeybinds]);
 
   // Reset to default when shared keybinds is turned off

@@ -1,38 +1,53 @@
 # HarmonAIzer
 
-A full-stack MIDI harmonizer that adds chord accompaniment to recorded or uploaded melodies. The React interface
-sends MIDI to a FastAPI service, which detects the key and generates a downloadable harmonized MIDI file.
+A full-stack MIDI harmonizer: record or upload a melody in the browser, and get back a
+downloadable MIDI file with a generated chord accompaniment track.
 
-Choose between:
+Two harmonization engines are available behind the same API:
 
-- **Creative Engine**: derives chord choices from key and melody features using music-theory rules.
-- **Bach Model**: runs a PyTorch chord model trained from Bach chorales when the model artifact is available.
+- **Creative Engine** - a deterministic music-theory engine. It detects the key, then
+  picks the best-fitting diatonic chord for each measure using chord-tone/passing-tone
+  scoring plus a bonus for common functional progressions (e.g. V -> I).
+- **Bach Neural Network** - a small bidirectional LSTM trained on ~400 Bach chorales.
+  Unlike a rule engine, it's trained on the *actual* 4-part harmony Bach wrote (extracted
+  via `music21`'s `chordify()`), not just melody heuristics, so it learns genuine
+  harmonic style rather than reproducing the Creative Engine's own rules.
 
 ## Architecture
 
-- `frontend/`: React 19, TypeScript, Vite, Web MIDI tooling, and an interactive piano.
-- `backend/`: FastAPI endpoint for MIDI upload, key detection, harmonization, and MIDI export.
-- `backend/data_processor.py`: `music21` feature extraction and rule-based chord labels.
-- `backend/model.py`: PyTorch sequence model used by the Bach engine.
-- `backend/midi_utils.py`: writes generated chord tracks into the returned MIDI.
+- `frontend/` - React 19 + TypeScript + Vite. Records melodies from a virtual/MIDI
+  keyboard onto a piano-roll grid, exports MIDI, and calls the backend to harmonize.
+- `backend/` - FastAPI service: MIDI upload -> key detection -> chord prediction -> MIDI
+  export with a generated accompaniment track.
+  - `data_processor.py` - melody feature extraction and the rule-based Creative Engine.
+  - `model.py` - the BiLSTM chord model architecture.
+  - `train.py` - trains the model on the Bach corpus and saves `models/chord_harmonizer.pt`.
+  - `midi_utils.py` - renders a predicted chord sequence into a MIDI accompaniment track.
 
-## Technical highlights
+## Run with Docker Compose
 
-- Preserves the uploaded melody while adding a generated chord track.
-- Supports deterministic rule-based output and learned chord prediction behind the same API.
-- Detects the input key before selecting and rendering diatonic chord accompaniment.
-- Provides in-browser MIDI recording, playback controls, model selection, and download.
+The simplest way to run the whole stack:
 
-## Run locally
+```powershell
+docker compose up --build
+```
 
-Python 3.12 and Node.js are recommended.
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+
+The frontend container serves the built app via nginx, which also reverse-proxies
+`/api/*` to the backend container - no CORS configuration needed.
+
+## Run locally for development
+
+Python 3.12+ and Node.js 20+ are recommended.
 
 ```powershell
 # Backend
 cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install fastapi "uvicorn[standard]" python-multipart torch numpy music21 mido
+pip install -r requirements.txt
 uvicorn main:app --reload
 
 # Frontend (new terminal)
@@ -41,4 +56,19 @@ npm install
 npm run dev
 ```
 
-The frontend currently calls the backend at `http://localhost:8000`.
+Open http://localhost:5173 - Vite's dev server proxies `/api/*` to `http://localhost:8000`
+(see `vite.config.ts`), so the frontend and backend can run independently.
+
+## Retraining the Bach model
+
+The trained checkpoint is committed at `backend/models/chord_harmonizer.pt`, so this step
+is optional. To retrain from scratch:
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+python train.py
+```
+
+This reprocesses the Bach corpus bundled with `music21`, trains for up to a few hundred
+epochs with early stopping, and overwrites `models/chord_harmonizer.pt`.

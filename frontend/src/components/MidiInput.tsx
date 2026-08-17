@@ -1,118 +1,18 @@
 import React, { useEffect, useState, useRef } from "react";
 import PianoKeyboard from "./PianoKeyboard";
 import HarmonizerPanel from "./HarmonizerPanel";
+import PianoRoll from "./PianoRoll";
 import Soundfont from "soundfont-player";
 import { Midi } from "@tonejs/midi";
-
-interface MidiNote {
-  midi: number;
-  startTime: number;
-  endTime?: number;
-  duration?: number;
-}
-
-const NUM_BARS = 8;
-const DIVISIONS_PER_BAR = 16;
-const TOTAL_BOXES = NUM_BARS * DIVISIONS_PER_BAR;
-const MIDI_LOW = 48; // C3
-const MIDI_HIGH = 79; // G5
-const PITCHES = MIDI_HIGH - MIDI_LOW + 1; // 32
-
-function playClick(frequency = 1000, duration = 0.05, soundType = "click") {
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  
-  switch (soundType) {
-    case "beep":
-      const beepOsc = ctx.createOscillator();
-      const beepGain = ctx.createGain();
-      beepOsc.type = "sine";
-      beepOsc.frequency.value = frequency;
-      beepGain.gain.setValueAtTime(0.3, ctx.currentTime);
-      beepGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-      beepOsc.connect(beepGain);
-      beepGain.connect(ctx.destination);
-      beepOsc.start();
-      beepOsc.stop(ctx.currentTime + duration);
-      break;
-      
-    case "boop":
-      const boopOsc = ctx.createOscillator();
-      const boopGain = ctx.createGain();
-      boopOsc.type = "triangle";
-      boopOsc.frequency.setValueAtTime(frequency * 0.8, ctx.currentTime);
-      boopOsc.frequency.exponentialRampToValueAtTime(frequency * 0.6, ctx.currentTime + duration);
-      boopGain.gain.value = 0.25;
-      boopOsc.connect(boopGain);
-      boopGain.connect(ctx.destination);
-      boopOsc.start();
-      boopOsc.stop(ctx.currentTime + duration);
-      break;
-      
-    case "wood":
-      const woodOsc = ctx.createOscillator();
-      const woodGain = ctx.createGain();
-      const woodFilter = ctx.createBiquadFilter();
-      woodOsc.type = "square";
-      woodOsc.frequency.value = frequency * 2;
-      woodFilter.type = "bandpass";
-      woodFilter.frequency.value = frequency * 1.5;
-      woodGain.gain.setValueAtTime(0.4, ctx.currentTime);
-      woodGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration * 0.3);
-      woodOsc.connect(woodFilter);
-      woodFilter.connect(woodGain);
-      woodGain.connect(ctx.destination);
-      woodOsc.start();
-      woodOsc.stop(ctx.currentTime + duration * 0.3);
-      break;
-      
-    case "tick":
-      const tickOsc = ctx.createOscillator();
-      const tickGain = ctx.createGain();
-      tickOsc.type = "square";
-      tickOsc.frequency.value = frequency * 4;
-      tickGain.gain.setValueAtTime(0.2, ctx.currentTime);
-      tickGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration * 0.2);
-      tickOsc.connect(tickGain);
-      tickGain.connect(ctx.destination);
-      tickOsc.start();
-      tickOsc.stop(ctx.currentTime + duration * 0.2);
-      break;
-      
-    case "cowbell":
-      const cowOsc1 = ctx.createOscillator();
-      const cowOsc2 = ctx.createOscillator();
-      const cowGain = ctx.createGain();
-      cowOsc1.type = "square";
-      cowOsc2.type = "square";
-      cowOsc1.frequency.value = frequency * 2.5;
-      cowOsc2.frequency.value = frequency * 3.2;
-      cowGain.gain.setValueAtTime(0.3, ctx.currentTime);
-      cowGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration * 0.5);
-      cowOsc1.connect(cowGain);
-      cowOsc2.connect(cowGain);
-      cowGain.connect(ctx.destination);
-      cowOsc1.start();
-      cowOsc2.start();
-      cowOsc1.stop(ctx.currentTime + duration * 0.5);
-      cowOsc2.stop(ctx.currentTime + duration * 0.5);
-      break;
-      
-    default: // "click"
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = frequency;
-      gain.gain.value = 0.2;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + duration);
-      break;
-  }
-  
-  // Clean up context after use
-  setTimeout(() => ctx.close(), (duration + 0.1) * 1000);
-}
+import { playClick } from "../audio/metronome";
+import { createAudioContext } from "../audio/audioContext";
+import {
+  MIDI_LOW,
+  MIDI_HIGH,
+  getSixteenthNoteMs,
+  getTotalDurationMs,
+  type MidiNote,
+} from "../musicConstants";
 
 const MidiInput: React.FC = () => {
   const [tempo, setTempo] = useState<number>(120);
@@ -163,7 +63,7 @@ const MidiInput: React.FC = () => {
   useEffect(() => {
     if (navigator.requestMIDIAccess) {
       navigator.requestMIDIAccess().then((midiAccess) => {
-        for (let input of midiAccess.inputs.values()) {
+        for (const input of midiAccess.inputs.values()) {
           input.onmidimessage = () => {};
         }
       });
@@ -189,11 +89,11 @@ const MidiInput: React.FC = () => {
 
   // Stop recording after 8 bars (128 16th notes)
   useEffect(() => {
-    if (isRecording && cursorTime >= getTotalDurationMs()) {
+    if (isRecording && cursorTime >= getTotalDurationMs(tempo)) {
       setIsRecording(false);
-      setCursorTime(getTotalDurationMs());
+      setCursorTime(getTotalDurationMs(tempo));
     }
-  }, [isRecording, cursorTime]);
+  }, [isRecording, cursorTime, tempo]);
 
   // Cursor animation (smooth)
   useEffect(() => {
@@ -201,7 +101,7 @@ const MidiInput: React.FC = () => {
     const animate = () => {
       if (isRecording && startTimeRef.current !== null) {
         const elapsed = performance.now() - startTimeRef.current;
-        setCursorTime(Math.min(elapsed, getTotalDurationMs()));
+        setCursorTime(Math.min(elapsed, getTotalDurationMs(tempo)));
         raf = requestAnimationFrame(animate);
       }
     };
@@ -220,7 +120,7 @@ const MidiInput: React.FC = () => {
       playClick(1200, 0.05, metronomeSound); // Count-in
     }
     if (isRecording) {
-      const beatInterval = getSixteenthNoteMs() * 4; // Quarter note
+      const beatInterval = getSixteenthNoteMs(tempo) * 4; // Quarter note
       const currentBeat = Math.floor(cursorTime / beatInterval);
       if (currentBeat !== lastBeatRef.current) {
         playClick(800, 0.05, metronomeSound); // Recording
@@ -234,18 +134,9 @@ const MidiInput: React.FC = () => {
 
   // Quantize function: snap to nearest 16th note
   const quantizeTime = (timeMs: number) => {
-    const gridMs = getSixteenthNoteMs();
+    const gridMs = getSixteenthNoteMs(tempo);
     return Math.round(timeMs / gridMs) * gridMs;
   };
-
-  // Get duration of a 16th note in ms
-  function getSixteenthNoteMs() {
-    return (60 / tempo) * 1000 / 4;
-  }
-  // Get total duration for 8 bars in ms
-  function getTotalDurationMs() {
-    return getSixteenthNoteMs() * TOTAL_BOXES;
-  }
 
   // Start recording handler
   const startRecording = () => {
@@ -272,7 +163,6 @@ const MidiInput: React.FC = () => {
 
   const replayNotes = async () => {
     if (!midiBlob || !window.AudioContext) {
-      console.log("No MIDI blob or AudioContext available");
       return;
     }
     
@@ -284,8 +174,8 @@ const MidiInput: React.FC = () => {
       const arrayBuffer = await midiBlob.arrayBuffer();
       const midi = new Midi(arrayBuffer);
       
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const inst = await Soundfont.instrument(ctx, instrument as any);
+      const ctx = createAudioContext();
+      const inst = await Soundfont.instrument(ctx, instrument);
       
       // Clear any existing timeouts
       replayTimeouts.current.forEach(timeout => clearTimeout(timeout));
@@ -303,7 +193,6 @@ const MidiInput: React.FC = () => {
           
           // Schedule note start
           const startTimeout = window.setTimeout(() => {
-            console.log("Playing MIDI note", note.midi, note.name);
             inst.play(note.name, ctx.currentTime, { duration: note.duration });
           }, startDelay);
           replayTimeouts.current.push(startTimeout);
@@ -317,8 +206,8 @@ const MidiInput: React.FC = () => {
       });
       
       // Schedule metronome clicks
-      const totalDuration = getTotalDurationMs();
-      const beatInterval = getSixteenthNoteMs() * 4; // quarter note
+      const totalDuration = getTotalDurationMs(tempo);
+      const beatInterval = getSixteenthNoteMs(tempo) * 4; // quarter note
       const numBeats = Math.ceil(totalDuration / beatInterval);
 
       for (let i = 0; i < numBeats; i++) {
@@ -346,7 +235,6 @@ const MidiInput: React.FC = () => {
 
   // Handle note on (key press)
   const handleNoteOn = (midi: number, time: number) => {
-    console.log("Note on:", midi, "time:", time, "MIDI range:", MIDI_LOW, "to", MIDI_HIGH);
     if (isCountingIn) {
       // During count-in, treat as first beat (time = 0)
       const newNote: MidiNote = { midi, startTime: 0 };
@@ -360,7 +248,6 @@ const MidiInput: React.FC = () => {
 
   // Handle note off (key release)
   const handleNoteOff = (midi: number, time: number) => {
-    console.log("Note off:", midi, "time:", time, "isRecording:", isRecording);
     if (isRecording && startTimeRef.current !== null) {
       const quantized = quantizeTime(time);
       
@@ -370,8 +257,7 @@ const MidiInput: React.FC = () => {
         // Find last note with this midi that doesn't have endTime set
         for (let i = newNotes.length - 1; i >= 0; i--) {
           if (newNotes[i].midi === midi && !newNotes[i].endTime) {
-            const duration = Math.max(quantized - newNotes[i].startTime, getSixteenthNoteMs());
-            console.log("Setting duration for note:", midi, "duration:", duration);
+            const duration = Math.max(quantized - newNotes[i].startTime, getSixteenthNoteMs(tempo));
             newNotes[i] = {
               ...newNotes[i],
               endTime: quantized,
@@ -387,10 +273,12 @@ const MidiInput: React.FC = () => {
   
   // Auto-generate MIDI when notes change
   useEffect(() => {
-    console.log("Notes changed:", notes);
     if (notes.length > 0) {
       generateMidiBlob();
     }
+    // generateMidiBlob intentionally omitted: it's recreated each render but only reads
+    // `notes`/`tempo`, which are already listed below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, tempo]);
 
   // Generate MIDI blob without downloading
@@ -400,14 +288,12 @@ const MidiInput: React.FC = () => {
       return;
     }
 
-    console.log("Generating MIDI blob for notes:", notes);
     const midi = new Midi();
     const track = midi.addTrack();
     midi.header.setTempo(tempo);
 
     notes.forEach(note => {
-      const duration = note.duration || getSixteenthNoteMs();
-      console.log("Adding note to MIDI:", note.midi, "startTime:", note.startTime, "duration:", duration);
+      const duration = note.duration || getSixteenthNoteMs(tempo);
       track.addNote({
         midi: note.midi,
         time: note.startTime / 1000,
@@ -426,8 +312,6 @@ const MidiInput: React.FC = () => {
       return;
     }
 
-    console.log("Exporting MIDI", notes);
-    
     const url = URL.createObjectURL(midiBlob);
     const a = document.createElement("a");
     a.href = url;
@@ -443,113 +327,6 @@ const MidiInput: React.FC = () => {
     setMidiBlob(null);
     setCursorTime(0);
     startTimeRef.current = null;
-  };
-
-  // --- Piano roll grid with more notes ---
-  const renderPianoRoll = (availableHeight: number) => {
-    const width = 1280;
-    const height = Math.max(200, availableHeight - 20); // Reduced padding for tighter fit
-    const boxWidth = width / TOTAL_BOXES;
-    const boxHeight = height / PITCHES;
-
-    // midiOrder: top row is highest note, bottom is lowest
-    const midiOrder = Array.from({ length: PITCHES }, (_, i) => MIDI_HIGH - i); // Top is G5, bottom is C3
-
-    
-    return (
-      <div style={{ 
-        borderRadius: 12, 
-        padding: 4, 
-        background: "linear-gradient(135deg, rgba(79, 209, 197, 0.1) 0%, rgba(25, 118, 210, 0.1) 100%)",
-        boxShadow: "0 0 20px rgba(79, 209, 197, 0.3), inset 0 0 20px rgba(25, 118, 210, 0.1)"
-      }}>
-        <svg width={width} height={height} style={{ 
-          background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%)", 
-          borderRadius: 8,
-          filter: "drop-shadow(0 0 10px rgba(79, 209, 197, 0.2))"
-        }}>
-          {/* Grid */}
-          {Array.from({ length: TOTAL_BOXES + 1 }).map((_, i) => (
-            <line
-              key={`v${i}`}
-              x1={i * boxWidth}
-              y1={0}
-              x2={i * boxWidth}
-              y2={height}
-              stroke={i % DIVISIONS_PER_BAR === 0 ? "rgba(79, 209, 197, 0.6)" : "rgba(79, 209, 197, 0.2)"}
-              strokeWidth={i % DIVISIONS_PER_BAR === 0 ? 2 : 1}
-            />
-          ))}
-          {Array.from({ length: PITCHES + 1 }).map((_, i) => (
-            <line
-              key={`h${i}`}
-              x1={0}
-              y1={i * boxHeight}
-              x2={width}
-              y2={i * boxHeight}
-              stroke="rgba(25, 118, 210, 0.3)"
-              strokeWidth={1}
-            />
-          ))}
-          {/* Notes - show as rectangles with proper duration */}
-          {notes.map((note, idx) => {
-            const startCol = Math.round(note.startTime / getSixteenthNoteMs());
-            const duration = note.duration || getSixteenthNoteMs();
-            const durationCols = Math.max(1, Math.round(duration / getSixteenthNoteMs()));
-            
-            const x = startCol * boxWidth;
-            const noteWidth = durationCols * boxWidth - 2; // Small gap between notes
-            
-            const midiIdx = midiOrder.indexOf(note.midi);
-            if (midiIdx === -1) {
-              console.log("Note not found in range:", note.midi, "Available range:", MIDI_LOW, "to", MIDI_HIGH);
-              return null; // Only show notes in C3–G5
-            }
-            const y = midiIdx * boxHeight;
-            
-            return (
-              <rect
-                key={idx}
-                x={x}
-                y={y + 1}
-                width={noteWidth}
-                height={boxHeight - 2}
-                fill="url(#noteGradient)"
-                rx={3}
-                opacity={0.9}
-                filter="drop-shadow(0 0 8px rgba(79, 209, 197, 0.6))"
-              />
-            );
-          })}
-          {/* Moving cursor */}
-          {isRecording && (
-            <rect
-              x={(cursorTime / getTotalDurationMs()) * width}
-              y={0}
-              width={3}
-              height={height}
-              fill="url(#cursorGradient)"
-              opacity={0.9}
-              filter="drop-shadow(0 0 10px rgba(255, 79, 79, 0.8))"
-            />
-          )}
-          
-          {/* Gradient definitions */}
-          <defs>
-            <linearGradient id="noteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#4fd1c5" />
-              <stop offset="50%" stopColor="#38bdf8" />
-              <stop offset="100%" stopColor="#1976d2" />
-            </linearGradient>
-            <linearGradient id="cursorGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#ff6b6b" />
-              <stop offset="50%" stopColor="#ff8e8e" />
-              <stop offset="100%" stopColor="#ff4f4f" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-    );
   };
 
   // --- Move title to top-right ---
@@ -819,7 +596,7 @@ const MidiInput: React.FC = () => {
         boxShadow: "0 0 30px rgba(79, 209, 197, 0.2), inset 0 0 30px rgba(25, 118, 210, 0.1)",
         flexShrink: 0 // Prevent shrinking
       }}>
-        {renderPianoRoll(availableHeight)}
+        <PianoRoll notes={notes} cursorTime={cursorTime} isRecording={isRecording} availableHeight={availableHeight} tempo={tempo} />
       </div>
       {/* Piano at the bottom */}
       <div 

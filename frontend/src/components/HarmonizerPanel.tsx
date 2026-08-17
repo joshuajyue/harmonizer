@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface HarmonizerPanelProps {
   isOpen: boolean;
@@ -6,17 +6,28 @@ interface HarmonizerPanelProps {
   midiBlob: Blob | null;
 }
 
+interface HarmonizerModel {
+  id: string;
+  name: string;
+  description: string;
+  available: boolean;
+}
+
 const HarmonizerPanel: React.FC<HarmonizerPanelProps> = ({ isOpen, onClose, midiBlob }) => {
   const [harmonizedUrl, setHarmonizedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [models, setModels] = useState<HarmonizerModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("creative");
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Model descriptions
-  const modelDescriptions: { [key: string]: string } = {
-    'creative': 'Analyzes melody and applies music theory rules for harmonization',
-    'bach': 'Neural network trained on Bach chorales (if available, falls back to Creative)'
-  };
+  // Load the model list (and availability) from the backend rather than hardcoding it.
+  useEffect(() => {
+    fetch("/api/models")
+      .then((res) => res.json())
+      .then((data: { models: HarmonizerModel[] }) => setModels(data.models ?? []))
+      .catch(() => setModels([]));
+  }, []);
+
+  const selectedModelInfo = models.find((m) => m.id === selectedModel);
 
   const harmonizeMidi = async () => {
     if (!midiBlob) {
@@ -32,7 +43,7 @@ const HarmonizerPanel: React.FC<HarmonizerPanelProps> = ({ isOpen, onClose, midi
       formData.append("midi", midiBlob, "melody.mid");
       formData.append("model", selectedModel);
 
-      const response = await fetch("http://localhost:8000/api/harmonize", {
+      const response = await fetch("/api/harmonize", {
         method: "POST",
         body: formData,
       });
@@ -64,9 +75,9 @@ const HarmonizerPanel: React.FC<HarmonizerPanelProps> = ({ isOpen, onClose, midi
   };
 
   const playHarmonized = () => {
-    if (harmonizedUrl && fileInputRef.current) {
-      // Create a temporary audio element to play the MIDI
-      // Note: This requires a MIDI player or conversion to audio
+    if (harmonizedUrl) {
+      // Note: this relies on the browser's native ability to play a MIDI file URL directly,
+      // which isn't universally supported; downloading and using a MIDI player is the fallback.
       const audio = new Audio(harmonizedUrl);
       audio.play().catch(err => {
         console.error("Could not play harmonized MIDI:", err);
@@ -153,8 +164,11 @@ const HarmonizerPanel: React.FC<HarmonizerPanelProps> = ({ isOpen, onClose, midi
             cursor: "pointer"
           }}
         >
-          <option value="creative">Creative Engine</option>
-          <option value="bach">Bach AI Model</option>
+          {models.map((m) => (
+            <option key={m.id} value={m.id} disabled={!m.available}>
+              {m.name}{!m.available ? " (unavailable)" : ""}
+            </option>
+          ))}
         </select>
         <div style={{
           fontSize: "14px",
@@ -163,7 +177,7 @@ const HarmonizerPanel: React.FC<HarmonizerPanelProps> = ({ isOpen, onClose, midi
           fontStyle: "italic",
           lineHeight: "1.4"
         }}>
-          {modelDescriptions[selectedModel]}
+          {selectedModelInfo?.description}
         </div>
       </div>
 
@@ -264,13 +278,6 @@ const HarmonizerPanel: React.FC<HarmonizerPanelProps> = ({ isOpen, onClose, midi
       }}>
         Upload your recorded melody and get AI-generated chord progressions in Bach's style or using music theory rules.
       </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".mid,.midi"
-        style={{ display: "none" }}
-      />
     </div>
   );
 };

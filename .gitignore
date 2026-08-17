@@ -331,11 +331,6 @@ sketch
 temp_*.mid
 tmp_*.mid
 
-# Model files (optional - include if you want to track trained models)
-# models/*.pt
-# models/*.pth
-# models/*.pkl
-
 # Training data and datasets
 data/raw/
 data/processed/
@@ -406,9 +401,8 @@ logs/
 *.tar.gz
 *.whl
 
-# model
-# model files
+# model checkpoints/artifacts (except the one shipped, correctly-trained model)
 *.pt
 *.pth
-# model checkpoints
+!backend/models/chord_harmonizer.pt
 checkpoints/
