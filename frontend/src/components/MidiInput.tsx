@@ -18,18 +18,6 @@ const MIDI_LOW = 48; // C3
 const MIDI_HIGH = 79; // G5
 const PITCHES = MIDI_HIGH - MIDI_LOW + 1; // 32
 
-const INSTRUMENTS = [
-  "acoustic_grand_piano",
-  "electric_piano_1",
-  "electric_guitar_jazz",
-  "violin",
-  "cello",
-  "flute",
-  "trumpet",
-  "clarinet",
-  "synth_drum"
-];
-
 function playClick(frequency = 1000, duration = 0.05, soundType = "click") {
   const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
   
