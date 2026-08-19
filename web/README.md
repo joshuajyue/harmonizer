@@ -86,10 +86,11 @@ against that set at startup.
 - No known blocking frontend defect is open at this checkpoint.
 - `npm test` covers shortcut collisions, onset-only quantization, live
   loop/tempo/meter configuration, meter-aware count-in scheduling and
-  cancellation, preview-synth voice patches and bass compensation, and the
-  unequal-note-count contract fixture—including sustained-note hit-testing,
-  bulk edits, chord geometry, and violation placement. There is still no
-  automated end-to-end suite for recording or A/B switching.
+  cancellation, Record/Place capture semantics, retriggers and polyphony,
+  preview-synth voice patches and bass compensation, and the unequal-note-count
+  contract fixture—including sustained-note hit-testing, bulk edits, chord
+  geometry, and violation placement. There is still no automated browser-level
+  suite for recording or A/B switching.
 - Web MIDI and microphone behavior still require final checks with physical
   devices and browser permission prompts. The local bass patch also merits a
   subjective laptop-speaker check.
