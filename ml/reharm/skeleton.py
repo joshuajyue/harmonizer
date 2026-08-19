@@ -224,18 +224,61 @@ class Skeleton:
         )
 
 
+#: Where the rules engine needs the tune to sit. SATB ranges are absolute, so
+#: its voicing search simply fails for a melody outside the soprano range and it
+#: returns almost no chords: a tune two octaves low came back with ONE chord for
+#: thirteen bars. That is not a bug in the rules engine, it is what a chorale
+#: voicer should do — but harmony is pitch classes, so the fix is to ask it the
+#: question in a register it can answer.
+SKELETON_WINDOW = (62, 76)
+
+
+def octave_shift_for(melody: Melody, window: tuple[int, int] = SKELETON_WINDOW) -> int:
+    """Whole-octave shift that brings the median melody pitch into `window`."""
+    if not melody.notes:
+        return 0
+    pitches = sorted(note.pitch for note in melody.notes)
+    median = pitches[len(pitches) // 2]
+    low, high = window
+    shift = 0
+    while median + shift < low and max(pitches) + shift + 12 <= 127:
+        shift += 12
+    while median + shift > high and min(pitches) + shift - 12 >= 0:
+        shift -= 12
+    return shift
+
+
+def transpose(melody: Melody, semitones: int) -> Melody:
+    if semitones == 0:
+        return melody
+    return melody.model_copy(update={
+        "notes": [
+            note.model_copy(update={"pitch": max(0, min(127, note.pitch + semitones))})
+            for note in melody.notes
+        ]
+    })
+
+
 def skeleton_from_rules(
     melody: Melody,
     *,
     engine=None,
     min_unit: float = 2.0,
 ) -> Skeleton:
-    """Harmonize with the existing rules engine, then reduce to jazz units."""
+    """Harmonize with the existing rules engine, then reduce to jazz units.
+
+    The melody is octave-normalized before the rules engine sees it and the
+    result is used against the original. That is sound rather than a trick:
+    chords are pitch classes and an octave shift changes none of them, key
+    detection is duration-weighted over pitch classes, and the voicing this
+    package produces is its own. All that changes is whether the chorale voicer
+    could answer the question at all.
+    """
     if engine is None:
         from ..engines.rules import RuleHarmonyEngine
 
         engine = RuleHarmonyEngine()
-    result = engine.harmonize(melody, voice_count=4)
+    result = engine.harmonize(transpose(melody, octave_shift_for(melody)), voice_count=4)
 
     spans: list[ChordSpan] = []
     romans: list[str] = []

@@ -86,6 +86,12 @@ melody
                   └─ engine.py  Harmonization: voices, chords with provenance, violations
 ```
 
+Melodies are octave-normalized before the rules engine sees them and the result
+is used against the original: chords are pitch classes, so an octave changes
+none of them, but the chorale voicer's SATB ranges are absolute and it returns
+almost nothing for a tune outside them. Transcription now normalizes octaves
+upstream; MIDI upload does not, so this package does its own.
+
 * **`chords.py`** — `JazzChord` (core quality + explicit extensions, mirroring
   `contracts.schema.Chord`), chord-symbol parsing, and the avoid-note model.
 * **`data.py`** — the two corpora, downloaded to a gitignored cache.
@@ -153,7 +159,7 @@ chord model, so the engine works from a fresh clone with no corpus.
 ## Tests
 
 ```bash
-pytest ml/reharm            # 130 tests, ~10s
+pytest ml/reharm            # 137 tests, ~12s
 ```
 
 Corpus tests skip themselves when the cache is absent, so CI passes without a

@@ -194,3 +194,64 @@ def test_violations_are_jazz_violations_not_chorale_ones():
         result = JAZZ_REHARM.harmonize(TRADITIONAL[name], temperature=1.2, seed=6)
         for violation in result.violations:
             assert violation.kind in ("melody_conflict", "unresolved_substitution")
+
+
+# ---------------------------------------------------------------------------
+# Register robustness
+# ---------------------------------------------------------------------------
+
+
+def _octave(melody: Melody, octaves: int) -> Melody:
+    return melody.model_copy(update={
+        "notes": [note.model_copy(update={"pitch": note.pitch + 12 * octaves}) for note in melody.notes]
+    })
+
+
+@pytest.mark.parametrize("engine", ENGINES, ids=lambda engine: engine.id)
+def test_octave_shifts_do_not_change_the_harmony(engine):
+    """Harmony is pitch classes, so an octave cannot touch it.
+
+    It could, before: the rules engine that supplies the skeleton voices actual
+    SATB parts and its ranges are absolute, so a melody two octaves low made its
+    voicing search fail and it returned ONE chord for thirteen bars. The
+    skeleton is now octave-normalized before that engine sees it, which is
+    sound precisely because chords are pitch classes. Transcription hands us
+    normalized melodies, but MIDI upload does not.
+    """
+    melody = TRADITIONAL["shenandoah"]
+    reference = [
+        (chord.root, chord.quality) for chord in engine.harmonize(melody, temperature=0.0).chords
+    ]
+    assert reference
+    for octaves in (-2, -1, 1, 2):
+        moved = engine.harmonize(_octave(melody, octaves), temperature=0.0)
+        assert [(chord.root, chord.quality) for chord in moved.chords] == reference
+
+
+@pytest.mark.parametrize("octaves", [-2, -1, 0, 1])
+def test_voicing_never_beats_against_a_low_melody(octaves):
+    """The last-resort voicing used to skip the melody check entirely."""
+    melody = _octave(TRADITIONAL["shenandoah"], octaves)
+    result = JAZZ_REHARM.harmonize(melody, voice_count=4, temperature=1.0, seed=3)
+    soprano = next(voice for voice in result.voices if voice.name == "soprano")
+    windows = [(note.start, note.start + note.duration, note.pitch) for note in soprano.notes]
+    for voice in result.voices[1:-1]:
+        for note in voice.notes:
+            for start, stop, pitch in windows:
+                if not (start - 1e-6 <= note.start < stop - 1e-6):
+                    continue
+                gap = pitch - note.pitch
+                assert abs(gap) >= 2
+                assert not (0 < gap <= 13 and gap % 12 == 1)
+
+
+def test_voicing_follows_the_melody_register():
+    """Where the left hand goes is relative to where the tune is."""
+    def centre(octaves: int) -> float:
+        result = JAZZ_REHARM.harmonize(
+            _octave(TRADITIONAL["shenandoah"], octaves), voice_count=4, temperature=0.0
+        )
+        pitches = [note.pitch for voice in result.voices[1:-1] for note in voice.notes]
+        return sum(pitches) / len(pitches)
+
+    assert centre(1) > centre(0) > centre(-1)

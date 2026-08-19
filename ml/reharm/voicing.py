@@ -268,11 +268,28 @@ def voice_chords(
             if best is not None:
                 break
         if best is None:
-            fallback = arrange([0], span.chord.root, ceiling)
-            best = (0.0, fallback[0] if fallback else [span.chord.root + 48])
+            best = (0.0, _last_resort(span.chord, ceiling, sounding))
         out.append(best[1])
-        previous = best[1]
+        previous = best[1] or previous
     return out
+
+
+def _last_resort(chord: JazzChord, ceiling: int, melody_pitches: Sequence[int]) -> list[int]:
+    """One note, or none at all, when the register cannot hold a voicing.
+
+    The register runs out when the melody sits very low, and the honest answer
+    is then to play less rather than to play something wrong: an accompaniment
+    note that beats against the tune is worse than no accompaniment note, and
+    the bass is still holding the harmony underneath. This path used to skip
+    the clash check entirely, which is exactly how a minor ninth against the
+    melody got into the output of a tune transposed down an octave.
+    """
+    intervals = [interval for interval in (chord.third_interval, chord.seventh_interval, 0, 7) if interval is not None]
+    for interval in intervals:
+        for pitch in reversed(arrange([interval], chord.root, ceiling) or []):
+            if not _clash_with_melody(pitch, melody_pitches):
+                return pitch
+    return []
 
 
 def _omitted_intervals(chord: JazzChord, melody_pitches: Sequence[int]) -> set[int]:
