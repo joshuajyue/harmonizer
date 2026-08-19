@@ -8,6 +8,9 @@ backend/.venv/bin/pip install -r backend/requirements-dev.txt
 HARMONIZER_ENABLE_DEV_ENGINE=1 backend/.venv/bin/uvicorn backend.main:app --reload
 ```
 
+The repository root must be the working directory because `backend`, `contracts`,
+and `ml` are sibling packages. If already inside `backend/`, run `cd ..` first.
+
 The development engine returns `contracts/examples/harmonize.response.json`. It
 exists for realistic service smoke tests; all musical decisions belong in `ml/`.
 
