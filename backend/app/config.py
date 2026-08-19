@@ -21,7 +21,11 @@ class Settings:
     enable_dev_engine: bool = False
     cors_origins: tuple[str, ...] = field(default_factory=tuple)
     max_upload_bytes: int = 25 * 1024 * 1024
+    max_json_body_bytes: int = 2 * 1024 * 1024
+    max_midi_notes: int = 10_000
     max_render_seconds: float = 180.0
+    max_render_notes: int = 10_000
+    max_render_work_seconds: float = 1_440.0
     sample_rate: int = 44_100
     runtime_dir: Path = PROJECT_ROOT / "backend" / ".runtime"
     soundfont_path: Path | None = None
@@ -40,7 +44,15 @@ class Settings:
             enable_dev_engine=_env_bool("HARMONIZER_ENABLE_DEV_ENGINE"),
             cors_origins=origins,
             max_upload_bytes=int(os.getenv("HARMONIZER_MAX_UPLOAD_BYTES", 25 * 1024 * 1024)),
+            max_json_body_bytes=int(
+                os.getenv("HARMONIZER_MAX_JSON_BODY_BYTES", 2 * 1024 * 1024)
+            ),
+            max_midi_notes=int(os.getenv("HARMONIZER_MAX_MIDI_NOTES", 10_000)),
             max_render_seconds=float(os.getenv("HARMONIZER_MAX_RENDER_SECONDS", 180.0)),
+            max_render_notes=int(os.getenv("HARMONIZER_MAX_RENDER_NOTES", 10_000)),
+            max_render_work_seconds=float(
+                os.getenv("HARMONIZER_MAX_RENDER_WORK_SECONDS", 1_440.0)
+            ),
             sample_rate=int(os.getenv("HARMONIZER_SAMPLE_RATE", 44_100)),
             runtime_dir=Path(
                 os.getenv(

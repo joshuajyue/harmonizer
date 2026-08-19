@@ -27,7 +27,8 @@ exists for realistic service smoke tests; all musical decisions belong in `ml/`.
   `X-HarmonAIzer-Octave-Shift` and the pre-shift MIDI median in
   `X-HarmonAIzer-Detected-Median-Pitch`.
 - `POST /api/v1/midi/import`
-- `POST /api/v1/midi/export?tempo=<bpm>` (tempo is required)
+- `POST /api/v1/midi/export?tempo=<bpm>&numerator=<n>&denominator=<d>`
+  (tempo and complete meter are required)
 - `GET /api/v1/health`
 
 Engine modules are imported lazily from `ml.engines`; the API never owns an
@@ -53,8 +54,10 @@ HARMONIZER_DDSP_ADAPTER=my_voice_backend:adapter
 
 The object must be callable, or expose `render`, with keyword arguments
 `voices`, `tempo`, `timbre`, `guide_audio`, and `sample_rate`, and return WAV
-bytes. It may expose `is_available()`. This seam supports DDSP-SVC or RVC
-without coupling the API image to either project's dependency lock.
+bytes. It may expose `is_available()`. Adapter renders are serialized because
+most model runtimes are stateful and not safely reentrant. This seam supports
+DDSP-SVC or RVC without coupling the API image to either project's dependency
+lock.
 
 If neural rendering is unavailable, a `ddsp` request tries optional WORLD
 resynthesis from `backend/timbres/<id>.wav`, then `sf2`. The actual backend and
@@ -73,8 +76,8 @@ browser WebM/Opus. A separate system ffmpeg installation is not required.
 
 The contract has no reference-audio/model-upload type, so user voice enrollment
 is intentionally not invented here: `timbre` resolves only server-authorized
-models/samples. MIDI export also takes tempo as a query parameter because
-`HarmonizeResponse` does not carry tempo.
+models/samples. MIDI export takes tempo and meter as query parameters because
+`HarmonizeResponse` carries neither.
 
 Dependency resolution was checked against PyPI: `fastapi==0.141.1` and
 `music21==10.5.0` exist, while `torch==2.13.0` does not resolve.
@@ -96,5 +99,9 @@ docker build --build-arg HARMONIZER_INSTALL_ML_EXTRAS=1 \
 | `HARMONIZER_DDSP_ADAPTER` | Lazy `module:object` neural adapter |
 | `HARMONIZER_TIMBRE_DIR` | Authorized WORLD reference WAV directory |
 | `HARMONIZER_MAX_UPLOAD_BYTES` | Upload limit (default 25 MiB) |
+| `HARMONIZER_MAX_JSON_BODY_BYTES` | JSON request limit (default 2 MiB) |
+| `HARMONIZER_MAX_MIDI_NOTES` | Imported MIDI note limit (default 10,000) |
 | `HARMONIZER_MAX_RENDER_SECONDS` | Render/transcription limit (default 180s) |
+| `HARMONIZER_MAX_RENDER_NOTES` | Render note limit (default 10,000) |
+| `HARMONIZER_MAX_RENDER_WORK_SECONDS` | Summed note-duration limit (default 1,440 note-seconds) |
 | `CORS_ORIGINS` | Optional comma-separated local-dev origins |

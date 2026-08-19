@@ -34,6 +34,7 @@ class DdspSynthBackend:
         self._sample_rate = sample_rate
         self._adapter: object | None = None
         self._load_lock = threading.Lock()
+        self._render_lock = threading.Lock()
 
     def availability(self, timbre: str | None = None) -> SynthAvailability:
         del timbre
@@ -64,25 +65,27 @@ class DdspSynthBackend:
         timbre: str | None,
     ) -> BackendRender:
         adapter = self._load_adapter()
-        availability = getattr(adapter, "is_available", None)
-        if callable(availability) and not availability():
-            raise RuntimeError("The configured neural adapter reports that it is unavailable.")
-
         guide = self._guide_backend.render(
             voices,
             tempo=tempo,
             timbre=None,
         ).audio
-        renderer = getattr(adapter, "render", adapter)
-        if not callable(renderer):
-            raise TypeError("The configured neural adapter is not callable.")
-        audio = renderer(
-            voices=voices,
-            tempo=tempo,
-            timbre=timbre,
-            guide_audio=guide,
-            sample_rate=self._sample_rate,
-        )
+        with self._render_lock:
+            availability = getattr(adapter, "is_available", None)
+            if callable(availability) and not availability():
+                raise RuntimeError(
+                    "The configured neural adapter reports that it is unavailable."
+                )
+            renderer = getattr(adapter, "render", adapter)
+            if not callable(renderer):
+                raise TypeError("The configured neural adapter is not callable.")
+            audio = renderer(
+                voices=voices,
+                tempo=tempo,
+                timbre=timbre,
+                guide_audio=guide,
+                sample_rate=self._sample_rate,
+            )
         if not isinstance(audio, (bytes, bytearray)) or not is_wav(bytes(audio)):
             raise TypeError("The configured neural adapter did not return WAV bytes.")
         return BackendRender(audio=bytes(audio), renderer="neural-adapter")

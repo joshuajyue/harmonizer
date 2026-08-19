@@ -47,9 +47,18 @@ async def render(
         "X-HarmonAIzer-Renderer": rendered.renderer,
     }
     if rendered.fallback_reason:
-        headers["X-HarmonAIzer-Fallback"] = rendered.fallback_reason[:512]
+        headers["X-HarmonAIzer-Fallback"] = _safe_header_value(
+            rendered.fallback_reason
+        )
     return Response(
         content=rendered.audio,
         media_type="audio/wav",
         headers=headers,
     )
+
+
+def _safe_header_value(value: str, limit: int = 512) -> str:
+    return "".join(
+        character if 0x20 <= ord(character) <= 0x7E else "?"
+        for character in value
+    )[:limit]

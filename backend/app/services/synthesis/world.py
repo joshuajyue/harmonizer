@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from math import gcd
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from backend.app.services.synthesis.audio import encode_pcm16_wav
 from backend.app.services.synthesis.base import BackendRender, SynthAvailability
 from backend.app.services.synthesis.sf2 import _render_duration
 from contracts.schema import Voice
+
+_TIMBRE_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 class WorldSynthBackend:
@@ -39,7 +42,7 @@ class WorldSynthBackend:
         return sorted(
             path.stem
             for path in self._timbre_dir.glob("*.wav")
-            if path.is_file() and not path.name.startswith(".")
+            if path.is_file() and _TIMBRE_ID.fullmatch(path.stem)
         )
 
     def availability(self, timbre: str | None = None) -> SynthAvailability:
@@ -161,7 +164,7 @@ class WorldSynthBackend:
                 timbre = available[0]
             else:
                 raise ValueError("Choose a configured WORLD timbre.")
-        if Path(timbre).name != timbre or not timbre.replace("-", "").replace("_", "").isalnum():
+        if _TIMBRE_ID.fullmatch(timbre) is None:
             raise ValueError("Invalid timbre id.")
         candidate = self._timbre_dir / f"{timbre}.wav"
         if not candidate.is_file():

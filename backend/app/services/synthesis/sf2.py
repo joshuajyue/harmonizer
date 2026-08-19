@@ -14,7 +14,7 @@ from backend.app.services.synthesis.base import (
     BackendRender,
     SynthAvailability,
 )
-from contracts.schema import Voice
+from contracts.schema import TimeSignature, Voice
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,7 @@ class SoundFontSynthBackend:
             )
         soundfont = self._find_soundfont()
         executable = shutil.which("fluidsynth")
+        fallback_reason: str | None = None
         if executable and soundfont:
             try:
                 return BackendRender(
@@ -92,9 +93,18 @@ class SoundFontSynthBackend:
                 )
             except Exception:
                 logger.exception("FluidSynth failed; using the in-process renderer")
+                fallback_reason = (
+                    "FluidSynth failed; used the in-process wavetable renderer."
+                )
+        else:
+            fallback_reason = (
+                "FluidSynth or a SoundFont is unavailable; "
+                "used the in-process wavetable renderer."
+            )
         return BackendRender(
             audio=self._render_wavetable(voices, tempo, duration),
             renderer="wavetable",
+            fallback_reason=fallback_reason,
         )
 
     def _find_soundfont(self) -> Path | None:
@@ -117,7 +127,11 @@ class SoundFontSynthBackend:
         wav_path = self._runtime_dir / f"{token}.wav"
         try:
             midi_path.write_bytes(
-                self._midi_service.voices_to_midi(voices, tempo=tempo)
+                self._midi_service.voices_to_midi(
+                    voices,
+                    tempo=tempo,
+                    time_signature=TimeSignature(numerator=4, denominator=4),
+                )
             )
             completed = subprocess.run(
                 [

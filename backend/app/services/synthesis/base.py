@@ -16,6 +16,7 @@ class SynthAvailability:
 class BackendRender:
     audio: bytes
     renderer: str
+    fallback_reason: str | None = None
 
 
 @dataclass(frozen=True)

@@ -2,15 +2,15 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 
-from backend.app.dependencies import get_midi_service, get_settings
 from backend.app.config import Settings
+from backend.app.dependencies import get_midi_service, get_settings
 from backend.app.services.midi import MidiConversionError, MidiService
-from contracts.schema import HarmonizeResponse, Melody
+from contracts.schema import HarmonizeResponse, Melody, TimeSignature
 
 router = APIRouter(prefix="/midi", tags=["midi"])
 
 
-@router.post("/import", response_model=Melody)
+@router.post("/import", response_model=Melody, response_model_exclude_none=True)
 async def import_midi(
     file: UploadFile = File(...),
     settings: Settings = Depends(get_settings),
@@ -41,14 +41,23 @@ async def import_midi(
 )
 async def export_midi(
     harmonization: HarmonizeResponse,
-    tempo: float = Query(gt=0),
+    tempo: float = Query(ge=4, le=400),
+    numerator: int = Query(gt=0, le=255),
+    denominator: int = Query(gt=0, le=128),
     service: MidiService = Depends(get_midi_service),
 ) -> Response:
-    data = await run_in_threadpool(
-        service.export_harmonization,
-        harmonization,
-        tempo=tempo,
-    )
+    try:
+        data = await run_in_threadpool(
+            service.export_harmonization,
+            harmonization,
+            tempo=tempo,
+            time_signature=TimeSignature(
+                numerator=numerator,
+                denominator=denominator,
+            ),
+        )
+    except MidiConversionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return Response(
         content=data,
         media_type="audio/midi",

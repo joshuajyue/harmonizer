@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.config import Settings
+from backend.app.middleware import RequestBodyLimitMiddleware
 from backend.app.routers import harmony, health, midi, render, transcription
 from backend.app.services.engines import EngineService
 from backend.app.services.midi import MidiService
@@ -26,7 +27,8 @@ def create_app(
 ) -> FastAPI:
     resolved_settings = settings or Settings.from_env()
     resolved_midi_service = midi_service or MidiService(
-        max_upload_bytes=resolved_settings.max_upload_bytes
+        max_upload_bytes=resolved_settings.max_upload_bytes,
+        max_notes=resolved_settings.max_midi_notes,
     )
     sf2_backend = SoundFontSynthBackend(
         sample_rate=resolved_settings.sample_rate,
@@ -56,6 +58,8 @@ def create_app(
             sample_rate=resolved_settings.sample_rate,
             max_render_seconds=resolved_settings.max_render_seconds,
         ),
+        max_notes=resolved_settings.max_render_notes,
+        max_work_seconds=resolved_settings.max_render_work_seconds,
     )
     application.state.transcription_service = (
         transcription_service
@@ -65,6 +69,11 @@ def create_app(
         )
     )
 
+    application.add_middleware(
+        RequestBodyLimitMiddleware,
+        max_json_bytes=resolved_settings.max_json_body_bytes,
+        max_upload_bytes=resolved_settings.max_upload_bytes,
+    )
     if resolved_settings.cors_origins:
         application.add_middleware(
             CORSMiddleware,
