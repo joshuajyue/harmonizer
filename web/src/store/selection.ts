@@ -1,6 +1,7 @@
 import type { Note, VoiceName } from "../../../contracts/types";
 import { clamp, VOICE_RANGES } from "../utils/music";
 import type {
+  ComparisonView,
   SelectedNote,
   SelectionOrigin,
   StudioStore,
@@ -39,7 +40,7 @@ export function resolveSelectedNote(
 export function collectSelectionOrigins(state: StudioStore) {
   return state.selectedNotes.flatMap<SelectionOrigin>((selection) => {
     const note = resolveSelectedNote(state, selection);
-    return note && isEditableSelection(selection, state.activeSlot)
+    return note && isEditableSelection(selection, state.viewMode)
       ? [{ selection, note: { ...note } }]
       : [];
   });
@@ -47,12 +48,53 @@ export function collectSelectionOrigins(state: StudioStore) {
 
 export function isEditableSelection(
   selection: SelectedNote,
-  activeSlot: "A" | "B",
+  viewMode: ComparisonView,
 ) {
   return (
     selection.source === "melody" ||
-    (selection.slot === activeSlot && selection.voice !== undefined)
+    (selection.slot !== undefined &&
+      selection.voice !== undefined &&
+      (viewMode === "overlay" || selection.slot === viewMode))
   );
+}
+
+export function applyVoiceNoteEdits(
+  state: StudioStore,
+  edits: ReadonlyMap<string, Note | null>,
+) {
+  let slots = state.slots;
+  for (const slot of ["A", "B"] as const) {
+    const result = slots[slot].result;
+    if (!result) continue;
+    let resultChanged = false;
+    const voices = result.voices.map((voice) => {
+      let voiceChanged = false;
+      const notes = voice.notes.flatMap((note, index) => {
+        const key = selectionKey({
+          source: "voice",
+          slot,
+          voice: voice.name,
+          index,
+        });
+        if (!edits.has(key)) return [note];
+        voiceChanged = true;
+        const replacement = edits.get(key);
+        return replacement ? [replacement] : [];
+      });
+      if (!voiceChanged) return voice;
+      resultChanged = true;
+      return { ...voice, notes };
+    });
+    if (!resultChanged) continue;
+    slots = {
+      ...slots,
+      [slot]: {
+        ...slots[slot],
+        result: { ...result, voices },
+      },
+    };
+  }
+  return slots;
 }
 
 function selectionRange(selection: SelectedNote) {
@@ -68,7 +110,7 @@ export function buildSelectionTransform(
   requestedPitchDelta: number,
 ): Partial<StudioStore> {
   const editable = origins.filter(({ selection }) =>
-    isEditableSelection(selection, state.activeSlot),
+    isEditableSelection(selection, state.viewMode),
   );
   if (editable.length === 0) return {};
 
@@ -105,7 +147,6 @@ export function buildSelectionTransform(
   const melodyChanged = editable.some(
     ({ selection }) => selection.source === "melody",
   );
-  const activeResult = state.slots[state.activeSlot].result;
 
   return {
     melody: melodyChanged
@@ -122,30 +163,6 @@ export function buildSelectionTransform(
     melodyRevision: melodyChanged
       ? state.melodyRevision + 1
       : state.melodyRevision,
-    slots: activeResult
-      ? {
-          ...state.slots,
-          [state.activeSlot]: {
-            ...state.slots[state.activeSlot],
-            result: {
-              ...activeResult,
-              voices: activeResult.voices.map((voice) => ({
-                ...voice,
-                notes: voice.notes.map(
-                  (note, index) =>
-                    transformed.get(
-                      selectionKey({
-                        source: "voice",
-                        slot: state.activeSlot,
-                        voice: voice.name,
-                        index,
-                      }),
-                    ) ?? note,
-                ),
-              })),
-            },
-          },
-        }
-      : state.slots,
+    slots: applyVoiceNoteEdits(state, transformed),
   };
 }

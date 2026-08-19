@@ -7,6 +7,7 @@ import { pieceLength, VOICE_ORDER } from "../utils/music";
 export function usePlayback() {
   const melody = useStudioStore((state) => state.melody);
   const slots = useStudioStore((state) => state.slots);
+  const viewMode = useStudioStore((state) => state.viewMode);
   const activeSlot = useStudioStore((state) => state.activeSlot);
   const isPlaying = useStudioStore((state) => state.isPlaying);
   const currentBeat = useStudioStore((state) => state.currentBeat);
@@ -27,8 +28,14 @@ export function usePlayback() {
   );
 
   const duration = useMemo(
-    () => pieceLength(melody, [slots.A.result, slots.B.result]),
-    [melody, slots.A.result, slots.B.result],
+    () =>
+      pieceLength(
+        melody,
+        viewMode === "overlay"
+          ? [slots.A.result, slots.B.result]
+          : [slots[viewMode].result],
+      ),
+    [melody, slots, viewMode],
   );
 
   const notes = useMemo(() => {

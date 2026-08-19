@@ -77,10 +77,10 @@ export function ComparisonPanel() {
 
       <div className="overlay-legend">
         <span>
-          <i className="solid-swatch" /> active/editable
+          <i className="solid-swatch" /> active / playback
         </span>
-        <span>
-          <i className="outline-swatch" /> comparison
+        <span title="Marquee and bulk edits affect both overlay results">
+          <i className="outline-swatch" /> comparison / grouped edits
         </span>
       </div>
 

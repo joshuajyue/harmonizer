@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { useStudioStore } from "../../store";
 import { drawRoll } from "./drawRoll";
 import {
@@ -92,7 +92,7 @@ export function PianoRollCanvas({
     ],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ratio = Math.min(window.devicePixelRatio || 1, 1.5);

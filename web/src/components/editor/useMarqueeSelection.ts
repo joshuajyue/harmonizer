@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import {
   useStudioStore,
-  type ComparisonSlotId,
+  type ComparisonView,
   type SelectedNote,
 } from "../../store";
 import {
@@ -17,6 +17,7 @@ import {
   type RollLayout,
 } from "./rollGeometry";
 import type { DrawResult, NoteHit } from "./rollTypes";
+import { getFreshDrawResult } from "./rollHitTesting";
 
 type MarqueeMode = "replace" | "add" | "toggle";
 
@@ -24,7 +25,7 @@ interface MarqueeSession {
   anchor: { x: number; y: number };
   base: SelectedNote[];
   mode: MarqueeMode;
-  activeSlot: ComparisonSlotId;
+  viewMode: ComparisonView;
 }
 
 function selectionFromHit(hit: NoteHit): SelectedNote {
@@ -38,6 +39,7 @@ function selectionFromHit(hit: NoteHit): SelectedNote {
 
 export function useMarqueeSelection(
   drawResultRef: React.RefObject<DrawResult | undefined>,
+  duration: number,
   layout: RollLayout,
 ) {
   const sessionRef = useRef<MarqueeSession | undefined>(undefined);
@@ -66,7 +68,7 @@ export function useMarqueeSelection(
       anchor,
       base,
       mode,
-      activeSlot: state.activeSlot,
+      viewMode: state.viewMode,
     };
     setSelectedNotes(base);
     setMarquee({ x: anchor.x, y: anchor.y, width: 0, height: 0 });
@@ -82,11 +84,12 @@ export function useMarqueeSelection(
         Math.min(layout.noteAreaBottom, point.y),
       ),
     });
-    const hits = (drawResultRef.current?.noteHits ?? [])
+    const hits = (getFreshDrawResult(drawResultRef, duration, layout)
+      ?.noteHits ?? [])
       .filter((hit) => intersects(hit.rect, rectangle))
       .map(selectionFromHit)
       .filter((selection) =>
-        isEditableSelection(selection, session.activeSlot),
+        isEditableSelection(selection, session.viewMode),
       );
     let next: SelectedNote[];
     if (session.mode === "add") {

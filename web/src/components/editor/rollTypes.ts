@@ -48,4 +48,5 @@ export interface DrawModel {
 export interface DrawResult {
   noteHits: NoteHit[];
   violationHits: ViolationHit[];
+  model: DrawModel;
 }

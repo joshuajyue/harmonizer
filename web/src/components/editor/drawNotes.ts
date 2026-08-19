@@ -164,7 +164,8 @@ export function drawVoiceNotes(
         index,
         slot,
         voice: voice.name,
-        editable: slot === model.activeSlot,
+        editable:
+          model.viewMode === "overlay" || slot === model.viewMode,
       };
       hits.push(hit);
       drawNote(

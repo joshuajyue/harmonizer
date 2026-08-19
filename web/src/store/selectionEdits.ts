@@ -1,6 +1,7 @@
 import type { Note } from "../../../contracts/types";
 import type { StudioStore } from "./types";
 import {
+  applyVoiceNoteEdits,
   collectSelectionOrigins,
   selectionKey,
 } from "./selection";
@@ -12,10 +13,14 @@ export function buildSelectionDelete(
   const selected = new Set(
     origins.map(({ selection }) => selectionKey(selection)),
   );
+  const voiceEdits = new Map(
+    origins
+      .filter(({ selection }) => selection.source === "voice")
+      .map(({ selection }) => [selectionKey(selection), null] as const),
+  );
   const melodyChanged = origins.some(
     ({ selection }) => selection.source === "melody",
   );
-  const activeResult = state.slots[state.activeSlot].result;
   const melodyNotes = melodyChanged
     ? state.melody.notes.filter(
         (_note, index) =>
@@ -33,31 +38,7 @@ export function buildSelectionDelete(
     melodyRevision: melodyChanged
       ? state.melodyRevision + 1
       : state.melodyRevision,
-    slots: activeResult
-      ? {
-          ...state.slots,
-          [state.activeSlot]: {
-            ...state.slots[state.activeSlot],
-            result: {
-              ...activeResult,
-              voices: activeResult.voices.map((voice) => ({
-                ...voice,
-                notes: voice.notes.filter(
-                  (_note, index) =>
-                    !selected.has(
-                      selectionKey({
-                        source: "voice",
-                        slot: state.activeSlot,
-                        voice: voice.name,
-                        index,
-                      }),
-                    ),
-                ),
-              })),
-            },
-          },
-        }
-      : state.slots,
+    slots: applyVoiceNoteEdits(state, voiceEdits),
     transcriptionRegister:
       melodyChanged && melodyNotes.length === 0
         ? undefined
@@ -77,9 +58,16 @@ export function buildSelectionDuration(
   const melodyChanged = origins.some(
     ({ selection }) => selection.source === "melody",
   );
-  const activeResult = state.slots[state.activeSlot].result;
   const update = (note: Note, key: string) =>
     selected.has(key) ? { ...note, duration } : note;
+  const voiceEdits = new Map(
+    origins
+      .filter(({ selection }) => selection.source === "voice")
+      .map(({ selection, note }) => [
+        selectionKey(selection),
+        { ...note, duration },
+      ]),
+  );
 
   return {
     melody: melodyChanged
@@ -93,30 +81,6 @@ export function buildSelectionDuration(
     melodyRevision: melodyChanged
       ? state.melodyRevision + 1
       : state.melodyRevision,
-    slots: activeResult
-      ? {
-          ...state.slots,
-          [state.activeSlot]: {
-            ...state.slots[state.activeSlot],
-            result: {
-              ...activeResult,
-              voices: activeResult.voices.map((voice) => ({
-                ...voice,
-                notes: voice.notes.map((note, index) =>
-                  update(
-                    note,
-                    selectionKey({
-                      source: "voice",
-                      slot: state.activeSlot,
-                      voice: voice.name,
-                      index,
-                    }),
-                  ),
-                ),
-              })),
-            },
-          },
-        }
-      : state.slots,
+    slots: applyVoiceNoteEdits(state, voiceEdits),
   };
 }

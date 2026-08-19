@@ -24,7 +24,7 @@ export function drawRoll(
   drawGrid(context, model);
   if (model.empty) {
     drawLoopRange(context, model);
-    return { noteHits, violationHits };
+    return { noteHits, violationHits, model };
   }
 
   const melodyVisible =
@@ -76,7 +76,7 @@ export function drawRoll(
 
   drawLoopRange(context, model);
 
-  return { noteHits, violationHits };
+  return { noteHits, violationHits, model };
 }
 
 function drawLoopRange(

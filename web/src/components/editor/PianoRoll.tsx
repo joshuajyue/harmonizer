@@ -25,14 +25,21 @@ export function PianoRoll() {
   >();
   const melody = useStudioStore((state) => state.melody);
   const slots = useStudioStore((state) => state.slots);
+  const viewMode = useStudioStore((state) => state.viewMode);
   const pxPerBeat = useStudioStore((state) => state.pxPerBeat);
   const currentBeat = useStudioStore((state) => state.currentBeat);
   const isPlaying = useStudioStore((state) => state.isPlaying);
   const focusedLane = useStudioStore((state) => state.focusedLane);
   const recordingState = useStudioStore((state) => state.recordingState);
   const pieceDuration = useMemo(
-    () => pieceLength(melody, [slots.A.result, slots.B.result]),
-    [melody, slots.A.result, slots.B.result],
+    () =>
+      pieceLength(
+        melody,
+        viewMode === "overlay"
+          ? [slots.A.result, slots.B.result]
+          : [slots[viewMode].result],
+      ),
+    [melody, slots, viewMode],
   );
   const signature = melody.timeSignature ?? {
     numerator: 4,

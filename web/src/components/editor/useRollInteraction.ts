@@ -14,6 +14,7 @@ import type {
   NoteHit,
   ViolationHit,
 } from "./rollTypes";
+import { getFreshDrawResult } from "./rollHitTesting";
 import { useMarqueeSelection } from "./useMarqueeSelection";
 import { useNoteDrag } from "./useNoteDrag";
 import { useRulerRange } from "./useRulerRange";
@@ -37,7 +38,7 @@ export function useRollInteraction(
   const modeRef = useRef<InteractionMode | undefined>(undefined);
   const [hoveredViolation, setHoveredViolation] =
     useState<ViolationHit>();
-  const marquee = useMarqueeSelection(drawResultRef, layout);
+  const marquee = useMarqueeSelection(drawResultRef, duration, layout);
   const noteDrag = useNoteDrag(layout);
   const ruler = useRulerRange(duration);
   const activeSlot = useStudioStore((state) => state.activeSlot);
@@ -57,9 +58,9 @@ export function useRollInteraction(
   }
 
   function findNote(x: number, y: number) {
-    const matches = (drawResultRef.current?.noteHits ?? []).filter((hit) =>
-      contains(hit.rect, x, y),
-    );
+    const matches = (
+      getFreshDrawResult(drawResultRef, duration, layout)?.noteHits ?? []
+    ).filter((hit) => contains(hit.rect, x, y));
     return (
       matches.find(
         (hit) => hit.slot === activeSlot && hit.source === "voice",
@@ -122,8 +123,12 @@ export function useRollInteraction(
     }
 
     const note = findNote(point.x, point.y);
-    const violation = (drawResultRef.current?.violationHits ?? []).find(
-      (hit) => contains(hit.rect, point.x, point.y),
+    const violation = getFreshDrawResult(
+      drawResultRef,
+      duration,
+      layout,
+    )?.violationHits.find((hit) =>
+      contains(hit.rect, point.x, point.y),
     );
     setHoveredViolation(violation);
     event.currentTarget.style.cursor =
