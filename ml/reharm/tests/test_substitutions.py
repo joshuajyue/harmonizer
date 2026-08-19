@@ -117,6 +117,39 @@ def test_related_ii_prepares_the_dominant_two_units_ahead():
     assert (D, "min7") in roots(candidates)
 
 
+def test_the_related_ii_is_labelled_as_one():
+    """It is a minor seventh, not a secondary dominant.
+
+    `substitutionKind` exists to explain a substitution in the UI, so calling
+    the ii by the name of the chord it prepares describes the wrong chord.
+    """
+    candidates = related_ii_candidates(
+        unit(JazzChord(root=C, quality="maj7")),
+        context(JazzChord(root=F, quality="maj7"), following2=JazzChord(root=C, quality="maj7")),
+    )
+    assert candidates
+    for candidate in candidates:
+        assert candidate.kind == "related_ii"
+        assert all(chord.substitution_kind == "related_ii" for chord in candidate.chords)
+
+
+def test_an_inserted_ii_v_labels_each_chord_for_what_it_is():
+    """Dm7 is the related ii; G7 is the secondary dominant. Not both the same."""
+    candidates = secondary_dominant_candidates(
+        unit(JazzChord(root=F, quality="maj7"), duration=4.0),
+        context(JazzChord(root=C, quality="maj7")),
+    )
+    pairs = [candidate for candidate in candidates if len(candidate.chords) == 2]
+    ii_v = [
+        candidate for candidate in pairs
+        if candidate.chords[0].quality in ("min7", "halfdim7") and candidate.chords[1].is_dominant
+    ]
+    assert ii_v, "the related ii-V insertion should be offered"
+    for candidate in ii_v:
+        assert candidate.chords[0].substitution_kind == "related_ii"
+        assert candidate.chords[1].substitution_kind in ("secondary_dominant", "tritone")
+
+
 def test_related_ii_of_a_minor_target_is_half_diminished():
     candidates = related_ii_candidates(
         unit(JazzChord(root=C, quality="min7")),

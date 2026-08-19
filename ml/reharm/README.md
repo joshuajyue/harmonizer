@@ -130,10 +130,10 @@ engine produced, verbatim) and `substitutionKind`. The UI can therefore say
 "this bII7 replaced your V7, via tritone substitution" instead of just emitting
 it. `demo.py` prints the same thing.
 
-One wrinkle worth knowing: the related **ii** of an inserted secondary dominant
-is tagged `secondary_dominant`, because the contract's `substitutionKind`
-enumeration has no `related_ii`. Adding one would be a small contract change and
-would read better in the UI.
+An inserted ii-V labels each chord for what it is rather than for the gesture:
+the V is `secondary_dominant` (or `tritone` if it is the substitute), and the ii
+is `related_ii` — a minor seventh, not a dominant. The backdoor cadence keeps
+`backdoor` on both chords, because there the gesture is the more useful name.
 
 ## Data and licences
 

@@ -365,7 +365,7 @@ def secondary_dominant_candidates(unit: Unit, context: Context) -> list[Candidat
                 0.85 - (penalty_a + penalty_b),
                 (penalty_a + penalty_b) / 2,
                 split=True,
-                kinds=("secondary_dominant", "secondary_dominant"),
+                kinds=("related_ii", "secondary_dominant"),
             ))
         # ...and its tritone substitute, which is the same ii-V with a
         # chromatic bass: Dm7 Db7 | Cmaj7.
@@ -379,7 +379,7 @@ def secondary_dominant_candidates(unit: Unit, context: Context) -> list[Candidat
                 0.8 - (penalty_a + penalty_c),
                 (penalty_a + penalty_c) / 2,
                 split=True,
-                kinds=("secondary_dominant", "tritone"),
+                kinds=("related_ii", "tritone"),
             ))
     return out
 
@@ -392,6 +392,10 @@ def related_ii_candidates(unit: Unit, context: Context) -> list[Candidate]:
     all of that gap is two-bar ii-Vs, which no amount of per-unit substitution
     can produce: the ii and the V live in different units, so the candidate for
     THIS unit has to be chosen with the unit after next in view.
+
+    Tagged `related_ii` rather than `secondary_dominant`. The chord is a minor
+    seventh; calling it a secondary dominant in the UI would describe it as the
+    thing it is preparing rather than the thing it is.
     """
     target = context.following2
     if target is None:
@@ -407,7 +411,7 @@ def related_ii_candidates(unit: Unit, context: Context) -> list[Candidate]:
         ok, penalty = _acceptable(chord, unit.weighted_pcs)
         if not ok:
             continue
-        out.append(_candidate(unit, [chord], "secondary_dominant", 0.65 - penalty * 2.0, penalty))
+        out.append(_candidate(unit, [chord], "related_ii", 0.65 - penalty * 2.0, penalty))
         break
     return out
 

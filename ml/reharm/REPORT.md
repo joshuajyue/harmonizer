@@ -301,10 +301,11 @@ disagree with.
 4. **Chorale inversions are dropped from the skeleton.** The rules engine's
    first- and second-inversion chords are voice-leading artefacts of a chorale
    texture; a jazz bass plays roots unless the harmony says otherwise.
-5. **The related ii of an inserted secondary dominant is tagged
-   `secondary_dominant`** because `contracts.schema.Chord.substitutionKind` has
-   no `related_ii`. It reads slightly wrong in the UI. Adding one enum value
-   would fix it.
+5. **An inserted ii-V labels each chord for what it is, not for the gesture.**
+   The V is `secondary_dominant` (or `tritone` when it is the substitute) and
+   the ii is `related_ii`, which the contract gained for this purpose. The
+   backdoor cadence is the exception and keeps `backdoor` on both chords,
+   because there the name of the gesture is the more useful explanation.
 6. **The melody is octave-normalized before the rules engine sees it.** That
    engine voices real SATB parts and its ranges are absolute, so it returns
    almost no harmony for a tune outside soprano range. Chords are pitch classes,
@@ -329,8 +330,6 @@ disagree with.
    loaded (`treebank_trees`) and currently unused. Knowing which chords are
    *structural* would tell the reharmonizer what it must not touch, which is
    currently approximated by a hand-written tonic-protection term.
-5. **An `related_ii` substitution kind** in the contract, per decision 5.
-
 ## 10. Limitations
 
 * **The skeleton is the weakest link.** It comes from a chorale engine, and on

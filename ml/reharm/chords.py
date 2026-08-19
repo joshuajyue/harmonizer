@@ -134,6 +134,7 @@ SUBSTITUTION_KINDS = (
     "relative",
     "passing_dim",
     "secondary_dominant",
+    "related_ii",
     "chromatic_approach",
     "extension",
     "coltrane",

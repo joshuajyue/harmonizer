@@ -258,6 +258,14 @@ def chorale_to_melody(chorale, *, tempo: float = 90.0) -> Melody:
 
     This is how the harness hands a held-out chorale to an engine: the engine
     sees exactly what a user would upload — a bare tune — and nothing else.
+
+    The contract requires `tempo` because a defaulted tempo renders the result at
+    the wrong speed with nothing raised anywhere. That reasoning does not reach
+    here: the corpus carries no tempo marking, harmonization is tempo-invariant
+    (every engine works in quarter-note beats and none reads the field), and
+    nothing in `ml/eval` measures duration in seconds. The default is a
+    placeholder for a quantity that has no effect, not a guess at one that does —
+    which is why it is safe here and would not be on a request path.
     """
     from contracts.schema import KeySignature, TimeSignature
 

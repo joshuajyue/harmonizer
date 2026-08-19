@@ -44,6 +44,11 @@ DEFAULT_CHECKPOINT = MODEL_DIR / "masked_satb.pt"
 N_VOICES = 4
 FREE_VOICES = (1, 2, 3)
 
+#: Only used if an internal draft is requested without the originating melody,
+#: which the public path never does. Harmonization is tempo-invariant: every
+#: engine works in quarter-note beats and none reads this value.
+DEFAULT_DRAFT_TEMPO = 90.0
+
 #: Blocked-Gibbs schedule, following Coconet. The mask rate anneals from almost
 #: everything to almost nothing, so early sweeps rough out the harmony and later
 #: ones polish individual notes.
@@ -182,7 +187,7 @@ class NeuralHarmonyEngine(HarmonyEngine):
                 voices=grid_to_voices(empty, names=names),
             )
 
-        lines = self._decode(grid, key, temperature=temperature, seed=seed)
+        lines = self._decode(grid, key, temperature=temperature, seed=seed, melody=melody)
         chords = self._chords(lines, key, grid.steps_per_beat)
         violations = self._violations(lines, key, grid.steps_per_beat)
         selected, names = select_voices(lines, voice_count)
@@ -201,6 +206,7 @@ class NeuralHarmonyEngine(HarmonyEngine):
         temperature: float,
         seed: int | None,
         initial: Sequence[Sequence[int]] | None = None,
+        melody: Melody | None = None,
     ) -> list[list[int]]:
         import torch
 
@@ -444,6 +450,13 @@ class NeuralHarmonyEngine(HarmonyEngine):
                 root=label.absolute_root(key), quality=label.contract_quality(),
                 inversion=label.inversion,
                 secondaryOf=None if label.applied_to is None else key.to_absolute(label.applied_to),
+                # Response-side fields are always populated, never left to a
+                # default, so the UI never has to null-check. These engines write
+                # common-practice chorale harmony: no upper extensions, and no
+                # reharmonization, so there is no substitution to explain.
+                extensions=[],
+                substitutionOf=None,
+                substitutionKind=None,
             ))
         return out
 
@@ -512,12 +525,15 @@ class NeuralRefinementEngine(NeuralHarmonyEngine):
             self._rules = RuleHarmonyEngine()
         return self._rules
 
-    def _decode(self, grid: MelodyGrid, key: Key, *, temperature: float, seed: int | None, initial=None):
+    def _decode(self, grid: MelodyGrid, key: Key, *, temperature: float, seed: int | None,
+                initial=None, melody: Melody | None = None):
         if initial is None:
-            initial = self._draft(grid, key)
-        return super()._decode(grid, key, temperature=temperature, seed=seed, initial=initial)
+            initial = self._draft(grid, key, melody)
+        return super()._decode(
+            grid, key, temperature=temperature, seed=seed, initial=initial, melody=melody,
+        )
 
-    def _draft(self, grid: MelodyGrid, key: Key) -> list[list[int]]:
+    def _draft(self, grid: MelodyGrid, key: Key, melody: Melody | None = None) -> list[list[int]]:
         from contracts.schema import KeySignature as _KeySignature
         from contracts.schema import Melody as _Melody
         from contracts.schema import Note as _Note
@@ -538,10 +554,14 @@ class NeuralRefinementEngine(NeuralHarmonyEngine):
         if not notes:
             return [[REST] * grid.length for _ in range(N_VOICES)]
 
+        # A faithful re-expression of the caller's melody, quantized to the grid
+        # — not a synthetic one. Tempo is carried through rather than defaulted:
+        # no engine reads it today, but fabricating a constant here is exactly
+        # how a silently-wrong tempo would enter the system later.
         draft = self._rule_engine().harmonize(
             _Melody(
                 notes=notes,
-                tempo=90.0,
+                tempo=melody.tempo if melody is not None else DEFAULT_DRAFT_TEMPO,
                 timeSignature=_TimeSignature(
                     numerator=grid.time_signature[0], denominator=grid.time_signature[1]
                 ),

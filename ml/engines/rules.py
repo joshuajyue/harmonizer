@@ -915,6 +915,13 @@ class RuleHarmonyEngine(HarmonyEngine):
                 quality=label.contract_quality(),
                 inversion=label.inversion,
                 secondaryOf=None if label.applied_to is None else key.to_absolute(label.applied_to),
+                # Response-side fields are always populated, never left to a
+                # default, so the UI never has to null-check. These engines write
+                # common-practice chorale harmony: no upper extensions, and no
+                # reharmonization, so there is no substitution to explain.
+                extensions=[],
+                substitutionOf=None,
+                substitutionKind=None,
             ))
         return out
 
