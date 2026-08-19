@@ -1,7 +1,13 @@
+import sys
 import wave
 from io import BytesIO
 
 from fastapi.testclient import TestClient
+
+from backend.app.config import Settings
+from backend.app.main import create_app
+from backend.app.services.engines import EngineService
+from backend.tests.conftest import StubEngine
 
 
 def render_request(synth: str = "sf2") -> dict:
@@ -58,3 +64,27 @@ def test_unknown_synth_is_rejected(client: TestClient) -> None:
     response = client.post("/api/v1/render", json=render_request("mystery"))
 
     assert response.status_code == 422
+
+
+def test_ddsp_adapter_is_discovered_without_eager_import() -> None:
+    module_name = "backend.tests.fake_ddsp_adapter"
+    sys.modules.pop(module_name, None)
+    app = create_app(
+        settings=Settings(ddsp_adapter=f"{module_name}:adapter"),
+        engine_service=EngineService(
+            engines=[StubEngine()],
+            discover_modules=False,
+        ),
+    )
+
+    with TestClient(app) as client:
+        capabilities = client.get("/api/v1/synths")
+        assert capabilities.json()["synths"][1]["available"] is True
+        assert module_name not in sys.modules
+
+        response = client.post("/api/v1/render", json=render_request("ddsp"))
+
+    assert response.status_code == 200
+    assert response.headers["x-harmonaizer-synth-used"] == "ddsp"
+    assert response.headers["x-harmonaizer-renderer"] == "neural-adapter"
+    assert module_name in sys.modules
