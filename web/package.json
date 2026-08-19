@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "node scripts/regression-tests.mjs && node scripts/irregular-voices-test.mjs && node scripts/audio-scheduler-test.mjs && node scripts/count-in-test.mjs && node scripts/synth-voice-test.mjs && node scripts/note-capture-test.mjs",
+    "test": "node scripts/regression-tests.mjs && node scripts/irregular-voices-test.mjs && node scripts/active-slot-test.mjs && node scripts/audio-scheduler-test.mjs && node scripts/count-in-test.mjs && node scripts/synth-voice-test.mjs && node scripts/note-capture-test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
