@@ -21,8 +21,10 @@ experiments/ One-off measurements that produce numbers for the report. Imported
              by nothing; safe to delete once the report is read.
 eval/        The evaluation harness and REPORT.md.
 tests/       Unit tests, an engine contract suite every registered engine must
-             pass, conformance tests against the shared API contract, and the
-             detector checks against the lead's shared fixtures.
+             pass, conformance tests against the shared API contract, detector
+             checks against the lead's shared fixtures, off-distribution
+             robustness probes, and the public-surface tests that other
+             workstreams (ml/reharm/) depend on.
 ```
 
 ## Engines
@@ -106,6 +108,15 @@ any number in it:
   spacing, tendency tones) is real to a theorist and largely inaudible; Bach
   scores 21.0 there and every engine here is far *below* him, which is stiffness,
   not quality.
+
+## Boundaries
+
+`ml/reharm/` belongs to the jazz-reharmonization workstream and is not touched
+here. It reads this package and calls the `rules` engine through the registry, so
+`tests/test_public_interface.py` pins the surface it depends on — engine ids,
+`harmonize`'s keyword-only signature, registry behaviour, and the shape of a
+`Harmonization`. A refactor that breaks that fails in this suite rather than
+silently in theirs.
 
 ## The shared contract
 

@@ -520,6 +520,80 @@ of them than Bach writes. What I cannot show is whether they are *musical* rathe
 than merely numerous, which is the same gap as section 0e and the same reason it
 is the top item in section 7.
 
+## 0g. The method, stated generally
+
+Two things here transfer to any generative-music evaluation, and neither is
+specific to Bach. Written out because they are the parts most worth reusing.
+
+### Oracle calibration
+
+**Score the ground truth with the identical code, and read every engine against
+that row rather than against zero.**
+
+It costs almost nothing — the corpus already contains the reference, and the
+metric code already exists — and it changes what the numbers mean. In this
+project it caught, in order:
+
+* A rule engine at 0.00 hard defects looking like a triumph, when Bach scores
+  0.40 and the zero was bought by narrowing the harmonic vocabulary.
+* Two "improvements" I was part-way into making that would have pushed the
+  engines *further* from the reference — stricter spacing and stricter crossing
+  rules than Bach uses.
+* A structural rule taken straight from theory ("a piece must end on the tonic")
+  that flags **15% of Bach**, because ~8% of his chorales close on a
+  root-position V. Without the oracle that ships as a detector and quietly
+  reports catastrophic failures on correct music.
+* A distributional target that would otherwise be unreadable: held-out Bach
+  differs from training Bach by 0.056 bits, so an engine at 0.060 is not "close",
+  it is *at the noise floor*, and an engine at 0.071 is not meaningfully worse.
+
+The generalisation is mechanical. Any corpus-based generation task has a ground
+truth; run it through the pipeline as though it were a competitor. Three rules
+make it work:
+
+1. **Identical code path.** The oracle must be scored by the same functions, not
+   by a special case, or it measures the special case.
+2. **When a detector fires on the oracle, the detector is wrong.** This is the
+   whole discipline. Every structural rule here was rewritten under it.
+3. **Calibrate to *near* zero, not exactly zero.** A rule tuned until the oracle
+   scores 0.000 has been fitted to the oracle rather than calibrated against it,
+   and has no headroom for real music. The target here was ~1%.
+
+The corollary is the part people skip: **an engine scoring better than the oracle
+is a finding, not a victory.** It means the metric is measuring something the
+reference does not optimise, which is usually a sign the metric is a proxy for
+something else. Every "better than Bach" cell in this report is treated as a
+diagnosis.
+
+### Separating structural ceilings from tuning failures
+
+**Before concluding a model underperforms, check whether the output space can
+represent the thing being measured.**
+
+"The rule engine is less active than Bach" reads as conservatism, and would
+naturally be attacked by retuning — different weights, a looser prior, more
+candidates. All of that would have failed, because the deficit is not in the
+chords. Splitting verticals by whether they arise at a beat boundary or inside a
+beat settles it in one measurement:
+
+| | on-beat / 100 beats | off-beat / 100 beats | of which inner voices |
+|---|---|---|---|
+| *Bach* | *90.2* | *59.2* | *56.2* |
+| `rules` | 87.3 | 9.7 | **0.0** |
+
+The rule engine matches Bach on harmonic rhythm and emits **exactly zero**
+inner-voice motion within a beat. It writes one frozen voicing per slot, so
+passing tones, neighbours and suspensions are *unrepresentable*. No amount of
+tuning reaches them; the representation has to change. That is a far more useful
+conclusion than "the engine underperformed", and it also tells you the fix is
+cheap and deterministic rather than a modelling problem.
+
+The general form: when a system is losing on a metric, express the metric as a
+count of events and ask whether the system's output space contains those events
+at all. A zero in that decomposition is a ceiling. Anything else is a tuning
+problem. The two call for completely different work, and they are trivial to
+confuse from the aggregate number alone.
+
 ## 1. The v1 post-mortem, verified — and one correction
 
 v1 no longer exists on this branch; it survives only in git history on `main`.
