@@ -132,11 +132,7 @@ class TranscriptionService:
         return np.ascontiguousarray(samples, dtype=np.float32)
 
     def _decode_with_ffmpeg(self, data: bytes) -> tuple[np.ndarray, int]:
-        ffmpeg = shutil.which("ffmpeg")
-        if ffmpeg is None:
-            raise AudioDecodeError(
-                "This audio encoding is unsupported; install ffmpeg for MP3/WebM uploads."
-            )
+        ffmpeg = _ffmpeg_executable()
         command = [
             ffmpeg,
             "-v",
@@ -283,3 +279,17 @@ def _frames_to_notes(
             )
         )
     return notes
+
+
+def _ffmpeg_executable() -> str:
+    system_ffmpeg = shutil.which("ffmpeg")
+    if system_ffmpeg is not None:
+        return system_ffmpeg
+    try:
+        from imageio_ffmpeg import get_ffmpeg_exe
+
+        return get_ffmpeg_exe()
+    except (ImportError, RuntimeError, OSError) as exc:
+        raise AudioDecodeError(
+            "No FFmpeg decoder is available; reinstall backend requirements."
+        ) from exc

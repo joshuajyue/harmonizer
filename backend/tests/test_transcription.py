@@ -1,10 +1,13 @@
+import subprocess
 import wave
 from io import BytesIO
 
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+from imageio_ffmpeg import get_ffmpeg_exe
 
+import backend.app.services.transcription as transcription_module
 from backend.app.services.transcription import AudioDecodeError, TranscriptionService
 from contracts.schema import Melody, TimeSignature
 
@@ -116,6 +119,62 @@ def test_pyin_tracks_a_clean_monophonic_tone(
 
     assert melody.notes
     assert any(abs(note.pitch - fixture_note.pitch) <= 1 for note in melody.notes)
+
+
+def test_webm_upload_uses_bundled_ffmpeg(
+    client: TestClient,
+    canonical_request_payload: dict,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture_melody = Melody.model_validate(canonical_request_payload["melody"])
+    fixture_note = fixture_melody.notes[0]
+    sample_rate = 22_050
+    time = np.arange(sample_rate, dtype=np.float32) / sample_rate
+    frequency = 440.0 * 2.0 ** ((fixture_note.pitch - 69) / 12.0)
+    samples = 0.3 * np.sin(2 * np.pi * frequency * time)
+    pcm = np.asarray(samples * 32767, dtype="<i2").tobytes()
+    encoded = subprocess.run(
+        [
+            get_ffmpeg_exe(),
+            "-v",
+            "error",
+            "-f",
+            "s16le",
+            "-ar",
+            str(sample_rate),
+            "-ac",
+            "1",
+            "-i",
+            "pipe:0",
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "64k",
+            "-f",
+            "webm",
+            "pipe:1",
+        ],
+        input=pcm,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+        timeout=30,
+    ).stdout
+    monkeypatch.setattr(transcription_module.shutil, "which", lambda _: None)
+
+    response = client.post(
+        f"/api/v1/transcribe?tempo={fixture_melody.tempo}"
+        f"&numerator={fixture_melody.timeSignature.numerator}"
+        f"&denominator={fixture_melody.timeSignature.denominator}",
+        files={"audio": ("recording.webm", encoded, "audio/webm")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["tempo"] == fixture_melody.tempo
+    assert any(
+        abs(note["pitch"] - fixture_note.pitch) <= 1
+        for note in response.json()["notes"]
+    )
 
 
 def test_decode_rejects_audio_over_duration_limit(

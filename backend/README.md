@@ -62,7 +62,8 @@ The design follows the current primary projects:
 [so-vits-svc](https://github.com/svc-develop-team/so-vits-svc),
 [WORLD/pyworld](https://github.com/JeremyCCHsu/Python-Wrapper-for-World-Vocoder),
 and [FluidSynth](https://github.com/FluidSynth/fluidsynth). Transcription uses
-librosa pYIN, with libsndfile first and ffmpeg pipe decoding for browser WebM.
+librosa pYIN, with libsndfile first and a bundled imageio-ffmpeg binary for
+browser WebM/Opus. A separate system ffmpeg installation is not required.
 
 The contract has no reference-audio/model-upload type, so user voice enrollment
 is intentionally not invented here: `timbre` resolves only server-authorized
