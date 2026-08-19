@@ -15,6 +15,7 @@ export const useStudioStore = create<StudioStore>()((...args) => ({
 export type {
   ComparisonSlotId,
   ComparisonView,
+  CountInBars,
   FocusedLane,
   InputTab,
   NoteInputMode,

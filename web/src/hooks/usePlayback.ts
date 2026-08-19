@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { audioScheduler, type PlaybackNote } from "../audio/AudioScheduler";
+import { countInScheduler } from "../audio/CountInScheduler";
 import { noteCapture } from "../capture/NoteCapture";
 import { useStudioStore } from "../store";
 import { pieceLength, VOICE_ORDER } from "../utils/music";
+import { useRecording } from "./useRecording";
 
 const DEFAULT_TIME_SIGNATURE = { numerator: 4, denominator: 4 } as const;
 
@@ -27,17 +29,15 @@ export function usePlayback() {
   const metronomeEnabled = useStudioStore(
     (state) => state.metronomeEnabled,
   );
-  const recordingState = useStudioStore((state) => state.recordingState);
   const voiceMute = useStudioStore((state) => state.voiceMute);
   const voiceSolo = useStudioStore((state) => state.voiceSolo);
   const setPlaying = useStudioStore((state) => state.setPlaying);
   const setCurrentBeat = useStudioStore((state) => state.setCurrentBeat);
-  const setLoopEnabled = useStudioStore((state) => state.setLoopEnabled);
   const setRecordingState = useStudioStore(
     (state) => state.setRecordingState,
   );
-  const setNoteInputMode = useStudioStore(
-    (state) => state.setNoteInputMode,
+  const setCountInRemaining = useStudioStore(
+    (state) => state.setCountInRemaining,
   );
   const timeSignature =
     melody.timeSignature ?? DEFAULT_TIME_SIGNATURE;
@@ -74,8 +74,13 @@ export function usePlayback() {
   }, [activeSlot, melody.notes, slots, voiceMute, voiceSolo]);
 
   const stop = useCallback(() => {
-    const stopBeat = audioScheduler.getCurrentBeat() ?? currentBeat;
-    if (recordingState === "recording") {
+    const liveState = useStudioStore.getState();
+    const stopBeat = audioScheduler.getCurrentBeat() ?? liveState.currentBeat;
+    if (liveState.recordingState === "counting") {
+      countInScheduler.cancel();
+      setCountInRemaining(0);
+      setRecordingState("armed");
+    } else if (liveState.recordingState === "recording") {
       noteCapture.finishTake(stopBeat);
       setCurrentBeat(stopBeat);
       setRecordingState("armed");
@@ -83,8 +88,7 @@ export function usePlayback() {
     audioScheduler.stop();
     setPlaying(false);
   }, [
-    currentBeat,
-    recordingState,
+    setCountInRemaining,
     setCurrentBeat,
     setPlaying,
     setRecordingState,
@@ -134,70 +138,16 @@ export function usePlayback() {
   ]);
 
   const toggle = useCallback(() => {
-    if (isPlaying) stop();
+    const liveState = useStudioStore.getState();
+    if (liveState.isPlaying || liveState.recordingState === "counting") stop();
     else void play();
-  }, [isPlaying, play, stop]);
+  }, [play, stop]);
 
-  const armRecording = useCallback(() => {
-    if (recordingState === "recording") return;
-    noteCapture.releaseAll();
-    setRecordingState(recordingState === "armed" ? "idle" : "armed");
-  }, [recordingState, setRecordingState]);
-
-  const startRecording = useCallback(async () => {
-    if (useStudioStore.getState().recordingState === "recording") return;
-    const startBeat = Math.max(0, useStudioStore.getState().currentBeat);
-    audioScheduler.stop();
-    setNoteInputMode("record");
-    noteCapture.beginTake();
-    setLoopEnabled(false);
-    setRecordingState("recording");
-    setPlaying(true);
-    try {
-      await audioScheduler.start({
-        notes,
-        tempo: melody.tempo,
-        startBeat,
-        endBeat: Math.max(duration, startBeat + 1_024),
-        loopEnabled: false,
-        loopStart: 0,
-        loopEnd: 0,
-        metronomeEnabled,
-        timeSignature,
-        onPosition: setCurrentBeat,
-        onEnded: () => {
-          noteCapture.finishTake(
-            audioScheduler.getCurrentBeat() ?? startBeat + 1_024,
-          );
-          setPlaying(false);
-          setRecordingState("armed");
-        },
-      });
-    } catch {
-      noteCapture.finishTake(startBeat);
-      setPlaying(false);
-      setRecordingState("armed");
-    }
-  }, [
+  const { armRecording, toggleRecording } = useRecording({
     duration,
-    melody.tempo,
-    metronomeEnabled,
     notes,
-    setCurrentBeat,
-    setLoopEnabled,
-    setNoteInputMode,
-    setPlaying,
-    setRecordingState,
-    timeSignature,
-  ]);
-
-  const toggleRecording = useCallback(() => {
-    if (recordingState === "recording") {
-      stop();
-    } else {
-      void startRecording();
-    }
-  }, [recordingState, startRecording, stop]);
+    stop,
+  });
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -225,6 +175,7 @@ export function usePlayback() {
 
   useEffect(
     () => () => {
+      countInScheduler.cancel();
       noteCapture.releaseAll();
       audioScheduler.stop();
     },

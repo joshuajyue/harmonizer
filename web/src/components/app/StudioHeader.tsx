@@ -41,7 +41,7 @@ export function StudioHeader() {
       </div>
       <div
         className="shortcut-hint"
-        title="Space play · R record · Cmd/Ctrl+Enter harmonize · Shift+L loop"
+        title="Space play · R record · / loop · M metronome · 1/2 results · Cmd/Ctrl+Enter harmonize"
       >
         <Command size={12} />
         <span>Space</span>

@@ -8,6 +8,7 @@ import {
 import {
   buildSelectionDelete,
   buildSelectionDuration,
+  buildSelectionQuantize,
 } from "./selectionEdits";
 import type { EditorSlice, StudioStore } from "./types";
 
@@ -95,6 +96,8 @@ export const createEditorSlice: StateCreator<
         semitones,
       ),
     ),
+  quantizeSelectedNoteStarts: () =>
+    set((state) => buildSelectionQuantize(state)),
   setSelectedNotesDuration: (duration) =>
     set((state) =>
       buildSelectionDuration(state, Math.max(state.snap, duration)),

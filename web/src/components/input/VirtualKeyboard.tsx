@@ -1,31 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { noteCapture } from "../../capture/NoteCapture";
+import { MUSICAL_TYPING_OFFSETS } from "../../input/musicalTyping";
 import { useStudioStore } from "../../store";
 import { midiToName } from "../../utils/music";
 
 const START_PITCH = 60;
 const END_PITCH = 84;
 const WHITE_CLASSES = new Set([0, 2, 4, 5, 7, 9, 11]);
-const KEY_BINDINGS = [
-  "a",
-  "w",
-  "s",
-  "e",
-  "d",
-  "f",
-  "t",
-  "g",
-  "y",
-  "h",
-  "u",
-  "j",
-  "k",
-  "o",
-  "l",
-  "p",
-  ";",
-];
-
 interface PianoKey {
   pitch: number;
   white: boolean;
@@ -106,8 +87,8 @@ export function VirtualKeyboard() {
         return;
       }
       const key = event.key.toLowerCase();
-      const index = KEY_BINDINGS.indexOf(key);
-      if (index < 0 || keyNotes.current.has(key)) return;
+      const index = MUSICAL_TYPING_OFFSETS.get(key);
+      if (index === undefined || keyNotes.current.has(key)) return;
       event.preventDefault();
       const pitch = START_PITCH + index;
       keyNotes.current.set(key, pitch);
@@ -142,9 +123,11 @@ export function VirtualKeyboard() {
   const blackWidth = whiteWidth * 0.62;
   const statusCopy =
     noteInputMode === "step"
-      ? "Step input · quarter note per press"
+      ? "Place input · quarter note per press"
       : recordingState === "recording"
       ? "Recording raw note-on / note-off timing"
+      : recordingState === "counting"
+        ? "Count-in · preview only until capture starts"
       : recordingState === "armed"
         ? "Armed · preview only until recording starts"
         : "Preview only · arm the transport to capture";

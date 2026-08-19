@@ -30,6 +30,10 @@ export function TransportBar() {
     (state) => state.loopRangeCustomized,
   );
   const recordingState = useStudioStore((state) => state.recordingState);
+  const countInBars = useStudioStore((state) => state.countInBars);
+  const countInRemaining = useStudioStore(
+    (state) => state.countInRemaining,
+  );
   const metronome = useStudioStore((state) => state.metronomeEnabled);
   const setCurrentBeat = useStudioStore((state) => state.setCurrentBeat);
   const setLoop = useStudioStore((state) => state.setLoopEnabled);
@@ -38,6 +42,7 @@ export function TransportBar() {
     (state) => state.setMetronomeEnabled,
   );
   const setTempo = useStudioStore((state) => state.setTempo);
+  const setCountInBars = useStudioStore((state) => state.setCountInBars);
   const setTimeSignature = useStudioStore(
     (state) => state.setTimeSignature,
   );
@@ -54,6 +59,7 @@ export function TransportBar() {
     Math.ceil(positionHorizon / barLength) * barLength,
   );
   const secondsPerBeat = 60 / melody.tempo;
+  const counting = recordingState === "counting";
 
   useEffect(() => {
     if (
@@ -77,7 +83,7 @@ export function TransportBar() {
 
   return (
     <div
-      className={`transport-bar ${recordingState === "recording" ? "recording-live" : ""}`}
+      className={`transport-bar ${recordingState === "recording" ? "recording-live" : ""} ${recordingState === "counting" ? "count-in-active" : ""}`}
       aria-label="Transport and score settings"
     >
       <div className="transport-buttons">
@@ -93,9 +99,13 @@ export function TransportBar() {
           type="button"
           className="play-button"
           onClick={toggle}
-          aria-label={isPlaying ? "Pause" : "Play"}
+          aria-label={counting ? "Cancel count-in" : isPlaying ? "Pause" : "Play"}
         >
-          {isPlaying ? <Pause size={17} /> : <Play size={17} fill="currentColor" />}
+          {isPlaying || counting ? (
+            <Pause size={17} />
+          ) : (
+            <Play size={17} fill="currentColor" />
+          )}
         </button>
         <button
           type="button"
@@ -107,8 +117,11 @@ export function TransportBar() {
         </button>
         <RecordControls
           state={recordingState}
+          countInBars={countInBars}
+          countInRemaining={countInRemaining}
           onArm={armRecording}
           onToggleRecording={toggleRecording}
+          onCountInBarsChange={setCountInBars}
         />
         <button
           type="button"
@@ -116,6 +129,7 @@ export function TransportBar() {
           onClick={() => setLoop(!loopEnabled)}
           aria-label="Toggle loop"
           aria-pressed={loopEnabled}
+          title="Toggle loop (/)"
         >
           <Repeat2 size={16} />
         </button>
@@ -125,6 +139,7 @@ export function TransportBar() {
           onClick={() => setMetronome(!metronome)}
           aria-label="Toggle metronome"
           aria-pressed={metronome}
+          title="Toggle metronome (M)"
         >
           <Timer size={14} />
           Click

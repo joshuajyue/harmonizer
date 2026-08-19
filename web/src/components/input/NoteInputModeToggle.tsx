@@ -15,7 +15,7 @@ const modes: Array<{
   },
   {
     id: "step",
-    label: "Step",
+    label: "Place",
     title: "Place a quarter note and advance one beat on every key press",
     icon: MousePointer2,
   },

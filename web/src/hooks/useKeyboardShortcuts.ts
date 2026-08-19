@@ -1,7 +1,27 @@
 import { useEffect } from "react";
 import { useHarmonize } from "./useHarmonize";
 import { usePlayback } from "./usePlayback";
+import { MUSICAL_TYPING_KEY_SET } from "../input/musicalTyping";
 import { useStudioStore } from "../store";
+
+const CHARACTER_SHORTCUTS = [
+  { key: "/", action: "loop" },
+  { key: "m", action: "metronome" },
+  { key: "r", action: "record" },
+  { key: "1", action: "result-a" },
+  { key: "2", action: "result-b" },
+] as const;
+
+const collisions = CHARACTER_SHORTCUTS.filter(({ key }) =>
+  MUSICAL_TYPING_KEY_SET.has(key),
+);
+if (collisions.length > 0) {
+  throw new Error(
+    `Global shortcuts collide with musical typing: ${collisions
+      .map(({ key }) => key)
+      .join(", ")}`,
+  );
+}
 
 function isInteractiveTarget(target: EventTarget | null) {
   return (
@@ -37,22 +57,28 @@ export function useKeyboardShortcuts() {
         return;
       }
       if (event.metaKey || event.ctrlKey) return;
+      const characterShortcut = CHARACTER_SHORTCUTS.find(
+        ({ key }) => key === event.key.toLowerCase(),
+      );
       if (event.code === "Space") {
         event.preventDefault();
         toggle();
-      } else if (
-        event.shiftKey &&
-        event.key.toLowerCase() === "l"
-      ) {
+      } else if (characterShortcut?.action === "loop") {
         state.setLoopEnabled(!state.loopEnabled);
-      } else if (event.key.toLowerCase() === "m") {
+      } else if (characterShortcut?.action === "metronome") {
         state.setMetronomeEnabled(!state.metronomeEnabled);
-      } else if (event.key.toLowerCase() === "r") {
+      } else if (characterShortcut?.action === "record") {
         event.preventDefault();
         toggleRecording();
-      } else if (event.key === "1" && state.slots.A.result) {
+      } else if (
+        characterShortcut?.action === "result-a" &&
+        state.slots.A.result
+      ) {
         state.setViewMode("A");
-      } else if (event.key === "2" && state.slots.B.result) {
+      } else if (
+        characterShortcut?.action === "result-b" &&
+        state.slots.B.result
+      ) {
         state.setViewMode("B");
       } else if (event.key === "Home") {
         stop();

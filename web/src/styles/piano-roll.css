@@ -299,6 +299,26 @@
   background: var(--accent);
 }
 
+.quantize-selection {
+  display: inline-flex;
+  height: 27px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid rgb(97 184 255 / 30%);
+  border-radius: 5px;
+  color: #9fd5ff;
+  background: rgb(97 184 255 / 7%);
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.quantize-selection:hover {
+  color: #0c151d;
+  background: #9fd5ff;
+}
+
 .compact-number {
   display: flex;
   height: 27px;

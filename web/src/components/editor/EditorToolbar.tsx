@@ -96,6 +96,7 @@ export function EditorToolbar() {
             className="reharmonize-button"
             onClick={() => void harmonizeSlot(activeSlot)}
             disabled={slot.status === "loading"}
+            title="Re-harmonize active result (Cmd/Ctrl+Enter)"
           >
             <RefreshCw
               size={13}

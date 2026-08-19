@@ -76,9 +76,11 @@ export function MidiDeviceInput() {
         <span>
           {inputs.length > 0
             ? noteInputMode === "step"
-              ? "Step input · quarter note per note-on."
+              ? "Place input · quarter note per note-on."
               : recordingState === "recording"
               ? "Recording raw timing and MIDI velocity."
+              : recordingState === "counting"
+                ? "Count-in · preview only until capture starts."
               : `${inputs.length} device${inputs.length === 1 ? "" : "s"} · preview only`
             : "Grant access, then play your connected keyboard."}
         </span>

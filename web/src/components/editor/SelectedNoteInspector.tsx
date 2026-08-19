@@ -5,6 +5,7 @@ import {
   type SelectedNote,
 } from "../../store";
 import { midiToName } from "../../utils/music";
+import { QuantizeSelectionButton } from "./QuantizeSelectionButton";
 
 export function SelectedNoteInspector() {
   const selections = useStudioStore((state) => state.selectedNotes);
@@ -20,6 +21,9 @@ export function SelectedNoteInspector() {
   );
   const setSelectionDuration = useStudioStore(
     (state) => state.setSelectedNotesDuration,
+  );
+  const quantizeStarts = useStudioStore(
+    (state) => state.quantizeSelectedNoteStarts,
   );
   const updateMelody = useStudioStore((state) => state.updateMelodyNote);
   const updateVoice = useStudioStore((state) => state.updateVoiceNote);
@@ -75,6 +79,7 @@ export function SelectedNoteInspector() {
             </button>
           ))}
         </div>
+        <QuantizeSelectionButton onClick={quantizeStarts} />
         {sharedDuration !== undefined ? (
           <NumberField
             label="Length"
@@ -136,6 +141,7 @@ export function SelectedNoteInspector() {
         step={snap}
         onChange={(duration) => update({ duration: Math.max(snap, duration) })}
       />
+      <QuantizeSelectionButton onClick={quantizeStarts} />
       <SelectionButtons
         count={1}
         onDelete={deleteSelection}

@@ -27,8 +27,8 @@ npm run build
 - **Zustand slices** separate project data, engine comparisons, transport, and
   editor UI state. Components subscribe only to the state they use; no root
   component owns or threads the studio state.
-- **Canvas piano roll** draws all notes, beat grids, chord analysis, comparison
-  layers, and violation markers without creating a DOM element per note.
+- **Canvas piano roll** draws the active result, beat grids, chord analysis,
+  and violation markers without creating a DOM element per note.
 - **Web Audio scheduler** uses `AudioContext.currentTime` and a short look-ahead
   scheduler for note and metronome timing.
 - **Typed API client** is the only network boundary and imports all shared music
@@ -38,14 +38,27 @@ npm run build
 
 | Key | Action |
 | --- | --- |
-| Space | Play / pause |
+| Space | Play / pause; cancel an active count-in |
 | Home | Return to start |
-| Left / Right | Move by the current snap value |
-| L | Toggle loop |
+| Left / Right | Move the selection or playhead by the current snap value |
+| Up / Down | Transpose selected notes; hold Shift for an octave |
+| / | Toggle loop |
 | M | Toggle metronome |
-| R | Compare both engines |
-| 1 / 2 / 0 | Show A / B / overlay |
-| Delete | Delete selected note |
-| Escape | Clear note selection |
+| R | Start, cancel, or stop recording |
+| 1 / 2 | Show result A / B |
+| Cmd/Ctrl + Enter | Harmonize the active result |
+| Delete / Backspace | Delete selected notes |
+| Escape | Clear selection or exit lane focus |
 
-The virtual piano also maps chromatic notes from `A` through `;`.
+The virtual piano reserves the chromatic row
+`A W S E D F T G Y H U J K O L P ;`; global character shortcuts are checked
+against that set at startup.
+
+## Note input
+
+- **Record** (default) previews keyboard and MIDI input until recording starts.
+  Recording supports an Off, one-bar, or two-bar meter-aware count-in.
+- **Place** inserts a one-beat note on each keyboard or MIDI note-on and
+  advances the playhead by one beat.
+- **Snap starts** quantizes selected onsets to the current grid while preserving
+  every note's duration.

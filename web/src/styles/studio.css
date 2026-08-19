@@ -291,9 +291,50 @@
   animation: recordLivePulse 1.1s ease-in-out infinite;
 }
 
+.record-take-button.counting {
+  min-width: 68px;
+  border-color: rgb(255 189 89 / 62%);
+  color: #ffe0a3;
+  background: rgb(255 189 89 / 12%);
+  box-shadow: 0 0 0 3px rgb(255 189 89 / 7%);
+}
+
+.count-in-select {
+  display: grid;
+  gap: 2px;
+  margin-left: 2px;
+}
+
+.count-in-select > span {
+  color: var(--dim);
+  font: 7px "DM Mono", monospace;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.count-in-select select {
+  height: 19px;
+  padding: 0 4px;
+  border: 1px solid #394251;
+  border-radius: 4px;
+  color: var(--muted);
+  background: #151a22;
+  font: 8px "DM Mono", monospace;
+}
+
+.count-in-select select:disabled {
+  opacity: 0.5;
+}
+
 .transport-bar.recording-live {
   box-shadow:
     inset 0 -2px 0 rgb(255 94 114 / 68%),
+    0 5px 18px rgb(0 0 0 / 15%);
+}
+
+.transport-bar.count-in-active {
+  box-shadow:
+    inset 0 -2px 0 rgb(255 189 89 / 68%),
     0 5px 18px rgb(0 0 0 / 15%);
 }
 

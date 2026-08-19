@@ -14,7 +14,8 @@ export type AsyncStatus = "idle" | "loading" | "ready" | "error";
 export type InputTab = "piano" | "midi" | "file" | "microphone";
 export type NoteInputMode = "record" | "step";
 export type FocusedLane = "melody" | VoiceName;
-export type RecordingState = "idle" | "armed" | "recording";
+export type RecordingState = "idle" | "armed" | "counting" | "recording";
+export type CountInBars = 0 | 1 | 2;
 
 export interface ComparisonSlot {
   engineId: string;
@@ -107,12 +108,16 @@ export interface TransportSlice {
   loopRangeCustomized: boolean;
   metronomeEnabled: boolean;
   recordingState: RecordingState;
+  countInBars: CountInBars;
+  countInRemaining: number;
   setPlaying: (playing: boolean) => void;
   setCurrentBeat: (beat: number) => void;
   setLoopEnabled: (enabled: boolean) => void;
   setLoopRange: (start: number, end: number, customized?: boolean) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
   setRecordingState: (state: RecordingState) => void;
+  setCountInBars: (bars: CountInBars) => void;
+  setCountInRemaining: (pulses: number) => void;
 }
 
 export interface EditorSlice {
@@ -142,6 +147,7 @@ export interface EditorSlice {
   ) => void;
   nudgeSelectedNotes: (deltaBeats: number) => void;
   transposeSelectedNotes: (semitones: number) => void;
+  quantizeSelectedNoteStarts: () => void;
   setSelectedNotesDuration: (duration: number) => void;
   setInputTab: (tab: InputTab) => void;
   setInputDockOpen: (open: boolean) => void;

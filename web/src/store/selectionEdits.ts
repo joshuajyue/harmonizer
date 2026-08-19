@@ -1,4 +1,5 @@
 import type { Note } from "../../../contracts/types";
+import { quantize } from "../utils/music";
 import type { StudioStore } from "./types";
 import {
   applyVoiceNoteEdits,
@@ -82,5 +83,44 @@ export function buildSelectionDuration(
       ? state.melodyRevision + 1
       : state.melodyRevision,
     slots: applyVoiceNoteEdits(state, voiceEdits),
+  };
+}
+
+export function buildSelectionQuantize(
+  state: StudioStore,
+): Partial<StudioStore> {
+  const origins = collectSelectionOrigins(state);
+  const edits = new Map(
+    origins.map(({ selection, note }) => [
+      selectionKey(selection),
+      {
+        ...note,
+        start: Math.max(0, quantize(note.start, state.snap)),
+      },
+    ]),
+  );
+  const changed = origins.filter(({ selection, note }) => {
+    const next = edits.get(selectionKey(selection));
+    return next && Math.abs(next.start - note.start) > 0.0001;
+  });
+  if (changed.length === 0) return {};
+  const melodyChanged = changed.some(
+    ({ selection }) => selection.source === "melody",
+  );
+
+  return {
+    melody: melodyChanged
+      ? {
+          ...state.melody,
+          notes: state.melody.notes.map(
+            (note, index) =>
+              edits.get(selectionKey({ source: "melody", index })) ?? note,
+          ),
+        }
+      : state.melody,
+    melodyRevision: melodyChanged
+      ? state.melodyRevision + 1
+      : state.melodyRevision,
+    slots: applyVoiceNoteEdits(state, edits),
   };
 }
