@@ -84,9 +84,10 @@ against that set at startup.
 ### Known limitations and unfinished work
 
 - No known blocking frontend defect is open at this checkpoint.
-- `npm test` covers shortcut collisions and onset-only quantization, but there
-  is no automated end-to-end suite for marquee edits, recording, count-in, or
-  A/B switching.
+- `npm test` covers shortcut collisions, onset-only quantization, and the
+  unequal-note-count contract fixture—including sustained-note hit-testing,
+  bulk edits, chord geometry, and violation placement. There is still no
+  automated end-to-end suite for recording, count-in, or A/B switching.
 - Web MIDI and microphone behavior still require final checks with physical
   devices and browser permission prompts. The local bass patch also merits a
   subjective laptop-speaker check.
@@ -106,5 +107,7 @@ against that set at startup.
 - Record is the default input mode. Place is an explicit alternate mode.
 - Quantization moves selected onsets only and never changes duration.
 - Count-in time is pre-roll and is never added to recorded beat positions.
+- Voice timelines are independent. Notes are addressed by voice name and their
+  index within that voice, never by a shared cross-voice index.
 - Harmonization stays behind the typed API; the frontend contains no music
   theory or voicing logic.
