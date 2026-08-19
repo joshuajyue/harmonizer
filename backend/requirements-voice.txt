@@ -1,0 +1,3 @@
+# Optional WORLD fallback for formant-preserving resynthesis.
+# DDSP-SVC/RVC adapters should install their own hardware-specific PyTorch lockfile.
+pyworld==0.3.5
