@@ -22,6 +22,7 @@ DETECTED_MEDIAN_HEADER = "X-HarmonAIzer-Detected-Median-Pitch"
 @router.post(
     "/transcribe",
     response_model=Melody,
+    response_model_exclude_none=True,
     responses={
         200: {
             "headers": {

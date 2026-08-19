@@ -210,6 +210,25 @@ def test_transcribe_uses_complete_default_time_signature(
     ]
 
 
+def test_transcribe_omits_absent_key(
+    client: TestClient,
+    canonical_request_payload: dict,
+) -> None:
+    fixture = Melody.model_validate(canonical_request_payload["melody"]).model_copy(
+        update={"key": None},
+        deep=True,
+    )
+    client.app.state.transcription_service = FakeTranscriptionService(fixture)
+
+    response = client.post(
+        f"/api/v1/transcribe?tempo={fixture.tempo}",
+        files={"audio": ("voice.wav", b"audio", "audio/wav")},
+    )
+
+    assert response.status_code == 200
+    assert "key" not in response.json()
+
+
 def test_pyin_tracks_a_clean_monophonic_tone(
     canonical_request_payload: dict,
 ) -> None:
