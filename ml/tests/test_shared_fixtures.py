@@ -83,6 +83,43 @@ def of_kind(defects, kind):
     return [d for d in defects if d.kind == kind]
 
 
+#: Kinds the fixture's `violations` array is authoritative about. For these, the
+#: detector's findings and the fixture's declarations must agree exactly in both
+#: directions. Everything else the detector reports (overlap, melodic intervals,
+#: tendency tones) is real but not something the fixture undertakes to enumerate.
+STRUCTURAL_KINDS = ("parallel_fifths", "parallel_octaves", "voice_crossing", "range")
+
+
+def as_key(kind, offset, voices):
+    return (kind, round(float(offset), 6), tuple(sorted(voices)))
+
+
+def declared_structural(response):
+    return {
+        as_key(v.kind, v.start, [VOICE_INDEX[n] for n in v.voices])
+        for v in response.violations if v.kind in STRUCTURAL_KINDS
+    }
+
+
+def detected_structural(defects):
+    return {as_key(d.kind, d.offset, d.voices) for d in defects if d.kind in STRUCTURAL_KINDS}
+
+
+def previous_distinct(grid, beat: float):
+    """The sonority immediately before `beat`, skipping steps where nothing moved.
+
+    Voice-leading rules apply between successive *sonorities*, not grid steps, so
+    a held chord is one chord however many sixteenths it occupies.
+    """
+    step = int(round(beat * 4))
+    current = tuple(line[step] for line in grid)
+    for earlier in range(step - 1, -1, -1):
+        sonority = tuple(line[earlier] for line in grid)
+        if sonority != current:
+            return sonority
+    return None
+
+
 class TestAdvertisedDefectsAreFound:
     """Exactly the three the fixture declares, exactly where it declares them."""
 
@@ -125,10 +162,21 @@ class TestNoFalsePositives:
     A detector that fires everywhere would pass the tests above and be useless.
     """
 
-    def test_no_extra_parallels_or_crossings(self, defects):
-        counts = {kind: len(of_kind(defects, kind)) for kind in
-                  ("parallel_fifths", "parallel_octaves", "voice_crossing")}
-        assert counts == {"parallel_fifths": 1, "parallel_octaves": 1, "voice_crossing": 1}
+    def test_detected_and_declared_agree_exactly(self, response, defects):
+        """Bidirectional, and derived from the fixture rather than hardcoded.
+
+        Whatever the fixture declares is what the detectors must find, and
+        nothing more. Written this way so a re-voicing of the fixture needs no
+        edit here: a mismatch in EITHER direction fails loudly, which is the
+        failure mode that let a fixture carrying five unintended parallels
+        describe itself as carrying none.
+        """
+        declared = declared_structural(response)
+        detected = detected_structural(defects)
+        missed = declared - detected
+        invented = detected - declared
+        assert not missed, f"declared but not detected: {sorted(missed)}"
+        assert not invented, f"detected but not declared: {sorted(invented)}"
 
     def test_no_range_violations(self, defects):
         assert of_kind(defects, "range") == []
@@ -156,35 +204,108 @@ class TestNoFalsePositives:
 
 
 class TestDefectsAreGenuineNotJustLabelled:
-    """Re-derive each defect from raw pitch arithmetic on the fixture's notes.
+    """Re-derive every declared defect from raw pitch arithmetic on the fixture.
 
-    Independent of both the detector and the fixture's own labels: if the two
-    shared a misconception, these still fail.
+    Independent of both the detector and the fixture's labels: if the two shared
+    a misconception, these still fail. Driven off the declared `violations`
+    array rather than hardcoded beats, so it keeps working after a re-voicing —
+    and so a defect the fixture merely *claims* cannot pass unchecked.
     """
 
-    def test_beat_nine_really_is_consecutive_perfect_fifths(self, grid):
-        before, after = at(grid, 8.0), at(grid, 9.0)
-        assert (after[TENOR] - before[TENOR]) != 0 and (after[BASS] - before[BASS]) != 0
-        assert (before[TENOR] - before[BASS]) % 12 == 7
-        assert (after[TENOR] - after[BASS]) % 12 == 7
-        # Same direction is what makes it parallel rather than contrary.
-        assert (after[TENOR] - before[TENOR]) > 0 and (after[BASS] - before[BASS]) > 0
+    def test_every_declared_parallel_is_arithmetically_real(self, response, grid):
+        checked = 0
+        for violation in response.violations:
+            if violation.kind not in ("parallel_fifths", "parallel_octaves"):
+                continue
+            upper, lower = sorted(
+                (VOICE_INDEX[n] for n in violation.voices), key=lambda v: v
+            )
+            after = at(grid, violation.start)
+            before = previous_distinct(grid, violation.start)
+            assert before is not None, f"nothing precedes beat {violation.start}"
 
-    def test_beat_twentytwo_really_is_consecutive_octaves(self, grid):
-        before, after = at(grid, 21.0), at(grid, 22.0)
-        assert (before[SOPRANO] - before[BASS]) % 12 == 0
-        assert (after[SOPRANO] - after[BASS]) % 12 == 0
-        assert (after[SOPRANO] - before[SOPRANO]) == (after[BASS] - before[BASS]) != 0
+            step = 7 if violation.kind == "parallel_fifths" else 0
+            gap_before = abs(before[upper] - before[lower])
+            gap_after = abs(after[upper] - after[lower])
+            assert gap_before % 12 == step, f"beat {violation.start}: interval before is {gap_before}"
+            assert gap_after % 12 == step, f"beat {violation.start}: interval after is {gap_after}"
 
-    def test_beat_twentyfive_really_is_a_crossing(self, grid):
-        sonority = at(grid, 25.0)
-        assert sonority[TENOR] > sonority[ALTO]
+            moved_upper = after[upper] - before[upper]
+            moved_lower = after[lower] - before[lower]
+            assert moved_upper != 0 and moved_lower != 0, "a sustained interval is not a parallel"
+            assert (moved_upper > 0) == (moved_lower > 0), "contrary motion is not a parallel"
+            checked += 1
+        assert checked, "fixture declares no parallels to verify"
 
-    def test_the_beats_either_side_are_correctly_ordered(self, grid):
-        """The crossing is a single event, not a persistent mis-ordering."""
-        for beat in (24.0, 26.0):
-            sonority = at(grid, beat)
-            assert sonority[SOPRANO] >= sonority[ALTO] >= sonority[TENOR] >= sonority[BASS]
+    def test_every_declared_crossing_is_arithmetically_real(self, response, grid):
+        checked = 0
+        for violation in response.violations:
+            if violation.kind != "voice_crossing":
+                continue
+            upper, lower = sorted(VOICE_INDEX[n] for n in violation.voices)
+            sonority = at(grid, violation.start)
+            assert sonority[lower] > sonority[upper], (
+                f"beat {violation.start}: {VOICE_NAMES[lower]} {sonority[lower]} is not above "
+                f"{VOICE_NAMES[upper]} {sonority[upper]}"
+            )
+            checked += 1
+        assert checked, "fixture declares no crossings to verify"
+
+    def test_no_undeclared_beat_contains_a_parallel(self, response, grid):
+        """The exhaustive sweep the fixture's own generator did not do.
+
+        Walks every successive pair of distinct sonorities and every voice pair,
+        by hand, and asserts any perfect parallel it finds is one the fixture
+        declares. This is what would have caught the five unintended parallels
+        without needing the detector to be trusted at all.
+        """
+        declared = {
+            (round(float(v.start), 6), tuple(sorted(VOICE_INDEX[n] for n in v.voices)))
+            for v in response.violations
+            if v.kind in ("parallel_fifths", "parallel_octaves")
+        }
+        length = len(grid[0])
+        unexpected = []
+        previous, previous_step = None, None
+        for step in range(length):
+            sonority = tuple(line[step] for line in grid)
+            if sonority == previous:
+                continue
+            if previous is not None:
+                for high in range(4):
+                    for low in range(high + 1, 4):
+                        if -1 in (previous[high], previous[low], sonority[high], sonority[low]):
+                            continue
+                        moved_high = sonority[high] - previous[high]
+                        moved_low = sonority[low] - previous[low]
+                        if moved_high == 0 or moved_low == 0:
+                            continue
+                        if (moved_high > 0) != (moved_low > 0):
+                            continue
+                        gap_before = abs(previous[high] - previous[low]) % 12
+                        gap_after = abs(sonority[high] - sonority[low]) % 12
+                        if gap_before == gap_after and gap_before in (0, 7):
+                            beat = round(step / 4, 6)
+                            if (beat, (high, low)) not in declared:
+                                unexpected.append(
+                                    (beat, VOICE_NAMES[high], VOICE_NAMES[low], gap_before)
+                                )
+            previous, previous_step = sonority, step
+        assert not unexpected, f"undeclared parallels found by hand: {unexpected}"
+
+    def test_the_beats_either_side_of_a_crossing_are_ordered(self, response, grid):
+        """A declared crossing is a single event, not a persistent mis-ordering."""
+        for violation in response.violations:
+            if violation.kind != "voice_crossing":
+                continue
+            for offset in (-1.0, 1.0):
+                beat = violation.start + offset
+                if not 0 <= beat * 4 < len(grid[0]):
+                    continue
+                sonority = at(grid, beat)
+                if -1 in sonority:
+                    continue
+                assert sonority[SOPRANO] >= sonority[ALTO] >= sonority[TENOR] >= sonority[BASS]
 
 
 class TestFixtureShape:

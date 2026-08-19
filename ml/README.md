@@ -103,10 +103,17 @@ deliberate, independently verified voice-leading defects. Those are the most
 valuable tests here, because they are the only ones whose expected answer was
 written by someone else: every other check of the detectors was written by the
 same person who wrote the detectors, so a shared misconception would pass
-silently. `tests/test_shared_fixtures.py` asserts the detectors find exactly
-those three — right beats, right voice pairs — invent no others, and it
-re-derives each defect from raw pitch arithmetic on the fixture's own notes, so
-it still fails if the detector and the fixture happen to share a mistake.
+silently. `tests/test_shared_fixtures.py` asserts the detectors' findings and
+the fixture's declared `violations` agree **exactly, in both directions**, and
+it is driven off the fixture rather than hardcoded beats, so a re-voicing needs
+no edit here.
+
+It also sweeps every successive pair of sonorities and every voice pair *by
+hand*, from raw pitch arithmetic, and fails if it finds a perfect parallel the
+fixture does not declare. That check trusts neither the detector nor the
+fixture's labels, so it still fires if the two share a mistake — which they did
+once: an earlier revision of the fixture carried five unintended parallels while
+declaring none, and this is the check that catches that class of error.
 
 The one worth knowing about: `Chord.quality` is a bare `str` in the schema, so
 Pydantic will accept `"min11"` and the UI will render something unrecognisable.
