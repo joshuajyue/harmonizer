@@ -121,16 +121,38 @@ def pitch_class_sets(chord: JazzChord, style: VoicingStyle, count: int) -> list[
 
     if style.rootless:
         # Bill Evans A and B: 3-5-7-9 and 7-9-3-5. Same notes, different
-        # inversion, and which one you play is decided by register.
-        add([third, fifth, seventh, *tensions, *colours])
-        add([seventh, *tensions, *colours, third, fifth])
-        add([*guide, *tensions, *colours])
+        # inversion, and which one you play is decided by register. They are
+        # FOUR-note shapes and are only offered as such: truncating "3-5-7-9"
+        # to two notes yields 3-5, which is a triad with the seventh thrown
+        # away — the one note that says what the chord is. With voiceCount 4
+        # there are two inner parts, so that truncation was the default path
+        # and every dominant seventh was sounding as a major triad. No metric
+        # in the report could see it: they all measure chord labels, and the
+        # label still said "G7".
+        if count >= 4:
+            add([third, fifth, seventh, *tensions, *colours])
+            add([seventh, *tensions, *colours, third, fifth])
+        add([*guide, *tensions, *colours, fifth])
+        # When the melody blocks one guide tone — a tune sitting on the root
+        # makes every placement of the major seventh a minor ninth against it —
+        # the next best pair is the other guide tone plus a colour, not the
+        # root and the third. Fmaj9 voiced A-G says more than F-A does.
+        add([third, *tensions, *colours, fifth])
+        add([seventh, *tensions, *colours, third])
     if style.upper_structure and chord.is_dominant and tensions:
         # Guide tones underneath, an altered triad on top.
         add([third, seventh, *tensions])
-    if style.quartal and chord.quality in ("min7", "sus4", "dom7", "min6"):
-        base = 0 if chord.quality == "sus4" else (third or 0)
-        add([base, (base + 5) % 12, (base + 10) % 12, (base + 15) % 12])
+    if style.quartal and chord.quality in ("min7", "sus4"):
+        # Fourths stacked from the ROOT, and only through notes the chord
+        # actually contains. Stacking from the third instead put a Bb into a
+        # Dm7 — a wrong note, invisible to every metric in the report because
+        # they all measure chord labels rather than the notes played. The So
+        # What voicing is D-G-C-F, all of it inside D dorian; F-Bb-Eb-Ab is
+        # just four fourths.
+        available = set(chord.core_intervals) | set(tensions) | {2, 5, 9}
+        stack = [(step * 5) % 12 for step in range(4)]
+        if all(interval in available for interval in stack[:count]):
+            add(stack)
     add([*guide, *tensions, *colours, fifth, 0])
     add([*guide, fifth, 0])
     add([*guide, 0])
@@ -166,11 +188,44 @@ def _melody_pitches_in(melody: Sequence[MelodyNote], start: float, stop: float) 
     ]
 
 
-def arrange(intervals: Sequence[int], root: int, ceiling: int, floor: int = INNER_LOW) -> list[list[int]]:
-    """Every ascending placement of a set of pitch classes under `ceiling`."""
+def arrange(
+    intervals: Sequence[int],
+    root: int,
+    ceiling: int,
+    floor: int = INNER_LOW,
+    *,
+    rotations: bool = True,
+) -> list[list[int]]:
+    """Every ascending placement of a set of pitch classes under `ceiling`.
+
+    `rotations` decides whether the notes may be re-stacked. They must be: a
+    list of pitch classes is a *selection*, not a voicing, and which note ends
+    up on the bottom is an inversion choice that voice leading should make.
+    Without it the third of every chord was pinned below its seventh, so G7
+    after Dm7 could only be voiced B3-F4 — 13 semitones of motion where F4-B4
+    is one, and the guide-tone line that is the whole point of the texture was
+    impossible to write. The Bill Evans A and B forms are rotations of each
+    other, so this also gets them for free.
+    """
     if not intervals:
         return []
-    pcs = [(root + interval) % 12 for interval in intervals]
+    orders = _rotations(list(intervals)) if rotations else [list(intervals)]
+    out: list[list[int]] = []
+    seen: set[tuple[int, ...]] = set()
+    for order in orders:
+        for voicing in _stack([(root + interval) % 12 for interval in order], ceiling, floor):
+            key = tuple(voicing)
+            if key not in seen:
+                seen.add(key)
+                out.append(voicing)
+    return out
+
+
+def _rotations(intervals: list[int]) -> list[list[int]]:
+    return [intervals[index:] + intervals[:index] for index in range(len(intervals))]
+
+
+def _stack(pcs: Sequence[int], ceiling: int, floor: int) -> list[list[int]]:
     voicings: list[list[int]] = [[]]
     for pitch_class in pcs:
         grown: list[list[int]] = []
@@ -213,7 +268,12 @@ def _voicing_cost(voicing: Sequence[int], previous: Sequence[int] | None, centre
     The register term is anchored under the melody rather than at a fixed
     pitch, because "where the left hand goes" is relative to where the tune is.
     """
-    cost = 0.02 * sum(abs(pitch - centre) for pitch in voicing) / max(1, len(voicing))
+    # 0.05 per semitone means a fifth out of register costs about as much as
+    # dropping one place in the note-selection ranking. At 0.02 it did not:
+    # with a melody at F5 the voicer preferred the rank-0 note choice two
+    # octaves down (E3-A3) over the rank-1 choice under the tune (F4-A4), which
+    # is the right notes in the wrong place.
+    cost = 0.05 * sum(abs(pitch - centre) for pitch in voicing) / max(1, len(voicing))
     spread = voicing[-1] - voicing[0] if len(voicing) > 1 else 0
     cost += 0.05 * max(0, spread - 12)
     if previous:
