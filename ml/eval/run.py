@@ -98,11 +98,38 @@ def build_report(
         f"Every engine sees the same held-out sopranos and nothing else.\n\n"
     )
 
-    out.write("## 1. Voice-leading defects per 100 chord changes\n\n")
+    out.write("## 1. Every engine against Bach, on the axes that matter\n\n")
     out.write(
-        "Objective and engine-agnostic: these are counted by the same detectors for every "
-        "row, including Bach's. The `bach_oracle` column is the calibration — it is what "
-        "the ceiling scores under these exact definitions, and it is not zero.\n\n"
+        "**The headline is distance from Bach, not a defect leaderboard.** Voice-leading "
+        "defects are a guardrail that stops an engine degenerating into parallel thirds; "
+        "they are not the objective. Bach himself breaks these rules, and an engine that "
+        "never does is not better than Bach — it is stiffer than Bach. Every column below "
+        "is therefore read against the `bach_oracle` row, and *under*-shooting is as much "
+        "a miss as overshooting.\n\n"
+    )
+    headline = [
+        ("hard defects /100 chords", lambda r: r.defects.hard_error_rate(), 2),
+        ("chord-bigram JS from Bach", lambda r: r.divergences(reference)["chord_bigram_js"], 3),
+        ("cadence JS from Bach", lambda r: r.divergences(reference)["cadence_js"], 3),
+        ("distinct chords / piece", lambda r: r.activity.mean_classes_per_piece(), 1),
+        ("share of beats on I or V", lambda r: 100 * r.activity.safe_chord_share(), 1),
+        ("chord changes /100 beats", lambda r: r.activity.chord_changes_per_100_beats(), 1),
+        ("voice moves /100 beats", lambda r: r.activity.sonority_changes_per_100_beats(), 1),
+    ]
+    rows = [[label] + [_fmt(fn(r), places) for r in results] for label, fn, places in headline]
+    out.write(render_table(["metric"] + names, rows))
+    out.write(
+        "\nThe last four rows are the ones a defect count cannot see. An engine reaches "
+        "zero defects either by realising a full harmonic vocabulary carefully, or by "
+        "narrowing the vocabulary until nothing can go wrong. Those look identical in the "
+        "first row and completely different in rows 4-7.\n\n"
+    )
+
+    out.write("## 2. Voice-leading defects per 100 chord changes\n\n")
+    out.write(
+        "Objective and engine-agnostic: counted by the same detectors for every row, "
+        "including Bach's. Read as a guardrail — the question is whether an engine is "
+        "*materially worse* than the oracle, not whether it is lowest.\n\n"
     )
     rows = []
     for kind, values in defect_table(results):
@@ -112,7 +139,7 @@ def build_report(
     out.write("\nHARD TOTAL sums the unambiguous errors: parallel fifths, parallel octaves, "
               "voice crossing and range violations.\n\n")
 
-    out.write("## 2. Style distance from the Bach corpus\n\n")
+    out.write("## 3. Style distance from the Bach corpus\n\n")
     out.write(
         "Jensen-Shannon divergence in bits (0 = identical, 1 = disjoint) against the "
         "**training** split. `bach_oracle` is held-out Bach measured against training "
@@ -145,7 +172,7 @@ def build_report(
     out.write(render_table(["cadence"] + names, rows))
     out.write("\n")
 
-    out.write("## 3. Held-out likelihood\n\n")
+    out.write("## 4. Held-out likelihood\n\n")
     out.write(
         "Negative log-likelihood in nats per predicted note token, and its perplexity, "
         "for Bach's own alto/tenor/bass on the held-out split. Only defined for "
@@ -158,7 +185,7 @@ def build_report(
     out.write(render_table(["metric"] + names, rows))
     out.write("\n")
 
-    out.write("## 4. Agreement with Bach — reported, NOT the headline\n\n")
+    out.write("## 5. Agreement with Bach — reported, NOT the headline\n\n")
     out.write(
         "This is the metric v1 optimised. It is included for continuity and because "
         "watching it move independently of sections 1-3 is itself the argument against "
@@ -172,7 +199,7 @@ def build_report(
     out.write(render_table(["agreement"] + names, rows))
     out.write("\n")
 
-    out.write("## 5. Cost and robustness\n\n")
+    out.write("## 6. Cost and robustness\n\n")
     rows = [
         ["pieces scored"] + [str(result.pieces) for result in results],
         ["failures"] + [str(result.failures) for result in results],
@@ -181,7 +208,7 @@ def build_report(
     out.write(render_table(["metric"] + names, rows))
     out.write("\n")
 
-    out.write("## 6. Melody-only key detection\n\n")
+    out.write("## 7. Melody-only key detection\n\n")
     out.write(
         "The tables above supply the ground-truth key so the comparison isolates the "
         "harmonic decision. In production the engine must find the key from the tune "
@@ -209,7 +236,7 @@ def build_report(
         out.write("\n")
 
     if ablation:
-        out.write("## 7. Representation ablation — what the v1 handicap actually cost\n\n")
+        out.write("## 8. Representation ablation — what the v1 handicap actually cost\n\n")
         out.write(
             "Identical architecture, identical data, identical number of gradient steps; "
             "only the pitch representation differs. `absolute` is exactly the information "
@@ -240,7 +267,7 @@ def build_report(
             ]
             out.write(", ".join(deltas) + ".\n\n")
 
-    out.write("## 8. Most frequent chords\n\n")
+    out.write("## 9. Most frequent chords\n\n")
     for result in list(results):
         top = summarize_distribution(result.style.chord_unigram, [], top=8)
         out.write(f"* `{result.engine_id}`: " + ", ".join(f"{k} {100 * v:.1f}%" for k, v in top) + "\n")

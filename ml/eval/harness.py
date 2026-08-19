@@ -33,11 +33,13 @@ from ..data.melody import chorale_to_melody, detect_melody_key, melody_to_grid, 
 from ..engines.base import HarmonyEngine
 from ..theory.pitch import Key
 from .metrics import (
+    ActivityCounts,
     AgreementCounts,
     DEFECT_KINDS,
     DefectCounts,
     HARD_DEFECTS,
     StyleCounts,
+    collect_activity,
     collect_agreement,
     collect_defects,
     collect_style,
@@ -54,6 +56,7 @@ class EngineResult:
     failures: int = 0
     defects: DefectCounts = field(default_factory=DefectCounts)
     style: StyleCounts = field(default_factory=StyleCounts)
+    activity: ActivityCounts = field(default_factory=ActivityCounts)
     agreement: AgreementCounts = field(default_factory=AgreementCounts)
     nll_nats: float = 0.0
     nll_tokens: int = 0
@@ -87,6 +90,32 @@ class EngineResult:
             "outer_motion_js": js_divergence(self.style.outer_motion, reference.outer_motion),
         }
 
+    def oracle_distance(self, oracle: "EngineResult") -> dict[str, float]:
+        """Signed distance from Bach on the axes that carry the headline claim.
+
+        The reframe this exists for: a defect rate BELOW Bach's is not a win, it
+        is a different kind of miss. Reporting signed distance rather than raw
+        values makes over- and under-shooting equally visible, which a
+        leaderboard sorted by defect count cannot do.
+        """
+        return {
+            "hard_errors": self.defects.hard_error_rate() - oracle.defects.hard_error_rate(),
+            "chord_classes_per_piece": (
+                self.activity.mean_classes_per_piece() - oracle.activity.mean_classes_per_piece()
+            ),
+            "tonic_dominant_share": (
+                self.activity.safe_chord_share() - oracle.activity.safe_chord_share()
+            ),
+            "chord_changes_per_100_beats": (
+                self.activity.chord_changes_per_100_beats()
+                - oracle.activity.chord_changes_per_100_beats()
+            ),
+            "sonority_changes_per_100_beats": (
+                self.activity.sonority_changes_per_100_beats()
+                - oracle.activity.sonority_changes_per_100_beats()
+            ),
+        }
+
     def style_fractions(self) -> dict[str, float]:
         def fraction(counter: Counter, key) -> float:
             total = sum(counter.values())
@@ -118,6 +147,7 @@ def reference_result(chorales: Sequence[Chorale], name: str = "bach_oracle") -> 
         result.pieces += 1
         result.defects.merge(collect_defects(chorale.voices, chorale.key))
         result.style.merge(collect_style(chorale.voices, chorale.key, phrase_ends=chorale.fermatas))
+        result.activity.merge(collect_activity(chorale.voices, chorale.key))
         result.agreement.merge(collect_agreement(chorale.voices, chorale.voices, chorale.key))
     return result
 
@@ -161,6 +191,7 @@ def evaluate_engine(
         result.pieces += 1
         result.defects.merge(collect_defects(lines, key))
         result.style.merge(collect_style(lines, key, phrase_ends=chorale.fermatas))
+        result.activity.merge(collect_activity(lines, key))
         result.agreement.merge(collect_agreement(lines, chorale.voices, chorale.key))
 
         if score_likelihood:

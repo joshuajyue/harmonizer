@@ -277,6 +277,90 @@ def collect_style(
 
 
 # ---------------------------------------------------------------------------
+# Harmonic activity
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ActivityCounts:
+    """How much harmonic work an engine actually does.
+
+    The metric that exposes playing it safe. An engine can drive its defect rate
+    to zero by moving less and choosing blander chords, and every voice-leading
+    number will improve while the music gets worse. Bach is the calibration
+    here as everywhere: the target is his rate of harmonic change and his
+    variety, not the maximum or the minimum of either.
+    """
+
+    pieces: int = 0
+    beats: int = 0
+    sonority_changes: int = 0
+    chord_changes: int = 0
+    chord_beats: int = 0
+    safe_chord_beats: int = 0
+    distinct_classes: Counter = field(default_factory=Counter)
+    classes_per_piece: list = field(default_factory=list)
+
+    def merge(self, other: "ActivityCounts") -> None:
+        self.pieces += other.pieces
+        self.beats += other.beats
+        self.sonority_changes += other.sonority_changes
+        self.chord_changes += other.chord_changes
+        self.chord_beats += other.chord_beats
+        self.safe_chord_beats += other.safe_chord_beats
+        self.distinct_classes.update(other.distinct_classes)
+        self.classes_per_piece.extend(other.classes_per_piece)
+
+    def chord_changes_per_100_beats(self) -> float:
+        return 100.0 * self.chord_changes / self.beats if self.beats else 0.0
+
+    def sonority_changes_per_100_beats(self) -> float:
+        return 100.0 * self.sonority_changes / self.beats if self.beats else 0.0
+
+    def mean_classes_per_piece(self) -> float:
+        return sum(self.classes_per_piece) / len(self.classes_per_piece) if self.classes_per_piece else 0.0
+
+    def safe_chord_share(self) -> float:
+        """Share of beats sitting on the tonic or the dominant.
+
+        The single clearest "played it safe" signal: an engine that never leaves
+        I and V will look excellent on every voice-leading metric.
+        """
+        return self.safe_chord_beats / self.chord_beats if self.chord_beats else 0.0
+
+
+def collect_activity(
+    lines: Sequence[Sequence[int]],
+    key: Key,
+    *,
+    steps_per_beat: int = STEPS_PER_QUARTER,
+) -> ActivityCounts:
+    counts = ActivityCounts(pieces=1)
+    chords = beat_chords(lines, key, steps_per_beat=steps_per_beat)
+    counts.beats = len(chords)
+
+    texture = to_texture(lines)
+    counts.sonority_changes = count_chord_changes(texture)
+
+    seen: set = set()
+    previous = None
+    for chord in chords:
+        if chord is None:
+            continue
+        counts.chord_beats += 1
+        identity = chord_class(chord)
+        seen.add(identity)
+        counts.distinct_classes[identity] += 1
+        if chord.relative_root in (0, 7) and chord.applied_to is None:
+            counts.safe_chord_beats += 1
+        if previous is not None and identity != previous:
+            counts.chord_changes += 1
+        previous = identity
+    counts.classes_per_piece.append(len(seen))
+    return counts
+
+
+# ---------------------------------------------------------------------------
 # Voice-leading defects
 # ---------------------------------------------------------------------------
 

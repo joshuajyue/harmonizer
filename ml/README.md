@@ -37,20 +37,29 @@ tests/       Unit tests, an engine contract suite every registered engine must
 
 Results on the 61 held-out chorales (full detail in `eval/REPORT.md`):
 
-|                | voice-leading errors / 100 chords | chord-bigram divergence from Bach | s/piece |
-|----------------|-----------------------------------|-----------------------------------|---------|
-| `fixed_thirds` | 159.84                            | 0.421                             | 0.02    |
-| `rules`        | 0.03                              | 0.202                             | 0.20    |
-| `neural`       | 10.47                             | 0.060                             | 2.85    |
-| `neural_vl`    | 0.12                              | 0.073                             | 1.72    |
-| Bach himself   | 3.73                              | 0.056                             | —       |
+|                | defects /100 | style JS from Bach | chords/piece | beats on I or V |
+|----------------|--------------|--------------------|--------------|-----------------|
+| `fixed_thirds` | 159.84       | 0.421              | 6.7          | 36.2%           |
+| `rules`        | 0.03         | 0.202              | 9.4          | 68.6%           |
+| `neural`       | 10.47        | **0.060**          | 12.6         | 52.9%           |
+| `neural_vl`    | 0.12         | 0.071              | 11.7         | 53.2%           |
+| **Bach**       | **3.73**     | **0.056**          | **14.5**     | **48.6%**       |
 
-The two systems fail orthogonally. The rule engine is a flawless contrapuntist
-with a narrow harmonic imagination; the learned model has Bach's harmonic
-vocabulary and writes parallel fifths at twenty times his rate. `neural_vl`
-composes them as constraint-plus-model and keeps both halves. Note that
-held-out Bach differs from training Bach by 0.056 — so `neural`'s 0.060 is not
-"close to Bach", it is indistinguishable from Bach at this sample size.
+**Read every column against the Bach row, and do not read the first column as a
+leaderboard.** Bach breaks his own voice-leading rules 3.73 times per 100 chords;
+an engine that never breaks them is not better than Bach, it is stiffer. Defects
+are a guardrail here, not the objective — the objective is stylistic fidelity and
+harmonic interest.
+
+So `rules` at 0.03 is *undershooting*, and columns 3 and 4 say why: it plays 9.4
+distinct chords per piece against Bach's 14.5 and spends 68.6% of its beats on I
+or V against Bach's 48.6%. It is clean because it is narrow.
+
+`neural_vl` is also near zero — and is *not* narrow: 11.7 chords per piece, 53.2%
+on I or V, and more voice motion than Bach. Same defect rate, opposite character.
+The number to watch is not the defect rate, it is what the engine is willing to
+play. Held-out Bach differs from training Bach by 0.056, so `neural`'s 0.060 is
+not "close to Bach" — it is indistinguishable from Bach at this sample size.
 
 Engines return **fully voiced parts**, not a chord label per beat. Chord labels
 are metadata derived from the voices. That is the central correction to v1,
@@ -87,6 +96,9 @@ any number in it:
 * **Chord agreement with Bach is not the headline.** It is reported because it
   is the number v1 optimised, and because watching it move independently of the
   quality metrics is the argument against it.
+* **Neither is the defect rate.** It is a guardrail against degenerating into
+  parallel thirds. An engine below Bach's rate is not winning; check what it gave
+  up to get there.
 
 ## The shared contract
 

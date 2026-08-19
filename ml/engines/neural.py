@@ -594,16 +594,28 @@ class ConstrainedNeuralEngine(NeuralHarmonyEngine):
     )
     learned = True
 
+    #: Chosen by sweeping against the harness (ml/experiments/defect_style_tradeoff.py),
+    #: not guessed. The result was that there is essentially no trade-off: going
+    #: from 0 to 0.15 removes every parallel fifth and octave while *improving*
+    #: style divergence and chord variety, because the constraint acts on how a
+    #: chord is realised, not on which chord is chosen. Anything in 0.15-1.0 is
+    #: within noise; 0.5 has the best chord variety of those and leaves the most
+    #: room for the model's own preference while still binding.
+    DEFAULT_RULE_WEIGHT = 0.5
+
     def __init__(
         self,
         checkpoint: Path = DEFAULT_CHECKPOINT,
         *,
         sweeps: int = 24,
         polish_rounds: int = 2,
-        rule_weight: float = 1.0,
+        rule_weight: float | None = None,
     ) -> None:
         super().__init__(
-            checkpoint, sweeps=sweeps, polish_rounds=polish_rounds, rule_weight=rule_weight,
+            checkpoint,
+            sweeps=sweeps,
+            polish_rounds=polish_rounds,
+            rule_weight=self.DEFAULT_RULE_WEIGHT if rule_weight is None else rule_weight,
         )
 
 
