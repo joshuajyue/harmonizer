@@ -18,6 +18,7 @@ from `contracts/examples/` through Vite middleware. Set
 `http://127.0.0.1:8000`.
 
 ```bash
+npm test
 npm run lint
 npm run build
 ```
@@ -83,8 +84,9 @@ against that set at startup.
 ### Known limitations and unfinished work
 
 - No known blocking frontend defect is open at this checkpoint.
-- Browser interaction coverage is currently manual; there is no automated
-  end-to-end suite for marquee edits, recording, count-in, or A/B switching.
+- `npm test` covers shortcut collisions and onset-only quantization, but there
+  is no automated end-to-end suite for marquee edits, recording, count-in, or
+  A/B switching.
 - Web MIDI and microphone behavior still require final checks with physical
   devices and browser permission prompts. The local bass patch also merits a
   subjective laptop-speaker check.

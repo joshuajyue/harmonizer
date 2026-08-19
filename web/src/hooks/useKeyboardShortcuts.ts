@@ -1,27 +1,8 @@
 import { useEffect } from "react";
 import { useHarmonize } from "./useHarmonize";
 import { usePlayback } from "./usePlayback";
-import { MUSICAL_TYPING_KEY_SET } from "../input/musicalTyping";
+import { CHARACTER_SHORTCUTS } from "../input/globalShortcuts";
 import { useStudioStore } from "../store";
-
-const CHARACTER_SHORTCUTS = [
-  { key: "/", action: "loop" },
-  { key: "m", action: "metronome" },
-  { key: "r", action: "record" },
-  { key: "1", action: "result-a" },
-  { key: "2", action: "result-b" },
-] as const;
-
-const collisions = CHARACTER_SHORTCUTS.filter(({ key }) =>
-  MUSICAL_TYPING_KEY_SET.has(key),
-);
-if (collisions.length > 0) {
-  throw new Error(
-    `Global shortcuts collide with musical typing: ${collisions
-      .map(({ key }) => key)
-      .join(", ")}`,
-  );
-}
 
 function isInteractiveTarget(target: EventTarget | null) {
   return (
