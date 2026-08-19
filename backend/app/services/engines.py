@@ -38,7 +38,11 @@ class EngineService:
     ) -> None:
         self._enable_dev_engine = enable_dev_engine
         self._discover_modules = discover_modules
-        self._fixed_engines = {engine.id: engine for engine in engines} if engines else None
+        self._fixed_engines = (
+            {engine.id: engine for engine in engines}
+            if engines is not None
+            else None
+        )
         self._engine_provider = engine_provider
         self._engine_lookup = engine_lookup
         self._discovered = False
@@ -55,7 +59,8 @@ class EngineService:
                 package = importlib.import_module("ml.engines")
                 prefix = f"{package.__name__}."
                 for module in pkgutil.iter_modules(package.__path__, prefix):
-                    if module.name.endswith(".base") or module.name.rsplit(".", 1)[-1].startswith("_"):
+                    short_name = module.name.rsplit(".", 1)[-1]
+                    if module.name.endswith(".base") or short_name.startswith("_"):
                         continue
                     try:
                         importlib.import_module(module.name)

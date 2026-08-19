@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -58,3 +59,24 @@ def test_missing_engine_is_clean_503(client: TestClient) -> None:
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "engine_unavailable"
     assert response.json()["detail"]["engine"] == "missing"
+
+
+def test_failed_engine_is_clean_503(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = client.app.state.engine_service.resolve("stub")
+
+    def fail(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise RuntimeError("checkpoint exploded")
+
+    monkeypatch.setattr(engine, "harmonize", fail)
+    response = client.post("/api/v1/harmonize", json=melody_request())
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "code": "engine_unavailable",
+        "message": "Harmony engine 'stub' failed to generate a result.",
+        "engine": "stub",
+    }
