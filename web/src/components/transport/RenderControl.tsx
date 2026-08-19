@@ -1,6 +1,10 @@
 import { Download, FileDown, LoaderCircle, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import { apiClient } from "../../api/client";
+import {
+  apiClient,
+  type RenderResult,
+  type SynthInfo,
+} from "../../api/client";
 import { useStudioStore } from "../../store";
 
 export function RenderControl() {
@@ -9,6 +13,10 @@ export function RenderControl() {
   );
   const [audioUrl, setAudioUrl] = useState<string>();
   const [synth, setSynth] = useState("sf2");
+  const [synths, setSynths] = useState<SynthInfo[]>([]);
+  const [synthsFailed, setSynthsFailed] = useState(false);
+  const [timbre, setTimbre] = useState("");
+  const [renderInfo, setRenderInfo] = useState<RenderResult>();
   const [midiLoading, setMidiLoading] = useState(false);
   const [midiError, setMidiError] = useState(false);
   const activeSlot = useStudioStore((state) => state.activeSlot);
@@ -22,18 +30,44 @@ export function RenderControl() {
     [audioUrl],
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    void apiClient
+      .getSynths()
+      .then(({ synths: availableSynths }) => {
+        if (cancelled) return;
+        setSynths(availableSynths);
+        const selected =
+          availableSynths.find((item) => item.id === "sf2") ??
+          availableSynths[0];
+        if (selected) {
+          setSynth(selected.id);
+          setTimbre(selected.timbres[0] ?? "");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSynthsFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedSynth = synths.find((item) => item.id === synth);
+
   async function render() {
     if (!result) return;
     setStatus("loading");
     try {
-      const blob = await apiClient.render({
+      const rendered = await apiClient.render({
         voices: result.voices,
         tempo,
         synth,
-        timbre: synth === "ddsp" ? "choral-neutral" : undefined,
+        timbre: timbre || undefined,
       });
       if (audioUrl) URL.revokeObjectURL(audioUrl);
-      setAudioUrl(URL.createObjectURL(blob));
+      setAudioUrl(URL.createObjectURL(rendered.audio));
+      setRenderInfo(rendered);
       setStatus("ready");
     } catch {
       setStatus("error");
@@ -63,12 +97,56 @@ export function RenderControl() {
     <div className="render-control">
       <select
         value={synth}
-        onChange={(event) => setSynth(event.currentTarget.value)}
+        onChange={(event) => {
+          const next = event.currentTarget.value;
+          setSynth(next);
+          setTimbre(
+            synths.find((item) => item.id === next)?.timbres[0] ?? "",
+          );
+        }}
         aria-label="Render synthesizer"
+        title={
+          selectedSynth
+            ? `${selectedSynth.description}${
+                selectedSynth.reason ? ` ${selectedSynth.reason}` : ""
+              }`
+            : "Loading synthesizer capabilities"
+        }
       >
-        <option value="sf2">Studio piano</option>
-        <option value="ddsp">Neural choir</option>
+        {synths.length === 0 && (
+          <option value="sf2">
+            {synthsFailed ? "SoundFont Preview" : "Loading synths…"}
+          </option>
+        )}
+        {synths.map((item) => (
+          <option value={item.id} key={item.id}>
+            {item.name}
+            {!item.available && item.fallback ? " · fallback" : ""}
+          </option>
+        ))}
       </select>
+      {selectedSynth?.timbres.length ? (
+        <select
+          value={timbre}
+          onChange={(event) => setTimbre(event.currentTarget.value)}
+          aria-label="Render timbre"
+          title="Installed WORLD reference timbre"
+        >
+          {selectedSynth.timbres.map((item) => (
+            <option value={item} key={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {selectedSynth && !selectedSynth.available && selectedSynth.fallback && (
+        <span
+          className="synth-capability fallback"
+          title={`${selectedSynth.reason ?? ""} Fallback: ${selectedSynth.fallback}`}
+        >
+          fallback
+        </span>
+      )}
       <button
         type="button"
         className="render-button"
@@ -103,6 +181,18 @@ export function RenderControl() {
       </button>
       {audioUrl && (
         <>
+          {renderInfo && (
+            <span
+              className={`render-used ${renderInfo.fallback ? "fallback" : ""}`}
+              title={
+                renderInfo.fallback
+                  ? `${renderInfo.renderer}: ${renderInfo.fallback}`
+                  : `Renderer: ${renderInfo.renderer}`
+              }
+            >
+              {renderInfo.used}
+            </span>
+          )}
           <audio className="rendered-audio" src={audioUrl} controls />
           <a
             className="download-render"

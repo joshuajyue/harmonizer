@@ -128,6 +128,25 @@
   gap: 5px;
 }
 
+.synth-capability,
+.render-used {
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  background: #11151c;
+  font: 7px "DM Mono", monospace;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.synth-capability.fallback,
+.render-used.fallback {
+  border-color: rgb(255 189 89 / 35%);
+  color: var(--warning);
+  background: rgb(255 189 89 / 7%);
+}
+
 .render-control select {
   height: 28px;
   padding: 0 22px 0 7px;
@@ -365,7 +384,9 @@
 
   .connection-badge,
   .shortcut-hint,
-  .render-control select {
+  .render-control select,
+  .synth-capability,
+  .render-used {
     display: none;
   }
 

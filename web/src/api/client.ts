@@ -23,6 +23,56 @@ const DEFAULT_TIME_SIGNATURE: TimeSignature = {
   denominator: 4,
 };
 
+export interface SynthInfo {
+  id: string;
+  name: string;
+  description: string;
+  available: boolean;
+  neural: boolean;
+  fallback: string | null;
+  reason: string | null;
+  timbres: string[];
+}
+
+interface SynthsResponse {
+  synths: SynthInfo[];
+}
+
+export interface RenderResult {
+  audio: Blob;
+  requested: string;
+  used: string;
+  renderer: string;
+  fallback: string | null;
+}
+
+const MOCK_SYNTHS: SynthInfo[] = [
+  {
+    id: "sf2",
+    name: "SoundFont Preview",
+    description:
+      "FluidSynth SoundFont rendering with an in-process wavetable fallback.",
+    available: true,
+    neural: false,
+    fallback: null,
+    reason:
+      "FluidSynth or a SoundFont was not found; using the in-process wavetable renderer.",
+    timbres: [],
+  },
+  {
+    id: "ddsp",
+    name: "Neural Voice",
+    description:
+      "Optional lazy-loaded DDSP-SVC/RVC adapter; model and hardware dependencies are kept out of the base service.",
+    available: false,
+    neural: true,
+    fallback: "WORLD with a configured timbre, then sf2",
+    reason:
+      "Set HARMONIZER_DDSP_ADAPTER=module:object and install its model dependencies.",
+    timbres: [],
+  },
+];
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -88,6 +138,14 @@ export const apiClient = {
     return requestJson<EnginesResponse>("/api/v1/engines");
   },
 
+  async getSynths(): Promise<SynthsResponse> {
+    if (mockEnabled) {
+      await wait(120);
+      return { synths: structuredClone(MOCK_SYNTHS) };
+    }
+    return requestJson<SynthsResponse>("/api/v1/synths");
+  },
+
   async harmonize(request: HarmonizeRequest): Promise<HarmonizeResponse> {
     const normalizedRequest = {
       ...request,
@@ -104,7 +162,7 @@ export const apiClient = {
     });
   },
 
-  async render(request: RenderRequest): Promise<Blob> {
+  async render(request: RenderRequest): Promise<RenderResult> {
     if (!Number.isFinite(request.tempo) || request.tempo <= 0) {
       throw new ApiError("Render tempo must be an explicit positive number.");
     }
@@ -115,7 +173,17 @@ export const apiClient = {
     };
     if (mockEnabled) {
       await wait(620);
-      return createMockWav(normalizedRequest);
+      const requested = normalizedRequest.synth ?? "sf2";
+      return {
+        audio: createMockWav(normalizedRequest),
+        requested,
+        used: requested === "ddsp" ? "sf2" : requested,
+        renderer: "mock-wavetable",
+        fallback:
+          requested === "ddsp"
+            ? "Neural adapter unavailable in mock mode; used sf2-style wavetable."
+            : null,
+      };
     }
     const response = await fetch("/api/v1/render", {
       method: "POST",
@@ -125,7 +193,20 @@ export const apiClient = {
     if (!response.ok) {
       throw new ApiError(await response.text(), response.status);
     }
-    return response.blob();
+    return {
+      audio: await response.blob(),
+      requested:
+        response.headers.get("X-HarmonAIzer-Synth-Requested") ??
+        normalizedRequest.synth ??
+        "sf2",
+      used:
+        response.headers.get("X-HarmonAIzer-Synth-Used") ??
+        normalizedRequest.synth ??
+        "sf2",
+      renderer:
+        response.headers.get("X-HarmonAIzer-Renderer") ?? "unspecified",
+      fallback: response.headers.get("X-HarmonAIzer-Fallback"),
+    };
   },
 
   async transcribe(
