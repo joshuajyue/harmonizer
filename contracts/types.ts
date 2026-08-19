@@ -29,7 +29,7 @@ export interface KeySignature {
   tonic: number;
   mode: Mode;
   /** Engine confidence in the detection, 0-1. */
-  confidence?: number;
+  confidence?: number | null;
 }
 
 export interface TimeSignature {
@@ -44,7 +44,7 @@ export interface Melody {
   /** Defaults to 4/4 when omitted. */
   timeSignature?: TimeSignature;
   /** If omitted, the backend detects the key and returns it in the response. */
-  key?: KeySignature;
+  key?: KeySignature | null;
 }
 
 /**
@@ -106,18 +106,20 @@ export interface Violation {
   message: string;
 }
 
+export interface HarmonizeOptions {
+  /** Defaults to 4 (SATB). */
+  voiceCount?: number;
+  /** 0 = deterministic/argmax. Higher = more adventurous. */
+  temperature?: number;
+  /** Random seed; same seed + same input must reproduce the same output. */
+  seed?: number | null;
+}
+
 export interface HarmonizeRequest {
   melody: Melody;
   /** Engine id from GET /api/v1/engines. */
   engine: string;
-  options?: {
-    /** Defaults to 4 (SATB). */
-    voiceCount?: number;
-    /** 0 = deterministic/argmax. Higher = more adventurous. */
-    temperature?: number;
-    /** Random seed; same seed + same input must reproduce the same output. */
-    seed?: number;
-  };
+  options?: HarmonizeOptions;
 }
 
 export interface HarmonizeResponse {
@@ -149,5 +151,5 @@ export interface RenderRequest {
   /** Synthesis backend id. Defaults to "sf2" (fast preview); "ddsp" is the neural voice. */
   synth?: string;
   /** Timbre/model id for neural synths. */
-  timbre?: string;
+  timbre?: string | null;
 }

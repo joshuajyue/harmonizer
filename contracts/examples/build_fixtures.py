@@ -151,6 +151,14 @@ def main() -> None:
     request = HarmonizeRequest(melody=build_melody(), engine="rules")
     response = build_response()
 
+    # Validate BEFORE writing. Writing first meant a regeneration that broke the
+    # invariant exited non-zero but left the bad fixtures on disk, where the dev
+    # engine, the backend tests and the frontend mock mode would all read them.
+    soprano = next(v for v in response.voices if v.name == "soprano")
+    melody_notes = [(n.start, n.duration, n.pitch) for n in request.melody.notes]
+    soprano_notes = [(n.start, n.duration, n.pitch) for n in soprano.notes]
+    assert soprano_notes == melody_notes, "soprano must retain the input melody exactly"
+
     written = []
     for filename, model in (
         ("melody.request.json", request),
@@ -159,11 +167,6 @@ def main() -> None:
         path = OUT_DIR / filename
         path.write_text(json.dumps(model.model_dump(mode="json"), indent=2) + "\n")
         written.append(path.name)
-
-    soprano = next(v for v in response.voices if v.name == "soprano")
-    melody_notes = [(n.start, n.duration, n.pitch) for n in request.melody.notes]
-    soprano_notes = [(n.start, n.duration, n.pitch) for n in soprano.notes]
-    assert soprano_notes == melody_notes, "soprano must retain the input melody exactly"
 
     print(f"Wrote {', '.join(written)}")
     print(f"  melody: {len(request.melody.notes)} notes, {len(PROGRESSION)} chords")

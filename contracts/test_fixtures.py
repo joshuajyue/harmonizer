@@ -103,7 +103,12 @@ def test_declared_violations_match_the_detector_exactly():
     An earlier draft declared three defects while the voicing actually contained
     eight. That is dangerous in both directions: it makes the fixture useless as a
     detector test corpus, and it invites someone to "fix" a correct detector to
-    match wrong data. Skipped if the ml package is unavailable.
+    match wrong data.
+
+    Voice identity is compared, not just (beat, kind). Comparing only the latter let
+    every declared voice pair be replaced with ["soprano","alto"] while the test
+    still passed — yet the frontend highlights exactly those lanes in the piano roll.
+    Skipped if the ml package is unavailable.
     """
     try:
         from ml.theory.voicing import find_parallels, find_voice_crossings, texture_from_voices
@@ -118,19 +123,21 @@ def test_declared_violations_match_the_detector_exactly():
     starts = [n.start for n in by_name["soprano"]]
     texture = texture_from_voices([[n.pitch for n in by_name[name]] for name in order])
 
-    detected: set[tuple[float, str]] = set()
+    detected: set[tuple[float, str, frozenset[str]]] = set()
     for i in range(1, len(texture.grid)):
-        for _, _, kind in find_parallels(texture.grid[i - 1], texture.grid[i]):
-            detected.add((starts[i], kind))
+        for upper, lower, kind in find_parallels(texture.grid[i - 1], texture.grid[i]):
+            detected.add((starts[i], kind, frozenset({order[upper], order[lower]})))
     for i in range(len(texture.grid)):
-        if find_voice_crossings(texture.grid[i]):
-            detected.add((starts[i], "voice_crossing"))
+        for upper, lower in find_voice_crossings(texture.grid[i]):
+            detected.add(
+                (starts[i], "voice_crossing", frozenset({order[upper], order[lower]}))
+            )
 
-    declared = {(v.start, v.kind) for v in response.violations}
+    declared = {(v.start, v.kind, frozenset(v.voices)) for v in response.violations}
     assert detected == declared, (
         "fixture voicing and declared violations disagree.\n"
-        f"  undeclared defects: {sorted(detected - declared)}\n"
-        f"  declared but absent: {sorted(declared - detected)}"
+        f"  undeclared defects: {sorted(map(str, detected - declared))}\n"
+        f"  declared but absent: {sorted(map(str, declared - detected))}"
     )
 
 

@@ -5,6 +5,12 @@ TypeScript types, the backend to the Pydantic models, the ML layer to the datacl
 that wrap them. If the two files drift, nothing fails until final integration — the
 most expensive moment to discover it. This test moves that failure to commit time.
 
+It compares three things per field: presence, optionality, and type. An earlier
+version compared only the first two, which meant `KeySignature.tonic` could change
+from int to str, and a response field could flip to `Optional[X] = None` — emitting
+JSON null while types.ts still promised a value — with the guard staying green. Both
+gaps are closed below and covered by self-tests.
+
 Run standalone (`python contracts/test_contract_sync.py`) or under pytest.
 """
 
@@ -12,6 +18,9 @@ from __future__ import annotations
 
 import re
 import sys
+import types as pytypes
+import typing
+from dataclasses import dataclass
 from pathlib import Path
 
 CONTRACTS_DIR = Path(__file__).resolve().parent
@@ -22,19 +31,16 @@ import contracts.schema as schema  # noqa: E402
 TYPES_TS = CONTRACTS_DIR / "types.ts"
 
 # TS interfaces with no standalone Pydantic counterpart, and why.
-TS_ONLY = {
-    # Flattened into HarmonizeRequest.options in TS, a named model in Python.
-    "HarmonizeOptions",
-}
+TS_ONLY: set[str] = set()
 
 # Fields that legitimately differ, with justification.
 FIELD_EXEMPTIONS: dict[str, set[str]] = {}
 
-# Server -> client models. For these, a Python default paired with a TS-required field
-# is correct rather than drift: the server always populates the value, so the frontend
-# should not have to null-check it. The reverse (TS optional, Python required) is still
-# an error. Request-side models get the strict rule — a Python default there means the
-# client may omit the field, so TS must mark it optional.
+# Server -> client models. For these, a Python field that merely *has a default*
+# may be declared required in TS: the server always populates it, so the frontend
+# should not have to null-check it. This waiver deliberately does NOT extend to
+# nullable fields — `Optional[X] = None` can serialise as JSON null, which breaks
+# that guarantee, and catching exactly that case is the point of the distinction.
 RESPONSE_MODELS = {
     "Chord",
     "Voice",
@@ -45,19 +51,64 @@ RESPONSE_MODELS = {
 }
 
 
+@dataclass(frozen=True)
+class Field:
+    optional: bool
+    nullable: bool
+    type: str | None  # normalised; None when the type could not be resolved
+
+
 def _strip_comments(source: str) -> str:
     source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
     return re.sub(r"//[^\n]*", "", source)
 
 
-def parse_ts_interfaces(source: str) -> dict[str, dict[str, bool]]:
-    """Map interface name -> {field name: is_optional}, top level only.
+def parse_ts_aliases(source: str) -> dict[str, str]:
+    """Resolve `export type X = ...` so Midi/Beats/Mode compare as their real types."""
+    return {
+        name: body.strip()
+        for name, body in re.findall(r"export\s+type\s+(\w+)\s*=\s*([^;]+);", source)
+    }
 
-    Nested inline object literals (e.g. HarmonizeRequest.options) are skipped by
-    tracking brace depth, so only depth-1 fields are compared.
-    """
+
+def normalise_ts_type(raw: str, aliases: dict[str, str], depth: int = 0) -> tuple[str | None, bool]:
+    """Return (normalised type, nullable). None means 'could not resolve'."""
+    text = raw.strip().rstrip(";").strip()
+    if not text or depth > 5:
+        return None, False
+
+    nullable = False
+    parts = [p.strip() for p in text.split("|")]
+    if len(parts) > 1:
+        kept = [p for p in parts if p not in ("null", "undefined")]
+        nullable = len(kept) != len(parts)
+        # A union of string literals ("major" | "minor") is a string on the wire.
+        if kept and all(re.fullmatch(r'"[^"]*"', p) for p in kept):
+            return "string", nullable
+        if len(kept) != 1:
+            return None, nullable
+        text = kept[0]
+
+    if text.endswith("[]"):
+        inner, _ = normalise_ts_type(text[:-2], aliases, depth + 1)
+        return (f"{inner}[]" if inner else None), nullable
+
+    if text in aliases:
+        resolved, alias_nullable = normalise_ts_type(aliases[text], aliases, depth + 1)
+        return resolved, nullable or alias_nullable
+
+    if text in ("number", "string", "boolean"):
+        return text, nullable
+    if re.fullmatch(r"\w+", text):
+        return text, nullable  # a model name
+    return None, nullable
+
+
+def parse_ts_interfaces(source: str) -> dict[str, dict[str, Field]]:
+    """Map interface name -> {field: Field}, top level only."""
     source = _strip_comments(source)
-    interfaces: dict[str, dict[str, bool]] = {}
+    aliases = parse_ts_aliases(source)
+    interfaces: dict[str, dict[str, Field]] = {}
 
     for match in re.finditer(r"export\s+interface\s+(\w+)\s*\{", source):
         name = match.group(1)
@@ -71,16 +122,19 @@ def parse_ts_interfaces(source: str) -> dict[str, dict[str, bool]]:
             i += 1
         body = source[body_start : i - 1]
 
-        fields: dict[str, bool] = {}
+        fields: dict[str, Field] = {}
         depth = 0
         for line in body.splitlines():
             stripped = line.strip()
             if depth == 0:
-                field = re.match(r"(\w+)(\?)?\s*:", stripped)
-                if field:
-                    declared_optional = field.group(2) == "?"
-                    nullable = "null" in stripped.split(":", 1)[1]
-                    fields[field.group(1)] = declared_optional or nullable
+                declared = re.match(r"(\w+)(\?)?\s*:\s*(.+)", stripped)
+                if declared:
+                    field_type, nullable = normalise_ts_type(declared.group(3), aliases)
+                    fields[declared.group(1)] = Field(
+                        optional=declared.group(2) == "?" or nullable,
+                        nullable=nullable,
+                        type=field_type,
+                    )
             depth += line.count("{") - line.count("}")
 
         interfaces[name] = fields
@@ -97,12 +151,55 @@ def pydantic_models() -> dict[str, type]:
     }
 
 
-def parse_py_models() -> dict[str, dict[str, bool]]:
-    """Map model name -> {field name: is_optional}. Optional == not required."""
-    return {
-        name: {fname: not f.is_required() for fname, f in model.model_fields.items()}
-        for name, model in pydantic_models().items()
-    }
+def normalise_py_type(annotation: object, depth: int = 0) -> tuple[str | None, bool]:
+    """Map a Python annotation onto the TypeScript vocabulary. -> (type, nullable)."""
+    if depth > 5:
+        return None, False
+
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+
+    if origin in (typing.Union, pytypes.UnionType):
+        non_none = [a for a in args if a is not type(None)]
+        nullable = len(non_none) != len(args)
+        if len(non_none) != 1:
+            return None, nullable
+        inner, inner_nullable = normalise_py_type(non_none[0], depth + 1)
+        return inner, nullable or inner_nullable
+
+    if origin in (list, set, tuple):
+        if not args:
+            return None, False
+        inner, _ = normalise_py_type(args[0], depth + 1)
+        return (f"{inner}[]" if inner else None), False
+
+    if origin is typing.Literal:
+        return ("string" if all(isinstance(a, str) for a in args) else None), False
+
+    if annotation is bool:
+        return "boolean", False
+    if annotation in (int, float):
+        return "number", False
+    if annotation is str:
+        return "string", False
+    if isinstance(annotation, type):
+        return annotation.__name__, False
+    return None, False
+
+
+def parse_py_models() -> dict[str, dict[str, Field]]:
+    models: dict[str, dict[str, Field]] = {}
+    for name, model in pydantic_models().items():
+        fields: dict[str, Field] = {}
+        for field_name, info in model.model_fields.items():
+            field_type, nullable = normalise_py_type(info.annotation)
+            fields[field_name] = Field(
+                optional=not info.is_required(),
+                nullable=nullable,
+                type=field_type,
+            )
+        models[name] = fields
+    return models
 
 
 def check() -> list[str]:
@@ -129,18 +226,35 @@ def check() -> list[str]:
             errors.append(f"{name}.{field}: in types.ts but not schema.py")
 
         for field in sorted(set(ts_fields) & set(py_fields) - exempt):
-            ts_optional, py_optional = ts_fields[field], py_fields[field]
-            if ts_optional == py_optional:
-                continue
-            # Server-guaranteed field: Python supplies a default, TS treats it as always present.
-            if name in RESPONSE_MODELS and py_optional and not ts_optional:
-                continue
-            ts_state = "optional" if ts_optional else "required"
-            py_state = "optional" if py_optional else "required"
-            errors.append(
-                f"{name}.{field}: optionality mismatch — types.ts says {ts_state}, "
-                f"schema.py says {py_state}"
-            )
+            ts_field, py_field = ts_fields[field], py_fields[field]
+
+            # A response field that can serialise to null while TS promises a value
+            # breaks the frontend's no-null-check guarantee. Report it specifically.
+            if py_field.nullable and not ts_field.nullable:
+                errors.append(
+                    f"{name}.{field}: schema.py can serialise null but types.ts does not allow "
+                    f"it — declare `| null` in TS, or make the Python field non-nullable"
+                )
+            elif ts_field.optional != py_field.optional:
+                server_guaranteed = (
+                    name in RESPONSE_MODELS
+                    and py_field.optional
+                    and not py_field.nullable
+                    and not ts_field.optional
+                )
+                if not server_guaranteed:
+                    ts_state = "optional" if ts_field.optional else "required"
+                    py_state = "optional" if py_field.optional else "required"
+                    errors.append(
+                        f"{name}.{field}: optionality mismatch — types.ts says {ts_state}, "
+                        f"schema.py says {py_state}"
+                    )
+
+            if ts_field.type and py_field.type and ts_field.type != py_field.type:
+                errors.append(
+                    f"{name}.{field}: type mismatch — types.ts says {ts_field.type}, "
+                    f"schema.py says {py_field.type}"
+                )
 
     return errors
 
@@ -148,6 +262,48 @@ def check() -> list[str]:
 def test_contract_files_are_in_sync():
     errors = check()
     assert not errors, "contracts/types.ts and contracts/schema.py have drifted:\n  " + "\n  ".join(errors)
+
+
+def test_guard_detects_nullability_flip_on_a_response_model():
+    """Catches a response field that would emit JSON null while TS promises a value.
+
+    This is precisely what the RESPONSE_MODELS waiver used to hide: `inversion: int = 0`
+    becoming `Optional[int] = None` leaves the field non-required either way, but changes
+    what goes on the wire.
+    """
+    field = schema.Chord.model_fields["inversion"]
+    original = field.annotation
+    try:
+        field.annotation = typing.Optional[int]
+        errors = check()
+    finally:
+        field.annotation = original
+    assert any("Chord.inversion" in e and "null" in e for e in errors), errors
+
+
+def test_guard_detects_a_type_change():
+    field = schema.KeySignature.model_fields["tonic"]
+    original = field.annotation
+    try:
+        field.annotation = str
+        errors = check()
+    finally:
+        field.annotation = original
+    assert any("KeySignature.tonic" in e and "type mismatch" in e for e in errors), errors
+
+
+def test_guard_detects_a_field_added_only_in_python():
+    from pydantic import Field as PydanticField
+    from pydantic import create_model
+
+    extra = create_model("HarmonizeOptions", __base__=schema.HarmonizeOptions, styleWeight=(float, PydanticField(default=1.0)))
+    original = schema.HarmonizeOptions
+    try:
+        schema.HarmonizeOptions = extra
+        errors = check()
+    finally:
+        schema.HarmonizeOptions = original
+    assert any("styleWeight" in e for e in errors), errors
 
 
 if __name__ == "__main__":
