@@ -25,6 +25,7 @@ export function drawGrid(
     model.duration * model.pxPerBeat,
     model.layout.rollHeight,
   );
+  if (model.empty) return;
 
   model.layout.lanes.forEach((lane, laneIndex) => {
     const top = laneTop(lane, model.layout);
@@ -78,7 +79,7 @@ export function drawGrid(
     context.moveTo(x + 0.5, RULER_HEIGHT);
     context.lineTo(x + 0.5, model.layout.rollHeight);
     context.stroke();
-    if (isBeat) {
+    if (isBeat && beat < model.duration - 0.001) {
       context.fillStyle = isBar ? "#c2c8d3" : "#737d8e";
       context.font = '10px "DM Mono", monospace';
       context.fillText(

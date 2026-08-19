@@ -42,6 +42,7 @@ export interface DrawModel {
   loopEnd: number;
   voiceVisibility: Record<VoiceName, boolean>;
   layout: RollLayout;
+  empty: boolean;
 }
 
 export interface DrawResult {

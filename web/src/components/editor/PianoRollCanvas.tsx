@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useStudioStore } from "../../store";
 import { drawRoll } from "./drawRoll";
-import type { RollLayout } from "./rollGeometry";
+import {
+  laneTop,
+  RULER_HEIGHT,
+  type RollLayout,
+} from "./rollGeometry";
 import type { DrawModel } from "./rollTypes";
 import { useRollInteraction } from "./useRollInteraction";
 
@@ -32,6 +36,26 @@ export function PianoRollCanvas({
   const loopEnd = useStudioStore((state) => state.loopEnd);
   const voiceVisibility = useStudioStore((state) => state.voiceVisibility);
   const interaction = useRollInteraction(drawResultRef, duration, layout);
+  const resultSlot = viewMode === "overlay" ? activeSlot : viewMode;
+  const visibleResult =
+    viewMode === "overlay"
+      ? slots.A.result ?? slots.B.result
+      : slots[viewMode].result;
+  const empty = melody.notes.length === 0 && visibleResult === undefined;
+  const showPrimaryHint = empty && !interaction.marquee;
+  const showMelodyHint =
+    !empty &&
+    !interaction.marquee &&
+    layout.lanes.includes("melody") &&
+    melody.notes.length === 0;
+  const showHarmonyHint =
+    !empty &&
+    !interaction.marquee &&
+    layout.lanes.some((lane) => lane !== "melody") &&
+    slots[resultSlot].result === undefined;
+  const harmonyTop = layout.focusedLane
+    ? RULER_HEIGHT
+    : laneTop("soprano", layout);
 
   const model = useMemo<DrawModel>(
     () => ({
@@ -48,10 +72,12 @@ export function PianoRollCanvas({
       loopEnd,
       voiceVisibility,
       layout,
+      empty,
     }),
     [
       activeSlot,
       duration,
+      empty,
       loopEnabled,
       loopEnd,
       loopStart,
@@ -102,6 +128,47 @@ export function PianoRollCanvas({
         onDoubleClick={interaction.onDoubleClick}
         onContextMenu={interaction.onContextMenu}
       />
+      {showPrimaryHint && (
+        <div
+          className="roll-empty-hint roll-empty-hint-primary"
+          style={{
+            top: RULER_HEIGHT,
+            height: layout.noteAreaBottom - RULER_HEIGHT,
+          }}
+        >
+          <span>
+            {layout.focusedLane && layout.focusedLane !== "melody"
+              ? `Harmonize engine ${resultSlot} to reveal independent SATB parts`
+              : "Double-click to add a melody note, or choose an input below"}
+          </span>
+        </div>
+      )}
+      {showMelodyHint && (
+        <div
+          className="roll-empty-hint"
+          style={{
+            top: laneTop("melody", layout),
+            height: layout.laneHeight,
+          }}
+        >
+          <span>
+            Double-click to add a melody note, or choose an input below
+          </span>
+        </div>
+      )}
+      {showHarmonyHint && (
+        <div
+          className="roll-empty-hint"
+          style={{
+            top: harmonyTop,
+            height: layout.noteAreaBottom - harmonyTop,
+          }}
+        >
+          <span>
+            Harmonize engine {resultSlot} to reveal independent SATB parts
+          </span>
+        </div>
+      )}
       <div
         className="roll-playhead"
         aria-hidden="true"
