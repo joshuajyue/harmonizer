@@ -14,6 +14,14 @@ export function MicrophoneInput() {
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string>();
   const replaceMelody = useStudioStore((state) => state.replaceMelody);
+  const tempo = useStudioStore((state) => state.melody.tempo);
+  const storedTimeSignature = useStudioStore(
+    (state) => state.melody.timeSignature,
+  );
+  const timeSignature = storedTimeSignature ?? {
+    numerator: 4,
+    denominator: 4,
+  };
 
   useEffect(() => {
     if (status !== "recording") return;
@@ -67,8 +75,16 @@ export function MicrophoneInput() {
   async function transcribe(type: string) {
     for (const track of streamRef.current?.getTracks() ?? []) track.stop();
     try {
+      const currentMelody = useStudioStore.getState().melody;
       const melody = await apiClient.transcribe(
         new Blob(chunksRef.current, { type }),
+        {
+          tempo: currentMelody.tempo,
+          timeSignature: currentMelody.timeSignature ?? {
+            numerator: 4,
+            denominator: 4,
+          },
+        },
       );
       replaceMelody(melody, "Microphone take");
       setStatus("idle");
@@ -94,7 +110,9 @@ export function MicrophoneInput() {
               : "Sing or play a monophonic line"}
         </strong>
         <span>
-          Audio is sent to <code>POST /api/v1/transcribe</code>.
+          Sent at {tempo} BPM · {timeSignature.numerator}/
+          {timeSignature.denominator} to{" "}
+          <code>POST /api/v1/transcribe</code>.
         </span>
         {error && <small>{error}</small>}
       </div>

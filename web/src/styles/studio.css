@@ -138,7 +138,8 @@
   font-size: 9px;
 }
 
-.render-button {
+.render-button,
+.midi-export-button {
   display: inline-flex;
   height: 29px;
   align-items: center;
@@ -157,9 +158,25 @@
   background: #d7ff88;
 }
 
-.render-button:disabled {
+.render-button:disabled,
+.midi-export-button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+
+.midi-export-button {
+  height: 29px;
+  padding: 0 8px;
+  border: 1px solid #3a4352;
+  border-radius: 6px;
+  color: var(--muted);
+  background: #171c24;
+  font-size: 9px;
+}
+
+.midi-export-button:hover:not(:disabled) {
+  border-color: #566174;
+  color: var(--text);
 }
 
 .rendered-audio {

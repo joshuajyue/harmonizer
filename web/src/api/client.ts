@@ -13,6 +13,7 @@ import {
 } from "../fixtures/canonical";
 import { normalizeNotes } from "../utils/music";
 import { createMockWav } from "./mockAudio";
+import { createMockMidi } from "./mockMidi";
 
 const mockEnabled =
   import.meta.env.VITE_USE_MOCK_API === "true" ||
@@ -51,7 +52,9 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-function completeMelody(melody: Melody): Melody {
+function completeMelody(
+  melody: Melody,
+): Melody & { timeSignature: TimeSignature } {
   if (!Number.isFinite(melody.tempo) || melody.tempo <= 0) {
     throw new ApiError("Melody tempo must be an explicit positive number.");
   }
@@ -125,15 +128,32 @@ export const apiClient = {
     return response.blob();
   },
 
-  async transcribe(audio: Blob): Promise<Melody> {
+  async transcribe(
+    audio: Blob,
+    timing: { tempo: number; timeSignature: TimeSignature },
+  ): Promise<Melody> {
+    const validatedTiming = completeMelody({
+      notes: [],
+      tempo: timing.tempo,
+      timeSignature: timing.timeSignature,
+    });
     if (mockEnabled) {
       await wait(950);
-      return completeMelody((await loadCanonicalRequest()).melody);
+      return completeMelody({
+        ...(await loadCanonicalRequest()).melody,
+        tempo: validatedTiming.tempo,
+        timeSignature: validatedTiming.timeSignature,
+      });
     }
 
     const form = new FormData();
     form.append("audio", audio, "recording.webm");
-    const response = await fetch("/api/v1/transcribe", {
+    const params = new URLSearchParams({
+      tempo: String(validatedTiming.tempo),
+      numerator: String(validatedTiming.timeSignature.numerator),
+      denominator: String(validatedTiming.timeSignature.denominator),
+    });
+    const response = await fetch(`/api/v1/transcribe?${params}`, {
       method: "POST",
       body: form,
     });
@@ -142,6 +162,26 @@ export const apiClient = {
     }
     const payload = (await response.json()) as Melody | { melody: Melody };
     return completeMelody("melody" in payload ? payload.melody : payload);
+  },
+
+  async exportMidi(
+    harmonization: HarmonizeResponse,
+    tempo: number,
+  ): Promise<Blob> {
+    if (!Number.isFinite(tempo) || tempo <= 0) {
+      throw new ApiError("MIDI export tempo must be a positive number.");
+    }
+    if (mockEnabled) return createMockMidi(harmonization, tempo);
+    const params = new URLSearchParams({ tempo: String(tempo) });
+    const response = await fetch(`/api/v1/midi/export?${params}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(harmonization),
+    });
+    if (!response.ok) {
+      throw new ApiError(await response.text(), response.status);
+    }
+    return response.blob();
   },
 
   async getExampleMelody(): Promise<Melody> {
