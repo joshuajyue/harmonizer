@@ -2,9 +2,10 @@ import wave
 from io import BytesIO
 
 import numpy as np
+import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.services.transcription import TranscriptionService
+from backend.app.services.transcription import AudioDecodeError, TranscriptionService
 from contracts.schema import Melody, Note, TimeSignature
 
 
@@ -63,3 +64,25 @@ def test_pyin_tracks_a_clean_monophonic_tone() -> None:
 
     assert melody.notes
     assert any(abs(note.pitch - 69) <= 1 for note in melody.notes)
+
+
+def test_decode_rejects_audio_over_duration_limit() -> None:
+    sample_rate = 8_000
+    output = BytesIO()
+    with wave.open(output, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(np.zeros(sample_rate * 2, dtype="<i2").tobytes())
+
+    service = TranscriptionService(
+        max_upload_bytes=100_000,
+        max_audio_seconds=1,
+    )
+
+    with pytest.raises(AudioDecodeError, match="longer than 1 seconds"):
+        service.transcribe(
+            output.getvalue(),
+            tempo=90,
+            time_signature=TimeSignature(numerator=4, denominator=4),
+        )

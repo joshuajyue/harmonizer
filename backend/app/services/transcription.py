@@ -59,12 +59,21 @@ class TranscriptionService:
         samples: np.ndarray
         sample_rate: int
         try:
-            decoded, sample_rate = sf.read(
-                BytesIO(data),
-                dtype="float32",
-                always_2d=True,
-            )
+            with sf.SoundFile(BytesIO(data)) as audio:
+                sample_rate = audio.samplerate
+                max_frames = round(self._max_audio_seconds * sample_rate)
+                if len(audio) > max_frames:
+                    raise AudioDecodeError(
+                        f"Audio may not be longer than {self._max_audio_seconds:g} seconds."
+                    )
+                decoded = audio.read(
+                    frames=max_frames + 1,
+                    dtype="float32",
+                    always_2d=True,
+                )
             samples = np.mean(decoded, axis=1, dtype=np.float32)
+        except AudioDecodeError:
+            raise
         except Exception:
             samples, sample_rate = self._decode_with_ffmpeg(data)
 
@@ -99,6 +108,8 @@ class TranscriptionService:
             "error",
             "-i",
             "pipe:0",
+            "-t",
+            str(self._max_audio_seconds + 1),
             "-f",
             "f32le",
             "-acodec",

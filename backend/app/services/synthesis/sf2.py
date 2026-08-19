@@ -163,7 +163,13 @@ class SoundFontSynthBackend:
             brightness = 0.8 + 0.1 * voice_index
             for note in voice.notes:
                 start_seconds = max(0.0, note.start * 60.0 / tempo)
-                note_seconds = max(1 / self._sample_rate, note.duration * 60.0 / tempo)
+                end_seconds = max(
+                    start_seconds,
+                    (note.start + note.duration) * 60.0 / tempo,
+                )
+                note_seconds = end_seconds - start_seconds
+                if note_seconds <= 0:
+                    continue
                 start = round(start_seconds * self._sample_rate)
                 length = max(1, round(note_seconds * self._sample_rate))
                 end = min(sample_count, start + length)
@@ -201,7 +207,7 @@ class SoundFontSynthBackend:
 def _render_duration(voices: list[Voice], tempo: float) -> float:
     last_beat = max(
         (
-            max(0.0, note.start) + note.duration
+            max(0.0, note.start + note.duration)
             for voice in voices
             for note in voice.notes
         ),
