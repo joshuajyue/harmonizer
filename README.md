@@ -37,6 +37,50 @@ leading tones and spacing errors come back in the API response as `violations[]`
 and are drawn on the timeline. Showing *why* a harmonization is weak is something
 no commercial tool bothers to do.
 
+**This is a post-hoc harmonizer, not a real-time one.** That is a deliberate
+scope boundary, and the measurements say it is the right one.
+
+| engine         | 1 note  | 16 notes | per note |
+| -------------- | ------- | -------- | -------- |
+| `rules`        | 1.05 ms | 52.7 ms  | ~3.7 ms  |
+| `fixed_thirds` | 0.37 ms | 5.8 ms   | ~0.37 ms |
+
+The offline engine is not too slow for live use — at 1-4 ms per note it fits
+inside a 10 ms budget comfortably. It is *non-causal*. `rules` runs Viterbi over
+the whole melody, and its entire value is revising early chord choices once it
+knows where the phrase cadences. It cannot emit chord 1 before it has seen chord
+16, at any speed.
+
+So a live harmonizer is a different engine, not a faster one: causal beam search
+with a one-sonority lookback, which the `HarmonyEngine` interface already admits
+as a future implementation. Worth noting that causality forbids *planning*, not
+*voice leading* — avoiding parallel fifths only requires knowing the previous
+sonority, so a real-time engine could still be far better than `fixed_thirds`,
+which keeps no state at all. Pursuing both at once would compromise the offline
+engine for nothing.
+
+## Where it stands
+
+Same 8-bar melody, same harness, two engines:
+
+```
+rules          0 violations   I V65 I ii7 V I V I IV V I V65 I ii7 V I
+fixed_thirds  26 violations   IV64 vi64 I64 vi64 viio64 vi64 V64 ...
+                              (11 parallel fifths + 15 parallel octaves)
+```
+
+`fixed_thirds` is the commercial-harmonizer floor: for each melody note it emits
+voices a fixed diatonic third, fifth and octave below. Both of its failure modes
+are structural rather than incidental. The bass is always the melody an octave
+down, so it never chooses a root and lands on inversion after inversion; and the
+voices sit at a fixed scale distance, so every melodic leap moves them all in
+lockstep and manufactures parallels. You cannot write that algorithm without
+them.
+
+That is the number the learned engine has to beat — not just on defect count,
+which the rule engine already drives to zero, but on musical interest while
+staying clean.
+
 ## Running it
 
 ```bash
