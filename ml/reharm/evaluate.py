@@ -20,18 +20,16 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, Sequence
 
 from .data import Progression, treebank_progressions
 from .melodies import TestTune, jazz_tunes, traditional_tunes
 from .metrics import (
-    ReharmScore,
     collect_corpus_syntax,
     collect_syntax,
     distance,
     js_divergence,
-    melody_fit,
     score,
 )
 from .model import ChordNGram
@@ -45,7 +43,7 @@ from .search import (
     sample,
     viterbi,
 )
-from .skeleton import Skeleton, skeleton_from_rules
+from .skeleton import skeleton_from_rules
 
 REPORTED = (
     "headline",
@@ -164,6 +162,7 @@ def evaluate(
             ("hybrid", HybridScorer(lattice, engines.model, engines.config)),
         ):
             sampled: list[Progression] = []
+            per_sample: list[dict[str, float]] = []
             for index in range(engines.samples):
                 path = sample(
                     lattice,
@@ -174,9 +173,16 @@ def evaluate(
                 )
                 result = realize(lattice, path, skeleton).progression()
                 sampled.append(result)
-                metrics = _metrics(tune, base, result, reference)
-                rows[name].add(metrics)
-                rows[name].style_divergence.append(metrics["style_divergence"])
+                per_sample.append(_metrics(tune, base, result, reference))
+            # One row entry per TUNE, averaged over its samples, so every row in
+            # the table is indexed the same way and a paired per-tune
+            # comparison between engines is possible at all.
+            averaged = {
+                key: statistics.fmean([metrics[key] for metrics in per_sample if key in metrics])
+                for key in per_sample[0]
+            }
+            rows[name].add(averaged)
+            rows[name].style_divergence.append(averaged["style_divergence"])
             rows[name].diversity.append(_diversity(sampled))
 
         if include_human and tune.reference is not None and tune.reference.spans:
@@ -202,6 +208,35 @@ def _diversity(progressions: Sequence[Progression]) -> float:
 # ---------------------------------------------------------------------------
 # Reporting
 # ---------------------------------------------------------------------------
+
+
+def paired(rows: dict[str, Row], a: str, b: str, keys: Sequence[str]) -> dict[str, tuple[float, float, int]]:
+    """Per-tune paired comparison of two engines.
+
+    Means across a 20-tune set hide whether a difference is systematic or one
+    tune shouting. Pairing by tune and counting wins does not.
+    """
+    out: dict[str, tuple[float, float, int]] = {}
+    for key in keys:
+        left = rows[a].values.get(key) or []
+        right = rows[b].values.get(key) or []
+        if not left or len(left) != len(right):
+            continue
+        differences = [x - y for x, y in zip(left, right)]
+        wins = sum(1 for difference in differences if difference > 1e-9)
+        out[key] = (statistics.fmean(differences), statistics.pstdev(differences), wins)
+    return out
+
+
+def print_paired(rows: dict[str, Row], a: str, b: str, keys: Sequence[str]) -> None:
+    results = paired(rows, a, b, keys)
+    if not results:
+        return
+    total = len(rows[a].values.get(next(iter(results)), []))
+    print(f"\npaired per tune: {a} minus {b}  (n = {total})")
+    print(f"{'metric':<26} {'mean diff':>10} {'sd':>8} {'wins':>6}")
+    for key, (mean, deviation, wins) in results.items():
+        print(f"{key:<26} {mean:>10.3f} {deviation:>8.3f} {wins:>4}/{total}")
 
 
 def print_table(rows: dict[str, Row], *, title: str = "") -> None:
@@ -304,6 +339,9 @@ def main() -> None:
     print(f"tunes: {len(tunes)} ({args.cases})   samples per tune: {args.samples}")
     print(f"config: adventure={config.adventure} temperature={config.temperature} top_p={config.top_p}")
     print_table(rows, title="jazz reharmonization comparison")
+    paired_keys = ("headline", "hard_conflict_rate", "chromatic_tone_rate", "human_pc_distance", "style_divergence")
+    print_paired(rows, "hybrid", "rules", paired_keys)
+    print_paired(rows, "sampled", "rules", paired_keys)
 
     if args.json:
         payload = {name: row.summary() for name, row in rows.items()}

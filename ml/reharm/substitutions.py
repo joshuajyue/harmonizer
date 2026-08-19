@@ -21,8 +21,8 @@ easy to get subtly and confidently wrong:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Iterable, Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 from .chords import (
     CONFLICT,
@@ -190,6 +190,57 @@ def upgrade_qualities(chord: JazzChord, context: Context) -> list[str]:
     return list(dict.fromkeys(options))
 
 
+#: Diatonic seventh chord on each scale degree. Chromatic degrees get a
+#: dominant seventh, which is what a chromatic root usually is in this idiom.
+_DIATONIC_SEVENTH_MAJOR = {
+    0: "maj7", 2: "min7", 3: "maj7", 4: "min7", 5: "maj7",
+    7: "dom7", 8: "maj7", 9: "min7", 10: "dom7", 11: "halfdim7",
+}
+_DIATONIC_SEVENTH_MINOR = {
+    0: "min7", 2: "halfdim7", 3: "maj7", 5: "min7", 7: "dom7",
+    8: "maj7", 9: "min7", 10: "dom7", 11: "dim7",
+}
+
+
+def diatonic_seventh(root: int, context: Context) -> JazzChord:
+    table = _DIATONIC_SEVENTH_MINOR if context.mode == "minor" else _DIATONIC_SEVENTH_MAJOR
+    return JazzChord(root=root, quality=table.get(context.degree(root), "dom7"))
+
+
+def _rescue(unit: Unit, context: Context, rejected: Sequence[Candidate]) -> list[Candidate]:
+    """What to play when every dialect of the base chord fights the melody.
+
+    Two answers, in order. If the chord is a dominant, suspend the third: a
+    melody on the fourth over a dominant is exactly what 7sus4 chords exist
+    for. Otherwise, reharmonize the offending note as a chord tone by rooting a
+    diatonic seventh chord ON it — a melody F that will not sit over C wants F,
+    which is to say the subdominant, and that is the substitution a player
+    reaches for without thinking.
+
+    A bare suspended triad is deliberately not among the options: sus chords
+    are 1.5% of the treebank and all but a handful of them are 7sus4.
+    """
+    weighted = unit.weighted_pcs
+    if not weighted:
+        return []
+    worst = min((candidate.melody_penalty for candidate in rejected), default=1.0)
+    out: list[Candidate] = []
+
+    if unit.base.is_dominant or context.degree(unit.base.root) == 7:
+        suspended = JazzChord(root=unit.base.root, quality="sus4", extensions=("7",))
+        ok, penalty = _acceptable(suspended, weighted)
+        if ok and penalty < worst:
+            out.append(_candidate(unit, [suspended], "extension", 0.3 - penalty * 2.0, penalty))
+
+    principal = max(weighted, key=lambda item: item[1])[0]
+    rooted = diatonic_seventh(principal, context)
+    if rooted.root != unit.base.root:
+        ok, penalty = _acceptable(rooted, weighted)
+        if ok and penalty < worst:
+            out.append(_candidate(unit, [rooted], "relative", 0.25 - penalty * 2.0, penalty))
+    return out
+
+
 def _tonic_function(context: Context, chord: JazzChord) -> bool:
     degree = context.degree(chord.root)
     if context.mode == "major":
@@ -233,6 +284,8 @@ def identity_candidates(unit: Unit, context: Context) -> list[Candidate]:
         if not ok and quality != base.quality:
             continue
         out.append(_candidate(unit, [chord], kind, bonus - penalty * 2.0, penalty))
+    if all(candidate.melody_penalty > 0 for candidate in out):
+        out.extend(_rescue(unit, context, out))
     if not out:
         chord = JazzChord(root=base.root, quality=base.quality)
         _, penalty = _acceptable(chord, weighted)
@@ -554,6 +607,13 @@ def generate(unit: Unit, context: Context) -> list[Candidate]:
     reject-sample: the lattice it walks contains only chords that can actually
     support the melody.
     """
+    if context.is_last:
+        # The final chord is the tune's punctuation. Reharmonize the approach to
+        # it as freely as you like, but substituting the resting point itself
+        # changes what the tune is — and a folk tune that ends on viiø7 does not
+        # sound adventurous, it sounds unfinished.
+        return identity_candidates(unit, context)
+
     out: list[Candidate] = []
     seen: set[tuple] = set()
     for generator in GENERATORS:

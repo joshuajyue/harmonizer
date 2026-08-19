@@ -24,10 +24,10 @@ distribution is the safe reharmonization. The recommended setting is around 1.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
-from typing import Sequence
 
-from contracts.schema import Chord, KeySignature, Melody, Violation, Voice
+from contracts.schema import Chord, Melody, Violation, Voice
 
 from ..engines.base import Harmonization, HarmonyEngine, register
 from .chords import JazzChord, classify_melody_note
@@ -43,7 +43,7 @@ from .search import (
     sample,
     viterbi,
 )
-from .skeleton import Skeleton, melody_notes, skeleton_from_rules
+from .skeleton import Skeleton, skeleton_from_rules
 from .voicing import DEFAULT_STYLE, VoicingStyle, build_voices
 
 

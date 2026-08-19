@@ -32,8 +32,8 @@ model musical rather than merely conservative:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, replace
 
 # ---------------------------------------------------------------------------
 # Qualities
@@ -233,17 +233,17 @@ class JazzChord:
         pcs = self.core_pcs
         return pcs.index(self.bass_pc) if self.bass_pc in pcs else 0
 
-    def with_extensions(self, extensions: Iterable[str]) -> "JazzChord":
+    def with_extensions(self, extensions: Iterable[str]) -> JazzChord:
         merged = list(self.extensions)
         for extension in extensions:
             if extension not in merged:
                 merged.append(extension)
         return replace(self, extensions=tuple(_sorted_extensions(merged)))
 
-    def without_extensions(self) -> "JazzChord":
+    def without_extensions(self) -> JazzChord:
         return replace(self, extensions=())
 
-    def with_provenance(self, of: str | None, kind: str | None) -> "JazzChord":
+    def with_provenance(self, of: str | None, kind: str | None) -> JazzChord:
         return replace(self, substitution_of=of, substitution_kind=kind)
 
     # -- naming ------------------------------------------------------------
@@ -269,7 +269,7 @@ class JazzChord:
             text += "/" + bass_stem
         return text
 
-    def same_harmony(self, other: "JazzChord") -> bool:
+    def same_harmony(self, other: JazzChord) -> bool:
         """Equal as a sounding chord, ignoring provenance metadata."""
         return (
             self.root == other.root

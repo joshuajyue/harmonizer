@@ -23,9 +23,9 @@ from __future__ import annotations
 import json
 import sqlite3
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from .chords import JazzChord, parse_key, parse_symbol
 
@@ -98,7 +98,7 @@ class Progression:
                 return span.chord
         return None
 
-    def transposed(self, semitones: int) -> "Progression":
+    def transposed(self, semitones: int) -> Progression:
         from dataclasses import replace as _replace
 
         spans = [

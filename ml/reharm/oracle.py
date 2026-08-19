@@ -25,15 +25,13 @@ from __future__ import annotations
 
 import json
 import statistics
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 from .data import (
     CACHE,
     LICENCES,
-    Progression,
-    chorus_melody,
     chorus_progression,
     load_solos,
     solo_melody_beats,
@@ -41,7 +39,6 @@ from .data import (
     treebank_progressions,
 )
 from .metrics import (
-    DistanceMetrics,
     MelodyFit,
     SyntaxCounts,
     collect_corpus_syntax,

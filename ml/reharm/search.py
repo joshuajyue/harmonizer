@@ -25,10 +25,10 @@ path, and at T = 1 it draws honestly from the model.
 
 from __future__ import annotations
 
-import math
 import random
-from dataclasses import dataclass, field, replace
-from typing import Protocol, Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from typing import Protocol
 
 import numpy as np
 

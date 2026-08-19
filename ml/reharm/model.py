@@ -25,9 +25,9 @@ import json
 import math
 import random
 from collections import Counter, defaultdict
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from .chords import JazzChord
 from .data import Progression
@@ -72,7 +72,7 @@ class ChordNGram:
 
     # -- fitting -----------------------------------------------------------
 
-    def fit(self, sequences: Iterable[Sequence[Token]]) -> "ChordNGram":
+    def fit(self, sequences: Iterable[Sequence[Token]]) -> ChordNGram:
         for sequence in sequences:
             padded = [BOS, BOS, *sequence, EOS]
             for index in range(2, len(padded)):
@@ -159,7 +159,7 @@ class ChordNGram:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict) -> "ChordNGram":
+    def from_dict(cls, payload: dict) -> ChordNGram:
         model = cls(order=int(payload.get("order", 3)), lambdas=tuple(payload.get("lambdas", (0.45, 0.35, 0.19, 0.01))))
         model.trained_on = dict(payload.get("trained_on", {}))
         for token, count in payload.get("unigram", []):
@@ -182,7 +182,7 @@ class ChordNGram:
         return path
 
     @classmethod
-    def load(cls, path: Path = MODEL_PATH) -> "ChordNGram | None":
+    def load(cls, path: Path = MODEL_PATH) -> ChordNGram | None:
         if not path.exists():
             return None
         try:

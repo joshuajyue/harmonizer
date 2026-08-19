@@ -30,8 +30,8 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Iterable, Mapping, Sequence
 
 from .chords import (
     AVAILABLE_TENSION,
@@ -120,7 +120,7 @@ class MelodyFit:
     notes: int = 0
     uncovered: float = 0.0
 
-    def merge(self, other: "MelodyFit") -> None:
+    def merge(self, other: MelodyFit) -> None:
         self.weight += other.weight
         self.by_verdict.update(other.by_verdict)
         self.conflicts.extend(other.conflicts)
@@ -235,7 +235,7 @@ class SyntaxCounts:
     root_motion: Counter = field(default_factory=Counter)
     qualities: Counter = field(default_factory=Counter)
 
-    def merge(self, other: "SyntaxCounts") -> None:
+    def merge(self, other: SyntaxCounts) -> None:
         for name in (
             "chords", "transitions", "sevenths", "with_extensions", "extension_total",
             "dominants", "dominants_resolved", "dominants_down_fifth", "dominants_down_semitone",

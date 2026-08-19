@@ -16,8 +16,8 @@ harder and more revealing test than a folk tune.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from contracts.schema import KeySignature, Melody, Note, TimeSignature
 
