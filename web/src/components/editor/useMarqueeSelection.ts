@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
-import { useStudioStore, type SelectedNote } from "../../store";
+import {
+  useStudioStore,
+  type ComparisonSlotId,
+  type SelectedNote,
+} from "../../store";
 import {
   dedupeSelection,
+  isEditableSelection,
   selectionKey,
 } from "../../store/selection";
 import {
@@ -19,6 +24,7 @@ interface MarqueeSession {
   anchor: { x: number; y: number };
   base: SelectedNote[];
   mode: MarqueeMode;
+  activeSlot: ComparisonSlotId;
 }
 
 function selectionFromHit(hit: NoteHit): SelectedNote {
@@ -44,10 +50,11 @@ export function useMarqueeSelection(
     point: { x: number; y: number },
     mode: MarqueeMode,
   ) {
+    const state = useStudioStore.getState();
     const base =
       mode === "replace"
         ? []
-        : [...useStudioStore.getState().selectedNotes];
+        : [...state.selectedNotes];
     const anchor = {
       x: point.x,
       y: Math.max(
@@ -55,7 +62,12 @@ export function useMarqueeSelection(
         Math.min(layout.noteAreaBottom, point.y),
       ),
     };
-    sessionRef.current = { anchor, base, mode };
+    sessionRef.current = {
+      anchor,
+      base,
+      mode,
+      activeSlot: state.activeSlot,
+    };
     setSelectedNotes(base);
     setMarquee({ x: anchor.x, y: anchor.y, width: 0, height: 0 });
   }
@@ -71,8 +83,11 @@ export function useMarqueeSelection(
       ),
     });
     const hits = (drawResultRef.current?.noteHits ?? [])
-      .filter((hit) => hit.editable && intersects(hit.rect, rectangle))
-      .map(selectionFromHit);
+      .filter((hit) => intersects(hit.rect, rectangle))
+      .map(selectionFromHit)
+      .filter((selection) =>
+        isEditableSelection(selection, session.activeSlot),
+      );
     let next: SelectedNote[];
     if (session.mode === "add") {
       next = dedupeSelection([...session.base, ...hits]);

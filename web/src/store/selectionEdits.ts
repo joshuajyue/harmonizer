@@ -2,21 +2,18 @@ import type { Note } from "../../../contracts/types";
 import type { StudioStore } from "./types";
 import {
   collectSelectionOrigins,
-  isEditableSelection,
   selectionKey,
 } from "./selection";
 
 export function buildSelectionDelete(
   state: StudioStore,
 ): Partial<StudioStore> {
+  const origins = collectSelectionOrigins(state);
   const selected = new Set(
-    state.selectedNotes
-      .filter((selection) => isEditableSelection(selection, state.activeSlot))
-      .map(selectionKey),
+    origins.map(({ selection }) => selectionKey(selection)),
   );
-  const melodyChanged = state.selectedNotes.some(
-    (selection) =>
-      selection.source === "melody" && selected.has(selectionKey(selection)),
+  const melodyChanged = origins.some(
+    ({ selection }) => selection.source === "melody",
   );
   const activeResult = state.slots[state.activeSlot].result;
   const melodyNotes = melodyChanged

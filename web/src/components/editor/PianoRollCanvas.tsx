@@ -98,7 +98,7 @@ export function PianoRollCanvas({
         onPointerMove={interaction.onPointerMove}
         onPointerLeave={interaction.onPointerLeave}
         onPointerUp={interaction.onPointerUp}
-        onPointerCancel={interaction.onPointerUp}
+        onPointerCancel={interaction.onPointerCancel}
         onDoubleClick={interaction.onDoubleClick}
         onContextMenu={interaction.onContextMenu}
       />

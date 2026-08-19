@@ -17,12 +17,10 @@ export function drawRoll(
   const noteHits: NoteHit[] = [];
   const violationHits: ViolationHit[] = [];
   const selectedKeys = new Set(model.selectedNotes.map(selectionKey));
-  context.clearRect(
-    0,
-    0,
-    model.duration * model.pxPerBeat,
-    model.layout.rollHeight,
-  );
+  context.save();
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+  context.restore();
   drawGrid(context, model);
   const melodyVisible =
     model.layout.focusedLane === undefined ||

@@ -139,8 +139,28 @@ export function useRollInteraction(
   }
 
   function onPointerUp(event: React.PointerEvent<HTMLCanvasElement>) {
+    const point = pointerPoint(event);
+    if (modeRef.current === "marquee") {
+      marquee.update(point);
+      marquee.finish();
+    } else if (modeRef.current === "ruler") {
+      ruler.update(point.x);
+      ruler.finish();
+    } else if (modeRef.current === "note") {
+      noteDrag.update(point);
+    }
+    releaseInteraction(event);
+  }
+
+  function onPointerCancel(event: React.PointerEvent<HTMLCanvasElement>) {
     if (modeRef.current === "marquee") marquee.finish();
     if (modeRef.current === "ruler") ruler.finish();
+    releaseInteraction(event);
+  }
+
+  function releaseInteraction(
+    event: React.PointerEvent<HTMLCanvasElement>,
+  ) {
     noteDrag.finish();
     modeRef.current = undefined;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -186,6 +206,7 @@ export function useRollInteraction(
     onPointerMove,
     onPointerLeave: () => setHoveredViolation(undefined),
     onPointerUp,
+    onPointerCancel,
     onDoubleClick,
     onContextMenu,
   };
