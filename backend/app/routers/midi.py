@@ -25,7 +25,20 @@ async def import_midi(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@router.post("/export", response_class=Response)
+@router.post(
+    "/export",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {
+                "audio/midi": {
+                    "schema": {"type": "string", "format": "binary"},
+                }
+            },
+            "description": "Exported Standard MIDI File",
+        }
+    },
+)
 async def export_midi(
     harmonization: HarmonizeResponse,
     tempo: float = Query(default=90.0, gt=0),

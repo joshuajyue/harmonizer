@@ -17,7 +17,20 @@ def list_synths(
     return SynthsResponse(synths=service.capabilities())
 
 
-@router.post("/render", response_class=Response)
+@router.post(
+    "/render",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {
+                "audio/wav": {
+                    "schema": {"type": "string", "format": "binary"},
+                }
+            },
+            "description": "Rendered WAV audio",
+        }
+    },
+)
 async def render(
     request: RenderRequest,
     service: SynthService = Depends(get_synth_service),
