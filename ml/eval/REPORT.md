@@ -223,6 +223,13 @@ schemes are directly comparable.
 | + rich label space | 0.321 | **-7.4%** |
 | all three | **0.642** | **+85.4%** |
 
+Re-run independently after the module was relocated and its symbols renamed,
+seven of the eight arms reproduce to three decimal places and one
+(`absolute/v1_triads/masked`) moves by 0.012, which is CPU thread-count
+nondeterminism in LSTM training rather than anything meaningful. The headline
+0.346 -> 0.642 is identical across runs. Treat single-arm differences below
+about 0.02 as noise; every effect discussed below is five to twenty times that.
+
 Two things worth sitting with.
 
 **The representation is not one of four roughly equal problems; it is most of the
