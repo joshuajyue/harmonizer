@@ -12,7 +12,10 @@
       "root": 0,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 2.0,
@@ -21,7 +24,10 @@
       "root": 0,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 4.0,
@@ -30,7 +36,10 @@
       "root": 7,
       "quality": "maj",
       "inversion": 1,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 6.0,
@@ -39,7 +48,10 @@
       "root": 0,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 8.0,
@@ -48,7 +60,10 @@
       "root": 5,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 9.0,
@@ -57,7 +72,10 @@
       "root": 0,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 10.0,
@@ -66,7 +84,10 @@
       "root": 7,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 12.0,
@@ -75,7 +96,10 @@
       "root": 0,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 16.0,
@@ -84,7 +108,10 @@
       "root": 0,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 18.0,
@@ -93,7 +120,10 @@
       "root": 7,
       "quality": "maj",
       "inversion": 1,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 20.0,
@@ -102,7 +132,10 @@
       "root": 5,
       "quality": "maj",
       "inversion": 1,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 22.0,
@@ -111,7 +144,10 @@
       "root": 7,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 24.0,
@@ -120,7 +156,10 @@
       "root": 5,
       "quality": "maj",
       "inversion": 1,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 25.0,
@@ -129,7 +168,10 @@
       "root": 0,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 26.0,
@@ -138,7 +180,10 @@
       "root": 7,
       "quality": "maj",
       "inversion": 1,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     },
     {
       "start": 28.0,
@@ -147,7 +192,10 @@
       "root": 0,
       "quality": "maj",
       "inversion": 0,
-      "secondaryOf": null
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
     }
   ],
   "voices": [

@@ -48,7 +48,7 @@ export interface Melody {
 }
 
 /**
- * A harmonic event. `roman` is the display form ("V65", "bII", "V/V") and is the
+ * A harmonic event. `roman` is the display form ("V65", "bII7", "V/V") and is the
  * only field the UI should render as text.
  */
 export interface Chord {
@@ -57,12 +57,36 @@ export interface Chord {
   roman: string;
   /** Pitch class of the chord root, 0-11. */
   root: number;
-  /** "maj" | "min" | "dim" | "aug" | "dom7" | "maj7" | "min7" | "halfdim7" | "dim7" */
+  /**
+   * Core chord quality, without extensions:
+   * "maj" | "min" | "dim" | "aug" | "dom7" | "maj7" | "min7" | "halfdim7" | "dim7"
+   * | "minmaj7" | "maj6" | "min6" | "sus2" | "sus4"
+   *
+   * Extensions and alterations live in `extensions` rather than being enumerated
+   * here, because the cross product (13b9#11, 7alt, ...) is unbounded.
+   */
   quality: string;
   /** 0 = root position, 1 = first inversion, ... */
   inversion: number;
   /** Non-null when the chord tonicizes another degree (e.g. V/V). */
   secondaryOf?: number | null;
+  /**
+   * Added and altered tones above the core quality, e.g. ["9", "#11", "b13"].
+   * Always present; empty for plain triads and sevenths.
+   */
+  extensions: string[];
+  /**
+   * Reharmonization provenance. Non-null only when this chord replaced one in a
+   * base progression, so the UI can show what was substituted and why — the same
+   * principle as `violations`: explain the decision rather than just emit it.
+   */
+  substitutionOf?: string | null;
+  /**
+   * How the substitution was derived: "tritone" | "backdoor" | "modal_interchange"
+   * | "relative" | "passing_dim" | "secondary_dominant" | "chromatic_approach"
+   * | "extension" | "coltrane"
+   */
+  substitutionKind?: string | null;
 }
 
 export type VoiceName = "soprano" | "alto" | "tenor" | "bass";

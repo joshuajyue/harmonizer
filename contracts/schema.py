@@ -52,12 +52,32 @@ class Melody(BaseModel):
 class Chord(BaseModel):
     start: float
     duration: float
-    roman: str = Field(description='Display form: "V65", "bII", "V/V". The only text the UI renders.')
+    roman: str = Field(description='Display form: "V65", "bII7", "V/V". The only text the UI renders.')
     root: int = Field(ge=0, le=11)
-    quality: str = Field(description='"maj" | "min" | "dim" | "aug" | "dom7" | "maj7" | "min7" | "halfdim7" | "dim7"')
+    quality: str = Field(
+        description='Core quality without extensions: "maj" | "min" | "dim" | "aug" | "dom7" | '
+        '"maj7" | "min7" | "halfdim7" | "dim7" | "minmaj7" | "maj6" | "min6" | "sus2" | "sus4". '
+        "Extensions live in `extensions`; the cross product (13b9#11, 7alt, ...) is unbounded."
+    )
     inversion: int = Field(default=0, ge=0)
     secondaryOf: Optional[int] = Field(
         default=None, description="Set when the chord tonicizes another degree (e.g. V/V)."
+    )
+    extensions: list[str] = Field(
+        default_factory=list,
+        description='Added/altered tones above the core quality, e.g. ["9", "#11", "b13"]. '
+        "Always present; empty for plain triads and sevenths.",
+    )
+    substitutionOf: Optional[str] = Field(
+        default=None,
+        description="Reharmonization provenance: the roman numeral this chord replaced in the "
+        "base progression. Non-null only for reharmonized chords, so the UI can explain the "
+        "substitution rather than just emit it.",
+    )
+    substitutionKind: Optional[str] = Field(
+        default=None,
+        description='"tritone" | "backdoor" | "modal_interchange" | "relative" | "passing_dim" '
+        '| "secondary_dominant" | "chromatic_approach" | "extension" | "coltrane"',
     )
 
 
