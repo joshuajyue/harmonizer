@@ -2,7 +2,7 @@ import { selectionKey } from "../../store/selection";
 import { drawChords, drawViolations } from "./drawAnnotations";
 import { drawGrid } from "./drawGrid";
 import { drawMelodyNotes, drawVoiceNotes } from "./drawNotes";
-import { RULER_HEIGHT } from "./rollGeometry";
+import { laneCenter, RULER_HEIGHT } from "./rollGeometry";
 import type {
   DrawModel,
   DrawResult,
@@ -27,6 +27,15 @@ export function drawRoll(
   const melodyVisible =
     model.layout.focusedLane === undefined ||
     model.layout.focusedLane === "melody";
+  if (melodyVisible && model.melody.notes.length === 0) {
+    context.fillStyle = "#687283";
+    context.font = '10px "DM Mono", monospace';
+    context.fillText(
+      "Double-click to add a melody note, or choose an input below",
+      18,
+      laneCenter("melody", model.layout) + 3,
+    );
+  }
 
   if (melodyVisible) {
     drawMelodyNotes(context, model, noteHits, selectedKeys);
@@ -70,6 +79,15 @@ export function drawRoll(
 
   const chordResult =
     model.activeSlot === "A" ? model.resultA : model.resultB;
+  if (!chordResult && model.layout.focusedLane !== "melody") {
+    context.fillStyle = "#596273";
+    context.font = '10px "DM Mono", monospace';
+    context.fillText(
+      `Harmonize engine ${model.activeSlot} to reveal independent SATB parts`,
+      18,
+      laneCenter(model.layout.focusedLane ?? "alto", model.layout) + 3,
+    );
+  }
   drawChords(context, chordResult?.chords ?? [], model);
 
   if (model.loopEnabled) {
