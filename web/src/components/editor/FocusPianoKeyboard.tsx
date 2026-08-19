@@ -43,7 +43,7 @@ export function FocusPianoKeyboard({
               top: row.y - RULER_HEIGHT,
               height: row.height,
             }}
-            onClick={() => audioScheduler.preview(pitch)}
+            onClick={() => audioScheduler.preview(pitch, 90, 0.35, lane)}
             aria-label={`Audition ${noteName}`}
             title={noteName}
           >

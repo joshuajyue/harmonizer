@@ -59,7 +59,12 @@ export class AudioScheduler {
     this.options = undefined;
   }
 
-  preview(pitch: number, velocity = 90, duration = 0.35) {
+  preview(
+    pitch: number,
+    velocity = 90,
+    duration = 0.35,
+    voice: PlaybackNote["voice"] = "melody",
+  ) {
     const context = this.getContext();
     void context.resume();
     this.createVoice(
@@ -68,7 +73,7 @@ export class AudioScheduler {
         start: 0,
         duration: 1,
         velocity,
-        voice: "melody",
+        voice,
       },
       context.currentTime + 0.01,
       duration,
