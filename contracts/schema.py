@@ -77,7 +77,9 @@ class Chord(BaseModel):
     substitutionKind: Optional[str] = Field(
         default=None,
         description='"tritone" | "backdoor" | "modal_interchange" | "relative" | "passing_dim" '
-        '| "secondary_dominant" | "chromatic_approach" | "extension" | "coltrane"',
+        '| "secondary_dominant" | "related_ii" | "chromatic_approach" | "extension" | "coltrane". '
+        '"related_ii" is the ii of an inserted ii-V — a minor seventh rather than a dominant, so '
+        'labelling it "secondary_dominant" would be wrong in the UI.',
     )
 
 

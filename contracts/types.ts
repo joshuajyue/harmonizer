@@ -83,8 +83,11 @@ export interface Chord {
   substitutionOf?: string | null;
   /**
    * How the substitution was derived: "tritone" | "backdoor" | "modal_interchange"
-   * | "relative" | "passing_dim" | "secondary_dominant" | "chromatic_approach"
-   * | "extension" | "coltrane"
+   * | "relative" | "passing_dim" | "secondary_dominant" | "related_ii"
+   * | "chromatic_approach" | "extension" | "coltrane"
+   *
+   * `related_ii` is the ii of an inserted ii-V. It is a minor seventh, not a
+   * dominant, so labelling it "secondary_dominant" would be wrong in the UI.
    */
   substitutionKind?: string | null;
 }
