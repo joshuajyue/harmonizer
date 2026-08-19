@@ -167,12 +167,14 @@ here is the entire value of the project.
 
 ## 1. The v1 post-mortem, verified — and one correction
 
-All four diagnoses were checked against `git show main:backend/`. Three hold as
-stated. One does not, and the difference matters.
+v1 no longer exists on this branch; it survives only in git history on `main`.
+All four diagnoses were checked there (`git show main:backend/model.py`,
+`train.py`, `data_processor.py`, `midi_utils.py`) before being believed. Three
+hold as stated. One does not, and the difference matters.
 
 **Padding pollutes the loss — code is real, effect was not.** `chord_padding[:, 0] = 1`
-is there in `data_processor.py`, and `train.py` takes an unmasked mean over it in
-both the loss and `evaluate()`. But measured against the corpus v1 actually
+is there in `main:backend/data_processor.py`, and `main:backend/train.py` takes
+an unmasked mean over it in both the loss and `evaluate()`. But measured against the corpus v1 actually
 trained on: exactly **1 of 368 chorales is shorter than 32 quarter notes**, so
 padded positions are **0.07% of the training grid**. v1's reported `val_acc` was
 therefore *not* meaningfully inflated by padding. The real cost of the same code
@@ -205,9 +207,11 @@ and a +2 bonus for V->I.
 
 ## 2. Reconstructing v1 and flipping one factor at a time
 
-`python -m ml.training.v1_diagnosis` rebuilds v1's exact setup — its 14-dim
-features, its BiLSTM, its label extraction, its padding scheme — and varies one
-factor at a time. Every arm is scored identically: tonic-relative chord-root
+`python -m ml.experiments.v1_postmortem` reconstructs that exact configuration —
+the 14-dim features, the BiLSTM, the label projection, the 32-beat window — and
+varies one factor at a time. It is a control group quarantined in
+`ml/experiments/`, not a dependency: nothing in the product imports it, and it
+can be deleted the moment this section has been read. Every arm is scored identically: tonic-relative chord-root
 accuracy on all real beats of held-out pieces, so label spaces and sequence
 schemes are directly comparable.
 
@@ -240,8 +244,9 @@ and it is the trap v1 fell into.
 
 **Phase 1 — a rule engine worth losing to.** v1's "creative engine" chose one
 diatonic triad per measure by greedy argmax and handed the label to a renderer
-that stacked a root-position triad from a fixed register (`midi_utils.py`), so it
-never voiced anything and voice leading was structurally impossible. The
+that stacked a root-position triad from a fixed register
+(`main:backend/midi_utils.py`), so it never voiced anything and voice leading was
+structurally impossible. The
 replacement searches ~100 chords — every diatonic triad and seventh in every
 inversion, secondary dominants, applied leading-tone chords, mixture, the
 Neapolitan — with Viterbi over a functional grammar, keeps the top six per beat
@@ -448,7 +453,7 @@ python -m ml.training.calibrate_rules     # chord priors from the training split
 python -m ml.training.tune_rules          # rule weights, tuned against the harness
 python -m ml.training.train_neural        # the shipped checkpoint (~30 min, CPU)
 python -m ml.training.train_neural --ablation   # section 7
-python -m ml.training.v1_diagnosis        # section 2 of this discussion
+python -m ml.experiments.v1_postmortem    # section 2 of this discussion
 python -m ml.eval.run --detect-key        # everything above
 python -m pytest ml/tests -q              # 267 tests
 ```

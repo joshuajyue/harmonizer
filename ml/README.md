@@ -17,6 +17,8 @@ engines/     HarmonyEngine implementations. Importing a module registers it.
 nn/          The learned model: tokenisation and the network.
 training/    Scripts that produce checked-in artefacts (priors, tuned weights,
              the model checkpoint). None of them run at request time.
+experiments/ One-off measurements that produce numbers for the report. Imported
+             by nothing; safe to delete once the report is read.
 eval/        The evaluation harness and REPORT.md.
 tests/       Unit tests, plus a contract suite every registered engine must pass.
 ```
@@ -64,7 +66,7 @@ python -m ml.training.calibrate_rules    # refit chord priors from the training 
 python -m ml.training.tune_rules         # tune rule weights against the harness
 python -m ml.training.train_neural       # train the shipped checkpoint
 python -m ml.training.train_neural --ablation   # the representation experiment
-python -m ml.training.v1_diagnosis       # rebuild v1 and flip one factor at a time
+python -m ml.experiments.v1_postmortem   # the autopsy: one factor at a time
 ```
 
 Everything runs on a laptop CPU. Training the shipped model takes roughly half
@@ -85,8 +87,11 @@ any number in it:
 
 ## Why it is built this way
 
-v1's BiLSTM lost to v1's own rule engine. Four concrete reasons, each verified
-against `git show main:backend/`, and each closed structurally here:
+v1 is gone — deleted from this branch and preserved only in git history on
+`main`, where it can be read with `git show main:backend/model.py` and friends.
+Nothing here imports it, inherits from it or reuses its structure. It matters
+only as an autopsy, because its BiLSTM lost to its own rule engine, and the four
+reasons why are the specification for everything above:
 
 1. **Padding polluted the loss — but truncation was the real cost.** The padding
    bug is real (`chord_padding[:, 0] = 1`, no mask in the loss or in
@@ -113,7 +118,12 @@ against `git show main:backend/`, and each closed structurally here:
    against a rule engine that had an explicit functional grammar. Here decoding
    is iterative and bidirectional: the model revises its own output.
 
+Each of those four claims was checked against the source before being believed,
+and one of them turned out to be wrong: see `eval/REPORT.md`. The reconstruction
+that established the numbers lives in `experiments/v1_postmortem.py`, quarantined
+away from anything the product imports.
+
 The ordering of the work was deliberate — a genuinely strong rules baseline
 first, then the evaluation harness, and only then the model. A weak baseline or
 an untrustworthy metric would have made any conclusion about the model
-worthless, which is precisely what happened in v1.
+worthless, which is precisely what happened before.

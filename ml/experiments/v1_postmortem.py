@@ -1,15 +1,33 @@
-"""Reproduce v1's four failures and measure what each one cost.
+"""Autopsy: measure what each of v1's design mistakes actually cost.
 
-The main ablation in `train_neural.py --ablation` compares pitch representations
-for a model that predicts *pitches from pitches*, and finds little difference —
-which is informative, but it is not v1's situation. v1's network saw only the
-melody's ABSOLUTE pitch classes and was asked for TONIC-RELATIVE chord degrees.
-The target was not a function of the input: two melodies with identical pitch
-classes in different keys had different correct answers, and nothing in the
-input distinguished them beyond a single `is_minor` bit.
+READ THIS BEFORE ASSUMING THIS FILE IS OLD CODE.
 
-So this script rebuilds v1's actual setup — its features, its BiLSTM, its label
-extraction, its padding scheme — and flips one factor at a time:
+v1 is deleted. It exists only in git history on `main`, and nothing in this
+repository imports, extends or inherits from it. What lives here is a *control
+group*: a throwaway reproduction of the v1 configuration, quarantined in
+`ml/experiments/`, whose only purpose is to put a number on each mistake so the
+post-mortem is measured instead of asserted. No engine, no backend route and no
+part of the eval harness touches this module. Deleting it costs nothing but the
+ability to re-derive section 2 of the report; the results themselves are already
+committed to `ml/models/v1_postmortem.json` and written up in
+`ml/eval/REPORT.md`.
+
+It is here because "the rules beat the model" was a vibe in v1, and replacing one
+unmeasured belief with another would repeat the exact error this rewrite exists
+to correct.
+
+WHAT IS BEING MEASURED
+
+The ablation in `train_neural.py --ablation` compares pitch representations for a
+model that predicts *pitches from pitches*, and finds little difference — which
+is informative, but it is not v1's situation. v1's network saw only the melody's
+ABSOLUTE pitch classes and was asked for TONIC-RELATIVE chord degrees. The target
+was not a function of the input: two melodies with identical pitch-class content
+in different keys had different correct answers, and nothing in the input
+distinguished them beyond a single `is_minor` bit.
+
+So this reconstructs that configuration — the 14-dim features, the BiLSTM, the
+label projection, the fixed 32-beat window — and flips one factor at a time:
 
     representation   absolute pitch classes  vs  tonic-relative pitch classes
     labels           7 diatonic triads       vs  root x quality
@@ -20,12 +38,12 @@ EVERY arm is evaluated identically: tonic-relative chord-root accuracy on all
 real beats of held-out pieces. Only training differs, so the numbers are
 directly comparable across label spaces and sequence schemes.
 
-Two model-free measurements come first, because they bound what any model in
-v1's setup could have achieved regardless of architecture: how much of the
-corpus the seven-triad label space can actually represent, and how much of each
+Two model-free measurements come first, because they bound what any model in that
+configuration could have achieved regardless of architecture: how much of the
+corpus the seven-triad label space can represent at all, and how much of each
 piece the 32-beat window let the model see.
 
-    python -m ml.training.v1_diagnosis
+    python -m ml.experiments.v1_postmortem
 """
 
 from __future__ import annotations
@@ -50,9 +68,17 @@ from ml.data.corpus import REST, STEPS_PER_QUARTER, Chorale, load_chorales, spli
 from ml.theory.chords import analyze_chord  # noqa: E402
 from ml.theory.pitch import Key  # noqa: E402
 
-OUTPUT = Path(__file__).resolve().parents[1] / "models" / "v1_diagnosis.json"
+OUTPUT = Path(__file__).resolve().parents[1] / "models" / "v1_postmortem.json"
 
-#: v1's constants, verbatim from `git show main:backend/data_processor.py`.
+# ---------------------------------------------------------------------------
+# The configuration under test.
+#
+# Transcribed from `git show main:backend/data_processor.py` and
+# `git show main:backend/model.py` so the control group is the real thing rather
+# than my recollection of it. This is measurement apparatus, not a dependency:
+# it is deliberately confined to this file, nothing imports it, and it describes
+# a design the rest of the repository exists to replace.
+# ---------------------------------------------------------------------------
 V1_SEQUENCE_LENGTH = 32
 V1_FEATURE_DIM = 14
 V1_NUM_CHORD_TYPES = 7
@@ -69,11 +95,12 @@ V1_MINOR_CHORD_TONES = {
 V1_DEGREE_ROOT = {"major": [0, 2, 4, 5, 7, 9, 11], "minor": [0, 2, 3, 5, 7, 8, 10]}
 
 
-def v1_chord_degree(pitch_classes: set[int], key: Key) -> int:
+def projected_chord_degree(pitch_classes: set[int], key: Key) -> int:
     """v1's `extract_real_chord_labels` vote, reproduced exactly.
 
     Every seventh chord, secondary dominant, borrowed chord and suspension is
     projected onto whichever diatonic triad shares the most pitch classes.
+    `label_space_fidelity` below measures how much that destroys.
     """
     table = V1_MINOR_CHORD_TONES if key.is_minor else V1_MAJOR_CHORD_TONES
     scale_degrees = [(pc - key.tonic) % 12 for pc in pitch_classes]
@@ -137,7 +164,7 @@ def label_space_fidelity(chorales: Sequence[Chorale]) -> dict:
             if label.applied_to is not None:
                 applied += 1
             table = V1_MINOR_CHORD_TONES if key.is_minor else V1_MAJOR_CHORD_TONES
-            degree = v1_chord_degree({p % 12 for p in sounding}, key)
+            degree = projected_chord_degree({p % 12 for p in sounding}, key)
             projected_root = V1_DEGREE_ROOT[key.mode][degree]
             projected_tones = set(table[degree])
             if projected_root == label.relative_root:
@@ -207,7 +234,7 @@ def build_piece(chorale: Chorale) -> Piece | None:
             rich_labels[beat] = rich_labels[beat - 1] if beat else 0
             continue
         roots[beat] = label.relative_root
-        v1_labels[beat] = v1_chord_degree({p % 12 for p in sounding}, key)
+        v1_labels[beat] = projected_chord_degree({p % 12 for p in sounding}, key)
         quality = label.quality if label.quality in RICH_QUALITIES else "maj"
         rich_labels[beat] = rich_index(label.relative_root, quality)
 
@@ -219,8 +246,13 @@ def build_piece(chorale: Chorale) -> Piece | None:
 # ---------------------------------------------------------------------------
 
 
-class V1ChordLSTM(nn.Module):
-    """v1's `ChordLSTM`, with only the output width made configurable."""
+class BaselineChordLSTM(nn.Module):
+    """The v1 tagger, with only the output width made configurable.
+
+    Reproduced so every arm below differs from v1 in exactly one respect. It is
+    not a starting point for anything: the shipped model predicts voices rather
+    than chord labels and lives in `ml/nn/model.py`.
+    """
 
     def __init__(self, output_dim: int, input_dim: int = V1_FEATURE_DIM, hidden: int = 128, layers: int = 2):
         super().__init__()
@@ -312,7 +344,7 @@ def run_arm(
     np.random.seed(seed)
 
     n_classes = V1_NUM_CHORD_TYPES if arm.labels == "v1_triads" else 12 * len(RICH_QUALITIES)
-    model = V1ChordLSTM(n_classes)
+    model = BaselineChordLSTM(n_classes)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss(label_smoothing=0.05, reduction="none")
 
