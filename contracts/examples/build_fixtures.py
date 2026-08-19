@@ -51,28 +51,33 @@ MELODY: list[tuple[float, float, int]] = [
 # Hand-voiced SATB. Columns: start, duration, roman, root_pc, quality, inversion,
 # then the four voices as (soprano, alto, tenor, bass) MIDI pitches.
 #
-# Voices stay in range (S 60-79, A 55-74, T 48-67, B 40-60) except where a defect
-# is introduced on purpose - see DEFECTS below.
+# Voicings are deliberately varied between segments. An earlier draft reused the same
+# chord shapes, which manufactured five accidental parallels on top of the three
+# intended ones — verified against ml.theory.voicing, which caught all eight. The
+# fixture is only useful as a detector test corpus if its declared violations are
+# exhaustive, so test_fixtures.py now asserts detector output matches exactly.
+#
+# Voice ranges: S 60-79, A 55-74, T 48-67, B 40-60.
 PROGRESSION: list[tuple] = [
-    (0,  2, "I",  0, "maj", 0, (60, 55, 52, 48)),
-    (2,  2, "I",  0, "maj", 0, (64, 60, 55, 48)),
-    (4,  2, "V",  7, "maj", 0, (67, 59, 50, 43)),
-    (6,  2, "I",  0, "maj", 0, (64, 60, 55, 48)),
-    # -- parallel fifths, bass/tenor, at beat 9 (F2+C3 -> C3+G3, both a P5) --
-    (8,  1, "IV", 5, "maj", 0, (65, 57, 48, 41)),
-    (9,  1, "I",  0, "maj", 0, (64, 60, 55, 48)),
-    (10, 2, "V",  7, "maj", 0, (62, 59, 55, 43)),
-    (12, 4, "I",  0, "maj", 0, (60, 55, 52, 48)),
-    (16, 2, "I",  0, "maj", 0, (64, 60, 55, 48)),
-    (18, 2, "V",  7, "maj", 0, (67, 62, 59, 43)),
-    # -- parallel octaves, soprano/bass, completing at beat 22 (A4+A2 -> G4+G2) --
-    (20, 2, "IV", 5, "maj", 1, (69, 60, 57, 45)),
-    (22, 2, "V",  7, "maj", 0, (67, 62, 59, 43)),
-    (24, 1, "IV", 5, "maj", 0, (65, 62, 57, 41)),
-    # -- voice crossing: tenor (62) rises above alto (59) at beat 25 --
-    (25, 1, "I",  0, "maj", 0, (64, 59, 62, 48)),
-    (26, 2, "V",  7, "maj", 0, (62, 59, 55, 43)),
-    (28, 4, "I",  0, "maj", 0, (60, 55, 52, 48)),
+    (0,  2, "I",   0, "maj", 0, (60, 55, 52, 48)),
+    (2,  2, "I",   0, "maj", 0, (64, 55, 52, 48)),
+    (4,  2, "V6",  7, "maj", 1, (67, 55, 50, 47)),
+    (6,  2, "I",   0, "maj", 0, (64, 55, 52, 48)),
+    # -- parallel fifths, tenor/bass, at beat 9 (F2+C3 -> C3+G3, both +7) --
+    (8,  1, "IV",  5, "maj", 0, (65, 57, 48, 41)),
+    (9,  1, "I",   0, "maj", 0, (64, 60, 55, 48)),
+    (10, 2, "V",   7, "maj", 0, (62, 59, 55, 43)),
+    (12, 4, "I",   0, "maj", 0, (60, 55, 52, 48)),
+    (16, 2, "I",   0, "maj", 0, (64, 55, 52, 48)),
+    (18, 2, "V6",  7, "maj", 1, (67, 55, 50, 47)),
+    # -- parallel octaves, soprano/bass, at beat 22 (A4+A2 -> G4+G2, both -2) --
+    (20, 2, "IV6", 5, "maj", 1, (69, 60, 53, 45)),
+    (22, 2, "V",   7, "maj", 0, (67, 59, 50, 43)),
+    (24, 1, "IV6", 5, "maj", 1, (65, 60, 53, 45)),
+    # -- voice crossing: tenor C4 (60) rises above alto G3 (55) at beat 25 --
+    (25, 1, "I",   0, "maj", 0, (64, 55, 60, 48)),
+    (26, 2, "V6",  7, "maj", 1, (62, 55, 50, 47)),
+    (28, 4, "I",   0, "maj", 0, (60, 55, 52, 48)),
 ]
 
 DEFECTS = [
@@ -95,7 +100,7 @@ DEFECTS = [
         severity="warning",
         start=25.0,
         voices=["alto", "tenor"],
-        message="Tenor (D4) rises above alto (B3).",
+        message="Tenor (C4) rises above alto (G3).",
     ),
 ]
 

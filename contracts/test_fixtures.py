@@ -97,6 +97,43 @@ def test_violations_point_at_real_beats():
         assert violation.voices, "violation must name the voices involved"
 
 
+def test_declared_violations_match_the_detector_exactly():
+    """The fixture's violations list must be exhaustive, not merely illustrative.
+
+    An earlier draft declared three defects while the voicing actually contained
+    eight. That is dangerous in both directions: it makes the fixture useless as a
+    detector test corpus, and it invites someone to "fix" a correct detector to
+    match wrong data. Skipped if the ml package is unavailable.
+    """
+    try:
+        from ml.theory.voicing import find_parallels, find_voice_crossings, texture_from_voices
+    except ImportError:  # pragma: no cover - ml deps not installed
+        import pytest
+
+        pytest.skip("ml package not importable")
+
+    response = load_response()
+    order = ["soprano", "alto", "tenor", "bass"]
+    by_name = {v.name: v.notes for v in response.voices}
+    starts = [n.start for n in by_name["soprano"]]
+    texture = texture_from_voices([[n.pitch for n in by_name[name]] for name in order])
+
+    detected: set[tuple[float, str]] = set()
+    for i in range(1, len(texture.grid)):
+        for _, _, kind in find_parallels(texture.grid[i - 1], texture.grid[i]):
+            detected.add((starts[i], kind))
+    for i in range(len(texture.grid)):
+        if find_voice_crossings(texture.grid[i]):
+            detected.add((starts[i], "voice_crossing"))
+
+    declared = {(v.start, v.kind) for v in response.violations}
+    assert detected == declared, (
+        "fixture voicing and declared violations disagree.\n"
+        f"  undeclared defects: {sorted(detected - declared)}\n"
+        f"  declared but absent: {sorted(declared - detected)}"
+    )
+
+
 if __name__ == "__main__":
     import traceback
 

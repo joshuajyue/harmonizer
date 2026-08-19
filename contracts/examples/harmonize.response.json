@@ -26,10 +26,10 @@
     {
       "start": 4.0,
       "duration": 2.0,
-      "roman": "V",
+      "roman": "V6",
       "root": 7,
       "quality": "maj",
-      "inversion": 0,
+      "inversion": 1,
       "secondaryOf": null
     },
     {
@@ -89,16 +89,16 @@
     {
       "start": 18.0,
       "duration": 2.0,
-      "roman": "V",
+      "roman": "V6",
       "root": 7,
       "quality": "maj",
-      "inversion": 0,
+      "inversion": 1,
       "secondaryOf": null
     },
     {
       "start": 20.0,
       "duration": 2.0,
-      "roman": "IV",
+      "roman": "IV6",
       "root": 5,
       "quality": "maj",
       "inversion": 1,
@@ -116,10 +116,10 @@
     {
       "start": 24.0,
       "duration": 1.0,
-      "roman": "IV",
+      "roman": "IV6",
       "root": 5,
       "quality": "maj",
-      "inversion": 0,
+      "inversion": 1,
       "secondaryOf": null
     },
     {
@@ -134,10 +134,10 @@
     {
       "start": 26.0,
       "duration": 2.0,
-      "roman": "V",
+      "roman": "V6",
       "root": 7,
       "quality": "maj",
-      "inversion": 0,
+      "inversion": 1,
       "secondaryOf": null
     },
     {
@@ -262,19 +262,19 @@
           "velocity": 76
         },
         {
-          "pitch": 60,
+          "pitch": 55,
           "start": 2.0,
           "duration": 2.0,
           "velocity": 76
         },
         {
-          "pitch": 59,
+          "pitch": 55,
           "start": 4.0,
           "duration": 2.0,
           "velocity": 76
         },
         {
-          "pitch": 60,
+          "pitch": 55,
           "start": 6.0,
           "duration": 2.0,
           "velocity": 76
@@ -304,13 +304,13 @@
           "velocity": 76
         },
         {
-          "pitch": 60,
+          "pitch": 55,
           "start": 16.0,
           "duration": 2.0,
           "velocity": 76
         },
         {
-          "pitch": 62,
+          "pitch": 55,
           "start": 18.0,
           "duration": 2.0,
           "velocity": 76
@@ -322,25 +322,25 @@
           "velocity": 76
         },
         {
-          "pitch": 62,
+          "pitch": 59,
           "start": 22.0,
           "duration": 2.0,
           "velocity": 76
         },
         {
-          "pitch": 62,
+          "pitch": 60,
           "start": 24.0,
           "duration": 1.0,
           "velocity": 76
         },
         {
-          "pitch": 59,
+          "pitch": 55,
           "start": 25.0,
           "duration": 1.0,
           "velocity": 76
         },
         {
-          "pitch": 59,
+          "pitch": 55,
           "start": 26.0,
           "duration": 2.0,
           "velocity": 76
@@ -363,7 +363,7 @@
           "velocity": 76
         },
         {
-          "pitch": 55,
+          "pitch": 52,
           "start": 2.0,
           "duration": 2.0,
           "velocity": 76
@@ -375,7 +375,7 @@
           "velocity": 76
         },
         {
-          "pitch": 55,
+          "pitch": 52,
           "start": 6.0,
           "duration": 2.0,
           "velocity": 76
@@ -405,43 +405,43 @@
           "velocity": 76
         },
         {
-          "pitch": 55,
+          "pitch": 52,
           "start": 16.0,
           "duration": 2.0,
           "velocity": 76
         },
         {
-          "pitch": 59,
+          "pitch": 50,
           "start": 18.0,
           "duration": 2.0,
           "velocity": 76
         },
         {
-          "pitch": 57,
+          "pitch": 53,
           "start": 20.0,
           "duration": 2.0,
           "velocity": 76
         },
         {
-          "pitch": 59,
+          "pitch": 50,
           "start": 22.0,
           "duration": 2.0,
           "velocity": 76
         },
         {
-          "pitch": 57,
+          "pitch": 53,
           "start": 24.0,
           "duration": 1.0,
           "velocity": 76
         },
         {
-          "pitch": 62,
+          "pitch": 60,
           "start": 25.0,
           "duration": 1.0,
           "velocity": 76
         },
         {
-          "pitch": 55,
+          "pitch": 50,
           "start": 26.0,
           "duration": 2.0,
           "velocity": 76
@@ -470,7 +470,7 @@
           "velocity": 76
         },
         {
-          "pitch": 43,
+          "pitch": 47,
           "start": 4.0,
           "duration": 2.0,
           "velocity": 76
@@ -512,7 +512,7 @@
           "velocity": 76
         },
         {
-          "pitch": 43,
+          "pitch": 47,
           "start": 18.0,
           "duration": 2.0,
           "velocity": 76
@@ -530,7 +530,7 @@
           "velocity": 76
         },
         {
-          "pitch": 41,
+          "pitch": 45,
           "start": 24.0,
           "duration": 1.0,
           "velocity": 76
@@ -542,7 +542,7 @@
           "velocity": 76
         },
         {
-          "pitch": 43,
+          "pitch": 47,
           "start": 26.0,
           "duration": 2.0,
           "velocity": 76
@@ -585,7 +585,7 @@
         "alto",
         "tenor"
       ],
-      "message": "Tenor (D4) rises above alto (B3)."
+      "message": "Tenor (C4) rises above alto (G3)."
     }
   ],
   "engine": "rules",
