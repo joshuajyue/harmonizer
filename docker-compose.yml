@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      HARMONIZER_SOUNDFONT: /usr/share/sounds/sf2/FluidR3_GM.sf2
+      HARMONIZER_SOUNDFONT: /usr/share/sounds/sf2/TimGM6mb.sf2
       HARMONIZER_TIMBRE_DIR: /app/backend/timbres
     ports:
       - "8000:8000"

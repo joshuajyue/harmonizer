@@ -4,22 +4,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     HARMONIZER_RUNTIME_DIR=/app/backend/.runtime \
-    HARMONIZER_SOUNDFONT=/usr/share/sounds/sf2/FluidR3_GM.sf2
+    HARMONIZER_SOUNDFONT=/usr/share/sounds/sf2/TimGM6mb.sf2
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
         ffmpeg \
-        fluid-soundfont-gm \
         fluidsynth \
         libsndfile1 \
+        timgm6mb-soundfont \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY backend/requirements.txt /app/backend/requirements.txt
+RUN python -m pip install --no-cache-dir -r /app/backend/requirements.txt
+
 COPY ml /app/ml
-RUN python -m pip install --no-cache-dir -r /app/backend/requirements.txt \
-    && if [ -f /app/ml/requirements.txt ]; then \
+ARG HARMONIZER_INSTALL_ML_EXTRAS=0
+RUN if [ "$HARMONIZER_INSTALL_ML_EXTRAS" = "1" ] \
+        && [ -f /app/ml/requirements.txt ]; then \
         python -m pip install --no-cache-dir -r /app/ml/requirements.txt; \
     fi
 

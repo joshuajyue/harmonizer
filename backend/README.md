@@ -73,6 +73,13 @@ Dependency resolution was checked against PyPI: `fastapi==0.141.1` and
 `music21==10.5.0` exist, while `torch==2.13.0` does not resolve.
 This service no longer imports music21 or torch, so neither heavy package is in
 the base image; ML/neural adapters own their hardware-specific dependencies.
+To build an image with the ML training extras anyway, pass
+`--build-arg HARMONIZER_INSTALL_ML_EXTRAS=1`:
+
+```bash
+docker build --build-arg HARMONIZER_INSTALL_ML_EXTRAS=1 \
+  --file backend/Dockerfile .
+```
 
 ## Configuration
 
