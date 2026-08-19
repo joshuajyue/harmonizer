@@ -69,6 +69,12 @@ hybrid.
 
 ## Known open bugs
 
+The frontend items below (1, 3-7) were all fixed by `web-ui` late in the
+session — single-slot rendering, live loop updates, a reserved-key set with a
+startup assertion, Record/Place modes, length-preserving quantization, count-in,
+and a sawtooth bass with register compensation. They are kept here because the
+root causes are worth knowing if any of them regress.
+
 1. **Marquee delete leaves notes rendered.** Only reproduces with **both** A and
    B harmonized. Root cause is a four-way asymmetry: `duration` and rendering
    cover both slots, but only the active slot is editable
@@ -77,12 +83,19 @@ hybrid.
    notes stay drawn, and playback stops early. Dropping the translucent overlay
    in favour of showing one slot at a time is both the requested feature and the
    cleanest fix.
-2. **Harmonization ignores melody start offset.** A melody starting at beat 4
-   returns harmony starting at beat 0. Reproduced against the `rules` engine
-   through the API. Also silently violates the contract invariant that soprano
-   retains the input melody — `test_soprano_retains_the_input_melody` passes only
-   because the canonical fixture happens to start at beat 0. Likely in the shared
-   `ml/data/melody.py` grid conversion, in which case every engine has it.
+2. **Reharm engines double the melody start offset.** `jazz_reharm` and
+   `jazz_reharm_rules` return alto/tenor/bass at beat 8 for a melody starting at
+   beat 4 (and 14 for 7). The shared conversion in `ml/data/melody.py` already
+   re-adds `MelodyGrid.origin`, so the manual re-add in `ml/reharm`'s `_finish()`
+   applies it twice. The chorale engines are correct — verified across offsets 0,
+   4 and 7. Do **not** "fix" the shared layer; five engines depend on its current
+   behaviour.
+
+   Note the soprano is passed through from the input melody rather than converted
+   out of the grid, so it is structurally immune to this fault and looks correct
+   while the lower three voices are wrong. Any regression test must assert on all
+   four voices. The original user report — `rules` returning beat 0 for a melody
+   starting at 4 — was real and has since been fixed.
 3. **Loop toggle does nothing mid-playback.** `usePlayback.ts` passes
    `loopEnabled/loopStart/loopEnd` into `audioScheduler.start({...})` once and
    the scheduler keeps that snapshot. `metronomeEnabled` and tempo are passed the
