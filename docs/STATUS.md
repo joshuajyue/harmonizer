@@ -67,51 +67,52 @@ because a model of 1,170 standards puts its mass where the corpus does, and the
 middle of the jazz corpus is a diatonic ii-V-I. The shipped engine samples from a
 hybrid.
 
-## Known open bugs
+## Bugs found and fixed this session
 
-The frontend items below (1, 3-7) were all fixed by `web-ui` late in the
-session — single-slot rendering, live loop updates, a reserved-key set with a
-startup assertion, Record/Place modes, length-preserving quantization, count-in,
-and a sawtooth bass with register compensation. They are kept here because the
-root causes are worth knowing if any of them regress.
+All of these are now closed and regression-tested. Kept because the root causes
+are worth knowing if any of them regress.
 
-1. **Marquee delete leaves notes rendered.** Only reproduces with **both** A and
-   B harmonized. Root cause is a four-way asymmetry: `duration` and rendering
-   cover both slots, but only the active slot is editable
-   (`drawNotes.ts:167`, `editable: slot === model.activeSlot`) and only the
-   active slot is played. Deleting removes active-slot notes; inactive-slot
-   notes stay drawn, and playback stops early. Dropping the translucent overlay
-   in favour of showing one slot at a time is both the requested feature and the
-   cleanest fix.
-2. **Reharm engines double the melody start offset.** `jazz_reharm` and
-   `jazz_reharm_rules` return alto/tenor/bass at beat 8 for a melody starting at
-   beat 4 (and 14 for 7). The shared conversion in `ml/data/melody.py` already
-   re-adds `MelodyGrid.origin`, so the manual re-add in `ml/reharm`'s `_finish()`
-   applies it twice. The chorale engines are correct — verified across offsets 0,
-   4 and 7. Do **not** "fix" the shared layer; five engines depend on its current
-   behaviour.
+1. **Marquee delete left notes rendered.** A four-way asymmetry: `duration` and
+   rendering covered both comparison slots, but only the active slot was editable
+   and only the active slot was played. Fixed by dropping the translucent overlay
+   in favour of showing one slot at a time, which was also the requested feature.
+2. **Reharm engines doubled the melody start offset** — and the visible timing
+   error was the smaller half. The rules engine reports chords in absolute time
+   while the reharm skeleton rebased the melody to zero, so the
+   melody-compatibility hard constraint, the thing that engine exists to enforce,
+   was receiving the wrong melody notes for any tune not starting at beat 0. Now
+   works in one frame throughout. Verified across offsets 0, 4, 7 and 16 on all
+   seven engines.
+3. **Loop toggle did nothing mid-playback** — loop config was passed into
+   `audioScheduler.start()` once and snapshotted. Now has a live `setLoop()` path;
+   tempo and meter got the same treatment.
+4. **`l` was both a note and the loop toggle**, with `h` a latent second
+   collision. Fixed structurally: one `CHARACTER_SHORTCUTS` table plus a startup
+   assertion against `MUSICAL_TYPING_KEY_SET`, so the next shortcut anyone adds
+   cannot silently collide. Loop moved to `/`, harmonize to `Cmd/Ctrl+Enter`.
+5. **Unarmed keyboard input stopped placing notes**, a regression from the
+   record-mode work. Both behaviours now exist behind an explicit Record/Place
+   toggle.
+6. **Recording quantization truncated durations.** Now moves onsets to the grid
+   and preserves length.
+7. **The bass preview voice was inaudible.** `synthVoice.ts` used `bass: "sine"`,
+   and a pure sine at 82 Hz puts nothing in the band a laptop speaker can
+   reproduce, with no harmonics for the ear to infer the missing fundamental from.
+   Now sawtooth with register compensation, and the four voices are timbrally
+   distinguishable.
 
-   Note the soprano is passed through from the input melody rather than converted
-   out of the grid, so it is structurally immune to this fault and looks correct
-   while the lower three voices are wrong. Any regression test must assert on all
-   four voices. The original user report — `rules` returning beat 0 for a melody
-   starting at 4 — was real and has since been fixed.
-3. **Loop toggle does nothing mid-playback.** `usePlayback.ts` passes
-   `loopEnabled/loopStart/loopEnd` into `audioScheduler.start({...})` once and
-   the scheduler keeps that snapshot. `metronomeEnabled` and tempo are passed the
-   same way and likely fail the same way.
-4. **Keyboard collisions.** Musical typing uses `a w s e d f t g y h u j k o l p ;`
-   (`VirtualKeyboard.tsx:9-27`). `l` is both a note and the loop toggle. `h` is a
-   latent second collision. Needs a reserved-key set with a startup assertion,
-   not a one-off patch.
-5. **Unarmed keyboard input regressed** — playing while not recording no longer
-   places notes. Both modes are wanted behind an explicit toggle.
-6. **Recording quantization truncates durations.** Should move onsets to the grid
-   and preserve length.
-7. **Bass preview voice is inaudible.** `synthVoice.ts` uses `bass: "sine"`; a
-   pure sine at 82 Hz puts nothing in the band a laptop speaker can reproduce,
-   and has no harmonics for the ear to infer the missing fundamental from. Needs
-   a harmonically rich waveform. Note `alto`/`tenor` are already `triangle`.
+## A pattern worth carrying forward
+
+Three separate faults this session — the fixture's voicing defects, a register
+collapse, and the offset bug above — were each caught by a **test asserting a
+property**, and none of them by the metric suite. As `jazz-reharm` put it after
+the last one: every evaluation melody starts at beat 0, so no number in its
+report could ever have moved. Metrics measure what you thought to measure;
+invariants catch what you did not.
+
+The same lesson applied to the contract guard, which could not detect the exact
+failure it existed to prevent until it was given self-tests that deliberately
+break it.
 
 ## Ownership map
 
