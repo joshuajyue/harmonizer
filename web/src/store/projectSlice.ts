@@ -25,10 +25,17 @@ export const createProjectSlice: StateCreator<
 
   setProjectName: (projectName) => set({ projectName }),
   setTempo: (tempo) =>
-    set((state) => ({
-      melody: { ...state.melody, tempo: Math.round(clamp(tempo, 30, 240)) },
-      melodyRevision: state.melodyRevision + 1,
-    })),
+    set((state) =>
+      Number.isFinite(tempo)
+        ? {
+            melody: {
+              ...state.melody,
+              tempo: Math.round(clamp(tempo, 30, 240)),
+            },
+            melodyRevision: state.melodyRevision + 1,
+          }
+        : state,
+    ),
   setTimeSignature: (timeSignature) =>
     set((state) => ({
       melody: { ...state.melody, timeSignature },

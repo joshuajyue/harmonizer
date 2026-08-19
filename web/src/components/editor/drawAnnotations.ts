@@ -5,6 +5,7 @@ import type {
 import {
   CHORD_HEIGHT,
   LANES,
+  LANE_HEIGHT,
   laneCenter,
   RULER_HEIGHT,
 } from "./rollGeometry";
@@ -18,7 +19,7 @@ export function drawChords(
   chords: Chord[],
   model: DrawModel,
 ) {
-  const top = RULER_HEIGHT + LANES.length * 92;
+  const top = RULER_HEIGHT + LANES.length * LANE_HEIGHT;
   context.fillStyle = "#0d1117";
   context.fillRect(0, top, model.duration * model.pxPerBeat, CHORD_HEIGHT);
   context.fillStyle = "#5d6675";

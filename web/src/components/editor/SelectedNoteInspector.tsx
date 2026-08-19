@@ -125,7 +125,10 @@ function NumberField({
         min={min}
         max={max}
         step={step}
-        onChange={(event) => onChange(event.currentTarget.valueAsNumber)}
+        onChange={(event) => {
+          const next = event.currentTarget.valueAsNumber;
+          if (Number.isFinite(next)) onChange(next);
+        }}
       />
     </label>
   );

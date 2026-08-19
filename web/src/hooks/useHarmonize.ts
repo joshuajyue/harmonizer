@@ -27,9 +27,11 @@ export function useHarmonize() {
   }, []);
 
   const compareBoth = useCallback(async () => {
+    const activeSlot = useStudioStore.getState().activeSlot;
     await Promise.all([harmonizeSlot("A"), harmonizeSlot("B")]);
     const state = useStudioStore.getState();
     if (state.slots.A.result && state.slots.B.result) {
+      state.setActiveSlot(activeSlot);
       state.setViewMode("overlay");
     }
   }, [harmonizeSlot]);

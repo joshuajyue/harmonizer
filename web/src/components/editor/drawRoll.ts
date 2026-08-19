@@ -7,6 +7,7 @@ import { midiToName, VOICE_COLORS } from "../../utils/music";
 import { drawChords, drawViolations } from "./drawAnnotations";
 import { drawGrid } from "./drawGrid";
 import {
+  laneCenter,
   pitchToY,
   ROLL_HEIGHT,
   RULER_HEIGHT,
@@ -144,6 +145,15 @@ export function drawRoll(
   const violationHits: ViolationHit[] = [];
   context.clearRect(0, 0, model.duration * model.pxPerBeat, ROLL_HEIGHT);
   drawGrid(context, model);
+  if (model.melody.notes.length === 0) {
+    context.fillStyle = "#687283";
+    context.font = '10px "DM Mono", monospace';
+    context.fillText(
+      "Double-click to add a melody note, or choose an input below",
+      18,
+      laneCenter("melody") + 3,
+    );
+  }
 
   model.melody.notes.forEach((note, index) => {
     const hit: NoteHit = {
@@ -192,6 +202,15 @@ export function drawRoll(
 
   const chordResult =
     model.activeSlot === "A" ? model.resultA : model.resultB;
+  if (!chordResult) {
+    context.fillStyle = "#596273";
+    context.font = '10px "DM Mono", monospace';
+    context.fillText(
+      `Harmonize engine ${model.activeSlot} to reveal independent SATB parts`,
+      18,
+      laneCenter("alto") + 3,
+    );
+  }
   drawChords(context, chordResult?.chords ?? [], model);
 
   if (model.loopEnabled) {

@@ -1,0 +1,304 @@
+.input-dock {
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+}
+
+.input-dock-header {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 7px;
+  background: #151922;
+}
+
+.input-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.input-tabs button,
+.melody-summary button {
+  display: inline-flex;
+  height: 27px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--dim);
+  background: transparent;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.input-tabs button:hover,
+.melody-summary button:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.input-tabs button.active {
+  border-color: #38404e;
+  color: var(--accent);
+  background: #202630;
+}
+
+.melody-summary {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.melody-summary > span {
+  margin-right: 3px;
+  color: var(--dim);
+  font: 8px "DM Mono", monospace;
+}
+
+.melody-summary .dock-collapse {
+  width: 27px;
+  padding: 0;
+  justify-content: center;
+}
+
+.input-dock-body {
+  height: 125px;
+  padding: 11px 13px;
+  border-top: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, transparent 99%, rgb(255 255 255 / 2%) 99%),
+    #10141a;
+  background-size: 24px 100%;
+}
+
+.virtual-keyboard-panel {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 13px;
+}
+
+.keyboard-copy {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.keyboard-copy strong,
+.midi-device-copy strong,
+.microphone-copy strong,
+.midi-dropzone strong {
+  font-size: 10px;
+}
+
+.keyboard-copy span,
+.midi-device-copy span,
+.microphone-copy span,
+.midi-dropzone span {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.virtual-keyboard {
+  position: relative;
+  height: 101px;
+  overflow: hidden;
+  border: 1px solid #343b48;
+  border-radius: 7px;
+  background: #e8e9e5;
+  box-shadow: 0 8px 25px rgb(0 0 0 / 27%);
+}
+
+.piano-key {
+  position: absolute;
+  top: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.white-key {
+  z-index: 1;
+  height: 100%;
+  border: 0;
+  border-right: 1px solid #aeb2b3;
+  color: #555d61;
+  background: linear-gradient(180deg, #fafbf8, #e1e2de);
+}
+
+.white-key:active {
+  background: linear-gradient(180deg, #cfff78, #e1e8d5);
+}
+
+.white-key span {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  font: 7px "DM Mono", monospace;
+  transform: translateX(-50%);
+}
+
+.black-key {
+  z-index: 2;
+  height: 62%;
+  border: 1px solid #080a0d;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, #171b21, #30343a 55%, #101319);
+  box-shadow: 0 4px 5px rgb(0 0 0 / 38%);
+}
+
+.black-key:active {
+  background: #597029;
+}
+
+.midi-dropzone,
+.microphone-input,
+.midi-device-input {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 15px;
+  border: 1px dashed #3c4554;
+  border-radius: 8px;
+  background: rgb(25 30 39 / 70%);
+}
+
+.midi-dropzone.error {
+  border-color: rgb(255 94 114 / 45%);
+}
+
+.input-method-icon,
+.mic-orb {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #394252;
+  border-radius: 9px;
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.midi-dropzone > div:nth-child(3),
+.midi-device-copy,
+.microphone-copy {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+}
+
+.midi-dropzone button,
+.microphone-input button,
+.midi-device-input button {
+  display: inline-flex;
+  height: 31px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #414b5b;
+  border-radius: 6px;
+  color: #d9dde5;
+  background: #232a35;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.midi-dropzone button:hover,
+.microphone-input button:hover:not(:disabled),
+.midi-device-input button:hover:not(:disabled) {
+  border-color: #596578;
+  background: #2b3441;
+}
+
+.mic-orb {
+  position: relative;
+  color: var(--alto);
+  background: rgb(255 126 182 / 8%);
+}
+
+.mic-orb.recording {
+  border-color: rgb(255 94 114 / 50%);
+  color: var(--danger);
+  animation: recordPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes recordPulse {
+  50% {
+    box-shadow: 0 0 0 7px rgb(255 94 114 / 7%);
+  }
+}
+
+.microphone-copy code {
+  color: #b2bac6;
+  font: 8px "DM Mono", monospace;
+}
+
+.microphone-copy small,
+.midi-error {
+  color: #ff8fa0;
+  font-size: 8px;
+}
+
+.microphone-input .record-stop {
+  border-color: rgb(255 94 114 / 42%);
+  color: #fff;
+  background: rgb(255 94 114 / 16%);
+}
+
+.midi-device-input {
+  position: relative;
+}
+
+.midi-device-input select {
+  max-width: 210px;
+  height: 31px;
+  padding: 0 8px;
+  border: 1px solid #414b5b;
+  border-radius: 6px;
+  color: var(--text);
+  background: #1d232d;
+  font-size: 9px;
+}
+
+.midi-activity {
+  display: inline-flex;
+  min-width: 70px;
+  align-items: center;
+  gap: 5px;
+  color: var(--dim);
+  font: 8px "DM Mono", monospace;
+}
+
+.midi-activity.active {
+  color: var(--accent);
+}
+
+.midi-error {
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+}
+
+@media (max-width: 1100px) {
+  .virtual-keyboard-panel {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+
+  .midi-device-input,
+  .microphone-input,
+  .midi-dropzone {
+    gap: 8px;
+    padding: 0 9px;
+  }
+}

@@ -28,7 +28,8 @@ export const createEditorSlice: StateCreator<
   voiceMute: { ...allDisabled },
   voiceSolo: { ...allDisabled },
   inputTab: "piano",
-  inputDockOpen: true,
+  inputDockOpen:
+    typeof window === "undefined" ? true : window.innerHeight >= 800,
 
   setZoom: (pxPerBeat) => set({ pxPerBeat: clamp(pxPerBeat, 28, 144) }),
   setSnap: (snap) => set({ snap }),

@@ -4,7 +4,7 @@ import { clamp, VOICE_RANGES } from "../../utils/music";
 export type LaneName = "melody" | VoiceName;
 
 export const RULER_HEIGHT = 30;
-export const LANE_HEIGHT = 92;
+export const LANE_HEIGHT = 82;
 export const CHORD_HEIGHT = 52;
 export const SIDEBAR_WIDTH = 148;
 export const LANES: LaneName[] = [

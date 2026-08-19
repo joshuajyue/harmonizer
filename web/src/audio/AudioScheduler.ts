@@ -1,34 +1,7 @@
-import type { TimeSignature, VoiceName } from "../../../contracts/types";
+import { createSynthVoice } from "./synthVoice";
+import type { PlaybackNote, PlaybackOptions } from "./types";
 
-export interface PlaybackNote {
-  pitch: number;
-  start: number;
-  duration: number;
-  velocity: number;
-  voice: VoiceName | "melody";
-}
-
-interface PlaybackOptions {
-  notes: PlaybackNote[];
-  tempo: number;
-  startBeat: number;
-  endBeat: number;
-  loopEnabled: boolean;
-  loopStart: number;
-  loopEnd: number;
-  metronomeEnabled: boolean;
-  timeSignature: TimeSignature;
-  onPosition: (beat: number) => void;
-  onEnded: () => void;
-}
-
-const OSCILLATORS: Record<PlaybackNote["voice"], OscillatorType> = {
-  melody: "sine",
-  soprano: "sine",
-  alto: "triangle",
-  tenor: "triangle",
-  bass: "sine",
-};
+export type { PlaybackNote } from "./types";
 
 export class AudioScheduler {
   private context?: AudioContext;
@@ -182,26 +155,15 @@ export class AudioScheduler {
     const context = this.context;
     const output = this.output;
     if (!context || !output || duration <= 0) return;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const frequency = 440 * 2 ** ((note.pitch - 69) / 12);
-    const level = 0.085 * (note.velocity / 100);
-    const releaseAt = Math.max(startTime + 0.025, startTime + duration - 0.06);
-
-    oscillator.type = OSCILLATORS[note.voice];
-    oscillator.frequency.setValueAtTime(frequency, startTime);
-    gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.exponentialRampToValueAtTime(level, startTime + 0.012);
-    gain.gain.setValueAtTime(level * 0.72, releaseAt);
-    gain.gain.exponentialRampToValueAtTime(
-      0.0001,
-      startTime + duration + 0.035,
+    const oscillator = createSynthVoice(
+      context,
+      output,
+      note,
+      startTime,
+      duration,
+      () => this.nodes.delete(oscillator),
     );
-    oscillator.connect(gain).connect(output);
-    oscillator.start(startTime);
-    oscillator.stop(startTime + duration + 0.04);
     this.nodes.add(oscillator);
-    oscillator.onended = () => this.nodes.delete(oscillator);
   }
 
   private scheduleClicks(fromBeat: number, toBeat: number) {

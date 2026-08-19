@@ -51,6 +51,8 @@ export const createComparisonSlice: StateCreator<
         [slot]: {
           ...state.slots[slot],
           engineId,
+          result: undefined,
+          requestRevision: undefined,
           status: "idle",
           error: undefined,
         },

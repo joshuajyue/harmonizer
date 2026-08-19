@@ -1,5 +1,8 @@
 .piano-roll-panel {
   min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -8,6 +11,7 @@
 }
 
 .editor-toolbar {
+  flex: 0 0 auto;
   position: relative;
   z-index: 8;
   border-bottom: 1px solid var(--line);
@@ -227,7 +231,8 @@
 }
 
 .roll-scroller {
-  max-height: min(58vh, 542px);
+  min-height: 250px;
+  flex: 1 1 auto;
   overflow: auto;
   scrollbar-color: #394252 #10141a;
   scrollbar-width: thin;
@@ -235,7 +240,6 @@
 
 .roll-stage {
   position: relative;
-  min-height: 542px;
 }
 
 .lane-sidebar {
@@ -451,8 +455,8 @@
   text-transform: uppercase;
 }
 
-@media (max-height: 800px) {
-  .roll-scroller {
-    max-height: 410px;
+@media (max-height: 760px) {
+  .note-inspector-empty {
+    display: none;
   }
 }
