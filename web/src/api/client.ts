@@ -62,6 +62,11 @@ export interface TranscriptionOptions {
   octaveShift?: number;
 }
 
+interface MidiExportTiming {
+  tempo: number;
+  timeSignature: TimeSignature;
+}
+
 const MOCK_SYNTHS: SynthInfo[] = [
   {
     id: "sf2",
@@ -310,13 +315,39 @@ export const apiClient = {
 
   async exportMidi(
     harmonization: HarmonizeResponse,
-    tempo: number,
+    timing: MidiExportTiming,
   ): Promise<Blob> {
-    if (!Number.isFinite(tempo) || tempo <= 0) {
-      throw new ApiError("MIDI export tempo must be a positive number.");
+    const { tempo, timeSignature } = timing;
+    if (!Number.isFinite(tempo) || tempo < 4 || tempo > 400) {
+      throw new ApiError("MIDI export tempo must be between 4 and 400 BPM.");
     }
-    if (mockEnabled) return createMockMidi(harmonization, tempo);
-    const params = new URLSearchParams({ tempo: String(tempo) });
+    if (
+      !Number.isInteger(timeSignature.numerator) ||
+      timeSignature.numerator < 1 ||
+      timeSignature.numerator > 255
+    ) {
+      throw new ApiError(
+        "MIDI export numerator must be an integer between 1 and 255.",
+      );
+    }
+    if (
+      !Number.isInteger(timeSignature.denominator) ||
+      timeSignature.denominator < 1 ||
+      timeSignature.denominator > 128 ||
+      !Number.isInteger(Math.log2(timeSignature.denominator))
+    ) {
+      throw new ApiError(
+        "MIDI export denominator must be a power of two no greater than 128.",
+      );
+    }
+    if (mockEnabled) {
+      return createMockMidi(harmonization, tempo, timeSignature);
+    }
+    const params = new URLSearchParams({
+      tempo: String(tempo),
+      numerator: String(timeSignature.numerator),
+      denominator: String(timeSignature.denominator),
+    });
     const response = await fetch(`/api/v1/midi/export?${params}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

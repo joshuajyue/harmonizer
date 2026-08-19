@@ -2,14 +2,27 @@ import { Midi } from "@tonejs/midi";
 import type {
   HarmonizeResponse,
   Melody,
+  TimeSignature,
 } from "../../../contracts/types";
 
 export function createMockMidi(
   harmonization: HarmonizeResponse,
   tempo: number,
+  timeSignature: TimeSignature,
 ) {
   const midi = new Midi();
   midi.header.setTempo(tempo);
+  midi.header.timeSignatures = [
+    {
+      ticks: 0,
+      timeSignature: [
+        timeSignature.numerator,
+        timeSignature.denominator,
+      ],
+      measures: 0,
+    },
+  ];
+  midi.header.update();
   const ppq = midi.header.ppq;
 
   for (const voice of harmonization.voices) {

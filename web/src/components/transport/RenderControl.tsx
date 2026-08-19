@@ -7,6 +7,8 @@ import {
 } from "../../api/client";
 import { useStudioStore } from "../../store";
 
+const DEFAULT_TIME_SIGNATURE = { numerator: 4, denominator: 4 } as const;
+
 export function RenderControl() {
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
@@ -22,6 +24,9 @@ export function RenderControl() {
   const activeSlot = useStudioStore((state) => state.activeSlot);
   const result = useStudioStore((state) => state.slots[activeSlot].result);
   const tempo = useStudioStore((state) => state.melody.tempo);
+  const timeSignature = useStudioStore(
+    (state) => state.melody.timeSignature,
+  );
 
   useEffect(
     () => () => {
@@ -79,7 +84,10 @@ export function RenderControl() {
     setMidiLoading(true);
     setMidiError(false);
     try {
-      const blob = await apiClient.exportMidi(result, tempo);
+      const blob = await apiClient.exportMidi(result, {
+        tempo,
+        timeSignature: timeSignature ?? DEFAULT_TIME_SIGNATURE,
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
