@@ -98,6 +98,73 @@ class TestParallels:
         assert find_parallels((None, None, None, 60), (None, None, 69, 62)) == []
 
 
+class TestParallelVersusContraryClassification:
+    """Consecutive perfect intervals are graded, not lumped together.
+
+    Two voices arriving at a second perfect fifth by CONTRARY motion is a real
+    but much milder fault than both sliding there in the same direction. A
+    detector that reported one kind for both would be easier to write and would
+    make every engine look equally bad at two different things.
+
+    The lead's fixture work surfaced this directly: a repair attempt left a
+    contrary-fifths pair, which this code classified as the milder kind rather
+    than as a true parallel, and asked for the behaviour to be preserved. These
+    tests pin it in all four combinations plus the severity and scoring
+    consequences, because the distinction is only useful if it survives.
+    """
+
+    @staticmethod
+    def classify(prev, curr):
+        return {kind for _, _, kind in find_parallels(prev, curr)}
+
+    def test_fifths_in_the_same_direction_are_parallel(self):
+        assert self.classify((None, None, 67, 60), (None, None, 69, 62)) == {"parallel_fifths"}
+
+    def test_fifths_in_opposite_directions_are_contrary(self):
+        assert self.classify((None, None, 67, 48), (None, None, 62, 55)) == {"contrary_fifths"}
+
+    def test_octaves_in_the_same_direction_are_parallel(self):
+        assert self.classify((None, None, 72, 60), (None, None, 74, 62)) == {"parallel_octaves"}
+
+    def test_octaves_in_opposite_directions_are_contrary(self):
+        assert self.classify((None, None, 72, 60), (None, None, 62, 74)) == {"contrary_octaves"}
+
+    def test_similar_motion_counts_as_parallel_not_contrary(self):
+        # Same direction, different distances, landing on a compound fifth.
+        # Still consecutive perfect fifths; only the direction matters here.
+        assert self.classify((None, None, 67, 60), (None, None, 81, 62)) == {"parallel_fifths"}
+
+    def test_the_two_kinds_carry_different_severities(self):
+        texture = texture_from_voices([[None, None], [None, None], [67, 69], [60, 62]])
+        parallel = [d for d in analyze_texture(texture, C_MAJOR) if d.kind == "parallel_fifths"]
+        texture = texture_from_voices([[None, None], [None, None], [67, 62], [48, 55]])
+        contrary = [d for d in analyze_texture(texture, C_MAJOR) if d.kind == "contrary_fifths"]
+        assert parallel and parallel[0].severity == "error"
+        assert contrary and contrary[0].severity == "warning"
+
+    def test_contrary_perfects_do_not_count_as_hard_errors(self):
+        """The scoring consequence, and the reason this must not drift.
+
+        HARD TOTAL in the report is the headline correctness number. Folding
+        contrary fifths into it would silently change every row, including
+        Bach's own, and make the engines look worse at something they are not
+        doing.
+        """
+        from ml.eval.metrics import HARD_DEFECTS
+
+        assert "parallel_fifths" in HARD_DEFECTS
+        assert "parallel_octaves" in HARD_DEFECTS
+        assert "contrary_fifths" not in HARD_DEFECTS
+        assert "contrary_octaves" not in HARD_DEFECTS
+
+    def test_both_kinds_are_still_reported(self):
+        """Milder is not the same as hidden: the table shows both."""
+        from ml.eval.metrics import DEFECT_KINDS
+
+        for kind in ("parallel_fifths", "parallel_octaves", "contrary_fifths", "contrary_octaves"):
+            assert kind in DEFECT_KINDS
+
+
 class TestDirectPerfects:
     def test_direct_octave_with_soprano_leap(self):
         prev = (69, None, None, 50)
