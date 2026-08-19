@@ -1,47 +1,19 @@
 from io import BytesIO
 
 import mido
+import pytest
 from fastapi.testclient import TestClient
 
 
-def harmonization_payload() -> dict:
-    return {
-        "key": {"tonic": 0, "mode": "major", "confidence": 1.0},
-        "chords": [],
-        "voices": [
-            {
-                "name": "soprano",
-                "notes": [
-                    {
-                        "pitch": 60,
-                        "start": 0,
-                        "duration": 1,
-                        "velocity": 80,
-                    }
-                ],
-            },
-            {
-                "name": "alto",
-                "notes": [
-                    {
-                        "pitch": 55,
-                        "start": 0,
-                        "duration": 1,
-                        "velocity": 72,
-                    }
-                ],
-            },
-        ],
-        "violations": [],
-        "engine": "stub",
-        "latencyMs": 1.0,
-    }
-
-
-def test_midi_export_and_import_round_trip(client: TestClient) -> None:
+def test_midi_export_and_import_round_trip(
+    client: TestClient,
+    canonical_request_payload: dict,
+    canonical_response_payload: dict,
+) -> None:
+    tempo = canonical_request_payload["melody"]["tempo"]
     exported = client.post(
-        "/api/v1/midi/export?tempo=96",
-        json=harmonization_payload(),
+        f"/api/v1/midi/export?tempo={tempo}",
+        json=canonical_response_payload,
     )
 
     assert exported.status_code == 200
@@ -53,9 +25,20 @@ def test_midi_export_and_import_round_trip(client: TestClient) -> None:
 
     assert imported.status_code == 200
     payload = imported.json()
-    assert payload["tempo"] == 96
-    assert {note["pitch"] for note in payload["notes"]} == {55, 60}
-    assert payload["key"]["tonic"] == 0
+    expected_notes = [
+        note
+        for voice in canonical_response_payload["voices"]
+        for note in voice["notes"]
+    ]
+    assert payload["tempo"] == pytest.approx(tempo, abs=0.001)
+    assert len(payload["notes"]) == len(expected_notes)
+    assert {note["pitch"] for note in payload["notes"]} == {
+        note["pitch"] for note in expected_notes
+    }
+    assert payload["timeSignature"] == canonical_request_payload["melody"][
+        "timeSignature"
+    ]
+    assert payload["key"]["tonic"] == canonical_response_payload["key"]["tonic"]
 
 
 def test_invalid_midi_is_rejected(client: TestClient) -> None:
@@ -67,12 +50,30 @@ def test_invalid_midi_is_rejected(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_midi_without_declared_tempo_is_rejected(client: TestClient) -> None:
+def test_midi_without_declared_tempo_is_rejected(
+    client: TestClient,
+    canonical_request_payload: dict,
+) -> None:
+    fixture_note = canonical_request_payload["melody"]["notes"][0]
     midi = mido.MidiFile(type=0, ticks_per_beat=480)
     track = mido.MidiTrack()
     midi.tracks.append(track)
-    track.append(mido.Message("note_on", note=60, velocity=80, time=0))
-    track.append(mido.Message("note_off", note=60, velocity=0, time=480))
+    track.append(
+        mido.Message(
+            "note_on",
+            note=fixture_note["pitch"],
+            velocity=fixture_note["velocity"],
+            time=0,
+        )
+    )
+    track.append(
+        mido.Message(
+            "note_off",
+            note=fixture_note["pitch"],
+            velocity=0,
+            time=round(fixture_note["duration"] * midi.ticks_per_beat),
+        )
+    )
     output = BytesIO()
     midi.save(file=output)
 
@@ -85,10 +86,13 @@ def test_midi_without_declared_tempo_is_rejected(client: TestClient) -> None:
     assert "does not declare a tempo" in response.json()["detail"]
 
 
-def test_midi_export_requires_tempo(client: TestClient) -> None:
+def test_midi_export_requires_tempo(
+    client: TestClient,
+    canonical_response_payload: dict,
+) -> None:
     response = client.post(
         "/api/v1/midi/export",
-        json=harmonization_payload(),
+        json=canonical_response_payload,
     )
 
     assert response.status_code == 422

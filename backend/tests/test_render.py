@@ -10,28 +10,33 @@ from backend.app.services.engines import EngineService
 from backend.tests.conftest import StubEngine
 
 
-def render_request(synth: str = "sf2") -> dict:
+def render_request(
+    canonical_request_payload: dict,
+    canonical_response_payload: dict,
+    synth: str = "sf2",
+) -> dict:
     return {
         "voices": [
             {
-                "name": "soprano",
-                "notes": [
-                    {
-                        "pitch": 69,
-                        "start": 0,
-                        "duration": 0.25,
-                        "velocity": 90,
-                    }
-                ],
+                "name": voice["name"],
+                "notes": voice["notes"][:1],
             }
+            for voice in canonical_response_payload["voices"]
         ],
-        "tempo": 120,
+        "tempo": canonical_request_payload["melody"]["tempo"],
         "synth": synth,
     }
 
 
-def test_sf2_render_always_returns_valid_wav(client: TestClient) -> None:
-    response = client.post("/api/v1/render", json=render_request())
+def test_sf2_render_always_returns_valid_wav(
+    client: TestClient,
+    canonical_request_payload: dict,
+    canonical_response_payload: dict,
+) -> None:
+    response = client.post(
+        "/api/v1/render",
+        json=render_request(canonical_request_payload, canonical_response_payload),
+    )
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "audio/wav"
@@ -41,8 +46,19 @@ def test_sf2_render_always_returns_valid_wav(client: TestClient) -> None:
         assert wav.getnframes() > 0
 
 
-def test_unconfigured_ddsp_falls_back_transparently(client: TestClient) -> None:
-    response = client.post("/api/v1/render", json=render_request("ddsp"))
+def test_unconfigured_ddsp_falls_back_transparently(
+    client: TestClient,
+    canonical_request_payload: dict,
+    canonical_response_payload: dict,
+) -> None:
+    response = client.post(
+        "/api/v1/render",
+        json=render_request(
+            canonical_request_payload,
+            canonical_response_payload,
+            "ddsp",
+        ),
+    )
 
     assert response.status_code == 200
     assert response.headers["x-harmonaizer-synth-requested"] == "ddsp"
@@ -60,14 +76,29 @@ def test_synth_capabilities_expose_optional_neural_tier(client: TestClient) -> N
     assert synths["ddsp"]["neural"] is True
 
 
-def test_unknown_synth_is_rejected(client: TestClient) -> None:
-    response = client.post("/api/v1/render", json=render_request("mystery"))
+def test_unknown_synth_is_rejected(
+    client: TestClient,
+    canonical_request_payload: dict,
+    canonical_response_payload: dict,
+) -> None:
+    response = client.post(
+        "/api/v1/render",
+        json=render_request(
+            canonical_request_payload,
+            canonical_response_payload,
+            "mystery",
+        ),
+    )
 
     assert response.status_code == 422
 
 
-def test_render_requires_tempo(client: TestClient) -> None:
-    payload = render_request()
+def test_render_requires_tempo(
+    client: TestClient,
+    canonical_request_payload: dict,
+    canonical_response_payload: dict,
+) -> None:
+    payload = render_request(canonical_request_payload, canonical_response_payload)
     del payload["tempo"]
 
     response = client.post("/api/v1/render", json=payload)
@@ -75,8 +106,12 @@ def test_render_requires_tempo(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_render_defaults_to_sf2_when_synth_is_omitted(client: TestClient) -> None:
-    payload = render_request()
+def test_render_defaults_to_sf2_when_synth_is_omitted(
+    client: TestClient,
+    canonical_request_payload: dict,
+    canonical_response_payload: dict,
+) -> None:
+    payload = render_request(canonical_request_payload, canonical_response_payload)
     del payload["synth"]
 
     response = client.post("/api/v1/render", json=payload)
@@ -85,7 +120,10 @@ def test_render_defaults_to_sf2_when_synth_is_omitted(client: TestClient) -> Non
     assert response.headers["x-harmonaizer-synth-used"] == "sf2"
 
 
-def test_ddsp_adapter_is_discovered_without_eager_import() -> None:
+def test_ddsp_adapter_is_discovered_without_eager_import(
+    canonical_request_payload: dict,
+    canonical_response_payload: dict,
+) -> None:
     module_name = "backend.tests.fake_ddsp_adapter"
     sys.modules.pop(module_name, None)
     app = create_app(
@@ -101,7 +139,14 @@ def test_ddsp_adapter_is_discovered_without_eager_import() -> None:
         assert capabilities.json()["synths"][1]["available"] is True
         assert module_name not in sys.modules
 
-        response = client.post("/api/v1/render", json=render_request("ddsp"))
+        response = client.post(
+            "/api/v1/render",
+            json=render_request(
+                canonical_request_payload,
+                canonical_response_payload,
+                "ddsp",
+            ),
+        )
 
     assert response.status_code == 200
     assert response.headers["x-harmonaizer-synth-used"] == "ddsp"

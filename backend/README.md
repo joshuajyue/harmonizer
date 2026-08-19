@@ -8,8 +8,8 @@ backend/.venv/bin/pip install -r backend/requirements-dev.txt
 HARMONIZER_ENABLE_DEV_ENGINE=1 backend/.venv/bin/uvicorn backend.main:app --reload
 ```
 
-The development engine only passes the melody through as soprano. It exists for
-service smoke tests; all musical decisions belong in `ml/`.
+The development engine returns `contracts/examples/harmonize.response.json`. It
+exists for realistic service smoke tests; all musical decisions belong in `ml/`.
 
 ## API
 

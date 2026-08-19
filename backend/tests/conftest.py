@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,14 +7,22 @@ from fastapi.testclient import TestClient
 from backend.app.config import Settings
 from backend.app.main import create_app
 from backend.app.services.engines import EngineService
-from contracts.schema import Chord, KeySignature, Melody, Voice
+from contracts.schema import HarmonizeRequest, HarmonizeResponse, Melody
 from ml.engines.base import Harmonization, HarmonyEngine
+
+EXAMPLES = Path(__file__).resolve().parents[2] / "contracts" / "examples"
+CANONICAL_REQUEST = HarmonizeRequest.model_validate_json(
+    (EXAMPLES / "melody.request.json").read_text()
+)
+CANONICAL_RESPONSE = HarmonizeResponse.model_validate_json(
+    (EXAMPLES / "harmonize.response.json").read_text()
+)
 
 
 class StubEngine(HarmonyEngine):
-    id = "stub"
-    name = "Stub Engine"
-    description = "Deterministic test engine"
+    id = "rules"
+    name = "Canonical Fixture Stub"
+    description = "Returns the shared schema-valid SATB fixture"
     learned = False
 
     def harmonize(
@@ -24,20 +33,24 @@ class StubEngine(HarmonyEngine):
         temperature: float = 0.0,
         seed: int | None = None,
     ) -> Harmonization:
-        del voice_count, temperature, seed
+        del melody, voice_count, temperature, seed
+        fixture = CANONICAL_RESPONSE.model_copy(deep=True)
         return Harmonization(
-            key=melody.key or KeySignature(tonic=0, mode="major", confidence=1.0),
-            chords=[
-                Chord(
-                    start=0,
-                    duration=1,
-                    roman="I",
-                    root=0,
-                    quality="maj",
-                )
-            ],
-            voices=[Voice(name="soprano", notes=melody.notes)],
+            key=fixture.key,
+            chords=fixture.chords,
+            voices=fixture.voices,
+            violations=fixture.violations,
         )
+
+
+@pytest.fixture
+def canonical_request_payload() -> dict:
+    return CANONICAL_REQUEST.model_dump(mode="json")
+
+
+@pytest.fixture
+def canonical_response_payload() -> dict:
+    return CANONICAL_RESPONSE.model_dump(mode="json")
 
 
 @pytest.fixture
