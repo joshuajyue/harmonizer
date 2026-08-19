@@ -129,9 +129,17 @@ def test_clip_melody_drops_notes_that_do_not_sound():
     assert clip_melody([(0.0, 60, 1.0)], 2.0, 4.0) == []
 
 
-def test_melody_notes_rebases_to_zero():
+def test_melody_notes_stays_in_absolute_time():
+    """It must NOT rebase to zero.
+
+    This test asserted the opposite until a melody starting at bar 5 came back
+    at bar 9. The rules engine reports its chords in absolute time; rebasing
+    the melody and not the harmony put them in different frames, so the units
+    were handed the wrong notes. One frame, and it is the absolute one.
+    """
     line = melody_notes(melody([60, 62], start=16.0))
-    assert line[0][0] == pytest.approx(0.0)
+    assert line[0][0] == pytest.approx(16.0)
+    assert line[1][0] == pytest.approx(17.0)
 
 
 # ---------------------------------------------------------------------------

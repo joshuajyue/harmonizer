@@ -100,19 +100,63 @@ def test_empty_melody_does_not_explode():
         assert result.voices == [] or all(voice.notes == [] for voice in result.voices)
 
 
-def test_offset_melody_keeps_its_offset():
-    """A melody that starts at bar 5 must come back at bar 5."""
-    notes = [Note(pitch=60 + i, start=16.0 + i, duration=1.0) for i in range(8)]
-    melody = Melody(
-        notes=notes,
+def _offset_melody(offset: float) -> Melody:
+    return Melody(
+        notes=[
+            Note(pitch=pitch, start=offset + index, duration=1.0)
+            for index, pitch in enumerate((65, 69, 72, 74, 72, 69, 65, 65))
+        ],
         tempo=120.0,
         timeSignature=TimeSignature(numerator=4, denominator=4),
-        key=KeySignature(tonic=0, mode="major"),
+        key=KeySignature(tonic=5, mode="major"),
     )
-    result = JAZZ_REHARM.harmonize(melody, temperature=1.0, seed=1)
-    assert result.chords[0].start == pytest.approx(16.0)
-    bass = next(voice for voice in result.voices if voice.name == "bass")
-    assert bass.notes[0].start == pytest.approx(16.0)
+
+
+@pytest.mark.parametrize("offset", [0.0, 4.0, 7.0, 16.0])
+@pytest.mark.parametrize("engine", ENGINES, ids=lambda engine: engine.id)
+def test_offset_melody_keeps_its_offset_in_every_voice(engine, offset):
+    """A melody that starts at bar 5 must come back at bar 5 — in ALL voices.
+
+    The previous version of this test checked the soprano and the bass start
+    time only. The soprano is passed through from the input melody rather than
+    converted out of the grid, so it is structurally immune to an origin fault
+    and looked right while the inner voices were doubled. Checking every voice
+    at several offsets is what makes the test able to fail.
+    """
+    result = engine.harmonize(_offset_melody(offset), voice_count=4, temperature=0.0)
+    assert result.chords[0].start == pytest.approx(offset)
+    for voice in result.voices:
+        assert voice.notes, f"{voice.name} is empty"
+        assert voice.notes[0].start == pytest.approx(offset), f"{voice.name} starts in the wrong bar"
+
+
+@pytest.mark.parametrize("offset", [0.0, 4.0, 7.0, 16.0])
+def test_offset_does_not_change_the_harmony(offset):
+    """Moving a tune later in the bar line cannot change what it is.
+
+    The real damage from the origin fault was not the output timing: the chord
+    spans were absolute while the melody had been rebased to zero, so the units
+    were handed the WRONG melody notes and the melody-compatibility constraint
+    — the thing this engine exists to enforce — was checked against them. The
+    timing was the symptom that happened to be visible.
+    """
+    reference = [
+        (chord.root, chord.quality)
+        for chord in JAZZ_REHARM.harmonize(_offset_melody(0.0), temperature=0.0).chords
+    ]
+    moved = JAZZ_REHARM.harmonize(_offset_melody(offset), temperature=0.0)
+    assert [(chord.root, chord.quality) for chord in moved.chords] == reference
+
+
+@pytest.mark.parametrize("offset", [0.0, 4.0, 7.0, 16.0])
+def test_every_melody_note_reaches_the_harmonic_units(offset):
+    """No note may be lost or duplicated on its way into the constraint."""
+    from ml.reharm.skeleton import skeleton_from_rules
+
+    melody = _offset_melody(offset)
+    skeleton = skeleton_from_rules(melody)
+    seen = [pitch for unit in skeleton.units for _, pitch, _ in unit.melody]
+    assert seen == [note.pitch for note in melody.notes]
 
 
 # ---------------------------------------------------------------------------

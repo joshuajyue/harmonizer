@@ -46,9 +46,9 @@ recording: two miscalibrations, each invisible on its own.
      being varied was an artefact of the units.
 
 With the scale normalised and the weight swept, the sampler is **more** chromatic
-than the argmax engine — 0.162 against 0.113 chromatic tones per chord tone,
-winning 19 tunes out of 20 — and it hits the treebank oracle's chromaticism
-exactly (0.162) while keeping 0.33 diversity. The two dials are now orthogonal:
+than the argmax engine — 0.165 against 0.124 chromatic tones per chord tone,
+winning 19 tunes out of 20 — and it lands on the treebank oracle's chromaticism
+(0.162 measured on 1170 lead sheets) while keeping 0.34 diversity. The two dials are now orthogonal:
 `rule_weight` moves colour with diversity flat, temperature moves diversity with
 quality flat.
 
@@ -147,18 +147,18 @@ unreharmonized. 5 samples per tune, `adventure=0.75`, `temperature=1.0`.
 
 | metric | skeleton | rules | sampled | hybrid | human |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| headline | 0.106 | 0.784 | 0.612 | 0.770 | 0.616 |
-| hard melody conflicts | 0.206 | **0.035** | 0.053 | 0.043 | 0.061 |
-| chord-tone rate | 0.519 | 0.597 | 0.562 | 0.526 | 0.591 |
-| seventh rate | 0.042 | 0.921 | 0.969 | 0.983 | 0.833 |
-| dominants that resolve | 0.263 | 0.882 | 0.602 | 0.908 | 0.725 |
-| ii-V per 16 bars | 0.028 | 1.013 | 2.974 | 2.874 | 3.343 |
-| chromatic tone rate | 0.036 | 0.113 | 0.070 | **0.162** | 0.141 |
-| beats per chord | 3.306 | 3.034 | 3.292 | 2.891 | 4.895 |
-| roots changed vs skeleton | 0.000 | 0.325 | 0.337 | 0.528 | 0.726 |
-| **distance from human** | 0.630 | **0.597** | 0.591 | 0.617 | — |
-| **sample diversity** | — | **0.000** | 0.260 | **0.326** | — |
-| **style divergence** | 0.480 | 0.243 | 0.215 | **0.209** | 0.278 |
+| headline | 0.106 | 0.789 | 0.618 | 0.773 | 0.614 |
+| hard melody conflicts | 0.207 | **0.035** | 0.054 | 0.042 | 0.063 |
+| chord-tone rate | 0.510 | 0.577 | 0.554 | 0.514 | 0.604 |
+| seventh rate | 0.043 | 0.929 | 0.975 | 0.982 | 0.833 |
+| dominants that resolve | 0.271 | 0.876 | 0.598 | 0.895 | 0.725 |
+| ii-V per 16 bars | 0.028 | 1.104 | 2.931 | 2.925 | 3.343 |
+| chromatic tone rate | 0.036 | 0.124 | 0.077 | **0.165** | 0.141 |
+| beats per chord | 3.306 | 3.028 | 3.290 | 2.893 | 4.895 |
+| roots changed vs skeleton | 0.000 | 0.332 | 0.344 | 0.529 | 0.728 |
+| **distance from human** | 0.630 | **0.601** | 0.592 | 0.620 | — |
+| **sample diversity** | — | **0.000** | 0.262 | **0.339** | — |
+| **style divergence** | 0.480 | 0.237 | 0.215 | **0.210** | 0.278 |
 
 `sampled` is the pure chord model with no hand-written colour term; `hybrid` is
 what `jazz_reharm` actually ships. The gap between those two columns is the
@@ -182,11 +182,11 @@ Seven traditional tunes, same configuration, no human reference:
 | | hybrid − rules | | | sampled − rules | | |
 | metric | mean | sd | wins | mean | sd | wins |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| headline | −0.014 | 0.031 | 6/20 | −0.172 | 0.043 | 0/20 |
-| hard conflicts | +0.008 | 0.012 | 15/20 | +0.018 | 0.012 | 18/20 |
-| chromatic tone rate | **+0.049** | 0.036 | **19/20** | −0.042 | 0.019 | 0/20 |
-| distance from human | +0.020 | 0.034 | 16/20 | −0.007 | 0.028 | 11/20 |
-| style divergence | −0.034 | 0.018 | 1/20 | −0.028 | 0.013 | 1/20 |
+| headline | −0.016 | 0.026 | 4/20 | −0.171 | 0.041 | 0/20 |
+| hard conflicts | +0.007 | 0.011 | 15/20 | +0.019 | 0.012 | 18/20 |
+| chromatic tone rate | **+0.041** | 0.026 | **19/20** | −0.047 | 0.019 | 0/20 |
+| distance from human | +0.019 | 0.026 | 16/20 | −0.009 | 0.026 | 10/20 |
+| style divergence | −0.028 | 0.019 | 2/20 | −0.022 | 0.014 | 2/20 |
 
 The shipped hybrid is now level with the argmax engine on the headline (mean
 difference −0.014 against a spread twice that, 6/20 — a tie), clearly ahead on
@@ -385,7 +385,7 @@ disagree with.
 ## 10. Limitations
 
 * **The skeleton is the weakest link.** It comes from a chorale engine, and on
-  bebop lines it starts at a 0.206 hard-conflict rate — worse than anything
+  bebop lines it starts at a 0.207 hard-conflict rate — worse than anything
   downstream produces. A jazz-native skeleton would probably improve the final
   result more than any further work on the substitution stage.
 * **Harmonic rhythm is decided by the melody, not by phrasing**: 3.0–3.3 beats
@@ -413,6 +413,16 @@ disagree with.
   the quartal generator put notes outside the chord. All three are fixed and
   under test, but the lesson stands — a metric suite can be entirely silent
   about the thing a listener would notice first.
+* **A frame mismatch made every offset melody wrong, and the metrics were
+  silent about it.** The rules engine reports chords in absolute time; this
+  package rebased the melody to zero. For any tune not starting at beat 0 the
+  units were handed the wrong melody notes, so the melody-compatibility
+  constraint — the thing the engine exists to enforce — was checked against the
+  wrong material, and the output landed at twice the offset. Every test melody
+  in the evaluation starts at beat 0, so nothing here could see it. Fixed by
+  working in one frame, the absolute one, and now tested at offsets 0, 4, 7 and
+  16 across all four voices. The lesson repeats the one above: the test that
+  caught it had to check something the metrics do not measure.
 * **Register robustness came from an integration prompt, not from the metrics.**
   A melody two octaves below middle C used to produce one chord for thirteen
   bars, because the chorale voicer that supplies the skeleton has absolute SATB

@@ -141,14 +141,18 @@ class _JazzReharmBase(HarmonyEngine):
         spans: Sequence[ChordSpan],
         voice_count: int,
     ) -> Harmonization:
-        origin = min((note.start for note in melody.notes), default=0.0)
+        # Everything is already in absolute time: the rules engine reports its
+        # chords there and `melody_notes` no longer rebases. Re-adding the
+        # melody's start here is what doubled the offset — a tune beginning at
+        # bar 2 came back at bar 3. The shared conversion in ml/data/melody.py
+        # is correct and five other engines depend on it; the redundant add was
+        # ours.
         voices = build_voices(
             spans,
             skeleton.melody,
             voice_count=voice_count,
             style=self.style,
             beats_per_bar=skeleton.meter[0],
-            origin=origin,
         )
         chords = [
             _to_contract_chord(
@@ -159,8 +163,6 @@ class _JazzReharmBase(HarmonyEngine):
             )
             for index, span in enumerate(spans)
         ]
-        for chord in chords:
-            chord.start = round(chord.start + origin, 6)
         return Harmonization(
             key=skeleton.key,
             voices=voices,

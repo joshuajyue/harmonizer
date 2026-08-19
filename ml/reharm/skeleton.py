@@ -85,12 +85,17 @@ def chord_to_jazz(chord: Chord) -> JazzChord | None:
 
 
 def melody_notes(melody: Melody) -> list[MelodyNote]:
-    """API melody -> (start, pitch, duration) in quarter-note beats from 0."""
-    if not melody.notes:
-        return []
-    origin = min(note.start for note in melody.notes)
+    """API melody -> (start, pitch, duration) in ABSOLUTE quarter-note beats.
+
+    Absolute, not rebased to zero, because the rules engine reports its chords
+    in absolute time. Rebasing one and not the other put the melody and the
+    harmony in different frames, and everything downstream — which melody notes
+    a unit sees, and therefore the melody-compatibility constraint that is the
+    whole point of the engine — was silently evaluated against the wrong notes
+    for any tune that does not start at beat 0.
+    """
     return [
-        (round(note.start - origin, 6), int(note.pitch), round(note.duration, 6))
+        (round(note.start, 6), int(note.pitch), round(note.duration, 6))
         for note in sorted(melody.notes, key=lambda n: (n.start, n.pitch))
     ]
 
