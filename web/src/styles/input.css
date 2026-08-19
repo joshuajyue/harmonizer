@@ -117,6 +117,13 @@
   box-shadow: 0 8px 25px rgb(0 0 0 / 27%);
 }
 
+.virtual-keyboard.recording {
+  border-color: rgb(255 94 114 / 64%);
+  box-shadow:
+    0 0 0 2px rgb(255 94 114 / 9%),
+    0 8px 25px rgb(0 0 0 / 27%);
+}
+
 .piano-key {
   position: absolute;
   top: 0;
@@ -134,7 +141,8 @@
   background: linear-gradient(180deg, #fafbf8, #e1e2de);
 }
 
-.white-key:active {
+.white-key:active,
+.white-key.active {
   background: linear-gradient(180deg, #cfff78, #e1e8d5);
 }
 
@@ -155,7 +163,8 @@
   box-shadow: 0 4px 5px rgb(0 0 0 / 38%);
 }
 
-.black-key:active {
+.black-key:active,
+.black-key.active {
   background: #597029;
 }
 

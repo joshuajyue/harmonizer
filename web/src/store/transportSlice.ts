@@ -14,6 +14,7 @@ export const createTransportSlice: StateCreator<
   loopEnd: 16,
   loopRangeCustomized: false,
   metronomeEnabled: true,
+  recordingState: "idle",
   setPlaying: (isPlaying) => set({ isPlaying }),
   setCurrentBeat: (currentBeat) => set({ currentBeat: Math.max(0, currentBeat) }),
   setLoopEnabled: (loopEnabled) => set({ loopEnabled }),
@@ -24,4 +25,5 @@ export const createTransportSlice: StateCreator<
       loopRangeCustomized,
     }),
   setMetronomeEnabled: (metronomeEnabled) => set({ metronomeEnabled }),
+  setRecordingState: (recordingState) => set({ recordingState }),
 });

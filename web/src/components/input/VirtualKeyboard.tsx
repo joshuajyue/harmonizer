@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { usePlayback } from "../../hooks/usePlayback";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { noteCapture } from "../../capture/NoteCapture";
 import { useStudioStore } from "../../store";
 import { midiToName } from "../../utils/music";
 
@@ -41,25 +41,52 @@ for (let pitch = START_PITCH; pitch <= END_PITCH; pitch += 1) {
 }
 
 export function VirtualKeyboard() {
-  const { previewPitch } = usePlayback();
-  const currentBeat = useStudioStore((state) => state.currentBeat);
-  const isPlaying = useStudioStore((state) => state.isPlaying);
-  const snap = useStudioStore((state) => state.snap);
-  const addNote = useStudioStore((state) => state.addMelodyNote);
-  const setCurrentBeat = useStudioStore((state) => state.setCurrentBeat);
-  const setSelectedNotes = useStudioStore((state) => state.setSelectedNotes);
+  const pointerNotes = useRef(new Map<number, number>());
+  const keyNotes = useRef(new Map<string, number>());
+  const [activePitches, setActivePitches] = useState<Set<number>>(
+    () => new Set(),
+  );
+  const recordingState = useStudioStore((state) => state.recordingState);
 
-  function capture(pitch: number, velocity = 94) {
-    previewPitch(pitch, velocity);
-    const duration = Math.max(0.5, snap);
-    const index = addNote({
-      pitch,
-      start: currentBeat,
-      duration,
-      velocity,
+  const setActive = useCallback((pitch: number, active: boolean) => {
+    setActivePitches((current) => {
+      const next = new Set(current);
+      if (active) next.add(pitch);
+      else next.delete(pitch);
+      return next;
     });
-    setSelectedNotes([{ source: "melody", index }]);
-    if (!isPlaying) setCurrentBeat(currentBeat + duration);
+  }, []);
+
+  const noteOn = useCallback((pitch: number, velocity = 94) => {
+    noteCapture.noteOn(pitch, velocity);
+    setActive(pitch, true);
+  }, [setActive]);
+
+  const noteOff = useCallback((pitch: number) => {
+    noteCapture.noteOff(pitch);
+    setActive(pitch, false);
+  }, [setActive]);
+
+  function pointerDown(
+    event: React.PointerEvent<HTMLButtonElement>,
+    pitch: number,
+  ) {
+    event.preventDefault();
+    pointerNotes.current.set(event.pointerId, pitch);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    noteOn(pitch);
+  }
+
+  function pointerUp(
+    event: React.PointerEvent<HTMLButtonElement>,
+    pitch: number,
+  ) {
+    if (pointerNotes.current.get(event.pointerId) !== pitch) return;
+    pointerNotes.current.delete(event.pointerId);
+    noteOff(pitch);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
   useEffect(() => {
@@ -71,66 +98,134 @@ export function VirtualKeyboard() {
         event.altKey ||
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLSelectElement ||
-        event.target instanceof HTMLTextAreaElement
+        event.target instanceof HTMLTextAreaElement ||
+        (event.target instanceof HTMLElement && event.target.isContentEditable)
       ) {
         return;
       }
-      const index = KEY_BINDINGS.indexOf(event.key.toLowerCase());
-      if (index < 0) return;
+      const key = event.key.toLowerCase();
+      const index = KEY_BINDINGS.indexOf(key);
+      if (index < 0 || keyNotes.current.has(key)) return;
       event.preventDefault();
-      capture(START_PITCH + index);
+      const pitch = START_PITCH + index;
+      keyNotes.current.set(key, pitch);
+      noteOn(pitch);
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const pitch = keyNotes.current.get(key);
+      if (pitch === undefined) return;
+      event.preventDefault();
+      keyNotes.current.delete(key);
+      noteOff(pitch);
+    };
+    const releaseAll = () => {
+      pointerNotes.current.clear();
+      keyNotes.current.clear();
+      setActivePitches(new Set());
+      noteCapture.releaseAll();
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  });
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", releaseAll);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", releaseAll);
+      releaseAll();
+    };
+  }, [noteOff, noteOn]);
 
   const whiteWidth = 100 / whiteCount;
   const blackWidth = whiteWidth * 0.62;
+  const statusCopy =
+    recordingState === "recording"
+      ? "Recording raw note-on / note-off timing"
+      : recordingState === "armed"
+        ? "Armed · preview only until recording starts"
+        : "Preview only · arm the transport to capture";
 
   return (
     <div className="virtual-keyboard-panel">
       <div className="keyboard-copy">
-        <strong>Step input</strong>
-        <span>Click keys or play A–; · cursor advances when stopped</span>
+        <strong>Live keyboard</strong>
+        <span>{statusCopy} · keys A–;</span>
       </div>
       <div
-        className="virtual-keyboard"
+        className={`virtual-keyboard ${recordingState === "recording" ? "recording" : ""}`}
         role="group"
         aria-label="Virtual piano keyboard"
       >
         {keys
           .filter((key) => key.white)
           .map((key) => (
-            <button
-              type="button"
+            <PianoKeyButton
               key={key.pitch}
-              className="piano-key white-key"
+              pianoKey={key}
+              active={activePitches.has(key.pitch)}
               style={{
                 left: `${key.whiteIndex * whiteWidth}%`,
                 width: `${whiteWidth}%`,
               }}
-              onPointerDown={() => capture(key.pitch)}
-              aria-label={`Add ${midiToName(key.pitch)}`}
-            >
-              {key.pitch % 12 === 0 && <span>{midiToName(key.pitch)}</span>}
-            </button>
+              onPointerDown={pointerDown}
+              onPointerEnd={pointerUp}
+            />
           ))}
         {keys
           .filter((key) => !key.white)
           .map((key) => (
-            <button
-              type="button"
+            <PianoKeyButton
               key={key.pitch}
-              className="piano-key black-key"
+              pianoKey={key}
+              active={activePitches.has(key.pitch)}
               style={{
                 left: `${key.whiteIndex * whiteWidth - blackWidth / 2}%`,
                 width: `${blackWidth}%`,
               }}
-              onPointerDown={() => capture(key.pitch)}
-              aria-label={`Add ${midiToName(key.pitch)}`}
+              onPointerDown={pointerDown}
+              onPointerEnd={pointerUp}
             />
           ))}
       </div>
     </div>
+  );
+}
+
+function PianoKeyButton({
+  pianoKey,
+  active,
+  style,
+  onPointerDown,
+  onPointerEnd,
+}: {
+  pianoKey: PianoKey;
+  active: boolean;
+  style: React.CSSProperties;
+  onPointerDown: (
+    event: React.PointerEvent<HTMLButtonElement>,
+    pitch: number,
+  ) => void;
+  onPointerEnd: (
+    event: React.PointerEvent<HTMLButtonElement>,
+    pitch: number,
+  ) => void;
+}) {
+  const className = `piano-key ${pianoKey.white ? "white-key" : "black-key"} ${active ? "active" : ""}`;
+  return (
+    <button
+      type="button"
+      className={className}
+      style={style}
+      onPointerDown={(event) => onPointerDown(event, pianoKey.pitch)}
+      onPointerUp={(event) => onPointerEnd(event, pianoKey.pitch)}
+      onPointerLeave={(event) => onPointerEnd(event, pianoKey.pitch)}
+      onPointerCancel={(event) => onPointerEnd(event, pianoKey.pitch)}
+      onLostPointerCapture={(event) => onPointerEnd(event, pianoKey.pitch)}
+      aria-label={`Play ${midiToName(pianoKey.pitch)}`}
+    >
+      {pianoKey.white && pianoKey.pitch % 12 === 0 && (
+        <span>{midiToName(pianoKey.pitch)}</span>
+      )}
+    </button>
   );
 }

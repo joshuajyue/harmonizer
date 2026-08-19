@@ -241,7 +241,9 @@
 
 .transport-icon,
 .play-button,
-.metronome-button {
+.metronome-button,
+.record-arm-button,
+.record-take-button {
   display: inline-grid;
   height: 32px;
   place-items: center;
@@ -250,6 +252,56 @@
   color: var(--muted);
   background: #171b23;
   cursor: pointer;
+}
+
+.record-arm-button,
+.record-take-button {
+  display: inline-flex;
+  min-width: 49px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 7px;
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.record-arm-button:hover:not(:disabled),
+.record-take-button:hover:not(:disabled) {
+  border-color: rgb(255 94 114 / 48%);
+  color: #ff9aaa;
+}
+
+.record-arm-button.active {
+  border-color: rgb(255 94 114 / 36%);
+  color: #ff8a9b;
+  background: rgb(255 94 114 / 8%);
+}
+
+.record-take-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.record-take-button.active {
+  border-color: #ff5e72;
+  color: #fff;
+  background: #bd3045;
+  box-shadow: 0 0 0 3px rgb(255 94 114 / 10%);
+  animation: recordLivePulse 1.1s ease-in-out infinite;
+}
+
+.transport-bar.recording-live {
+  box-shadow:
+    inset 0 -2px 0 rgb(255 94 114 / 68%),
+    0 5px 18px rgb(0 0 0 / 15%);
+}
+
+@keyframes recordLivePulse {
+  50% {
+    background: #ef4960;
+    box-shadow: 0 0 0 5px rgb(255 94 114 / 8%);
+  }
 }
 
 .transport-icon {

@@ -13,11 +13,18 @@ export class AudioScheduler {
   private originBeat = 0;
   private scheduledThrough = 0;
   private nodes = new Set<OscillatorNode>();
+  private generation = 0;
+  private liveNotes = new Map<
+    number,
+    { oscillator: OscillatorNode; gain: GainNode }
+  >();
 
   async start(options: PlaybackOptions) {
     this.stop();
+    const generation = this.generation;
     const context = this.getContext();
     await context.resume();
+    if (generation !== this.generation) return;
     this.options = options;
     this.originBeat = options.startBeat;
     this.originTime = context.currentTime + 0.045;
@@ -29,6 +36,7 @@ export class AudioScheduler {
   }
 
   stop() {
+    this.generation += 1;
     if (this.intervalId !== undefined) {
       window.clearInterval(this.intervalId);
       this.intervalId = undefined;
@@ -62,6 +70,67 @@ export class AudioScheduler {
       context.currentTime + 0.01,
       duration,
     );
+  }
+
+  previewNoteOn(pitch: number, velocity = 90) {
+    this.previewNoteOff(pitch);
+    const context = this.getContext();
+    const output = this.output;
+    if (!output) return;
+    void context.resume();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const now = context.currentTime;
+    const level = 0.085 * (Math.max(1, Math.min(127, velocity)) / 100);
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(
+      440 * 2 ** ((pitch - 69) / 12),
+      now,
+    );
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(level, now + 0.012);
+    gain.gain.setTargetAtTime(level * 0.72, now + 0.014, 0.04);
+    oscillator.connect(gain).connect(output);
+    oscillator.start(now);
+    const liveNote = { oscillator, gain };
+    this.liveNotes.set(pitch, liveNote);
+    oscillator.onended = () => {
+      if (this.liveNotes.get(pitch) === liveNote) {
+        this.liveNotes.delete(pitch);
+      }
+    };
+  }
+
+  previewNoteOff(pitch: number) {
+    const liveNote = this.liveNotes.get(pitch);
+    const context = this.context;
+    if (!liveNote || !context) return;
+    this.liveNotes.delete(pitch);
+    const now = context.currentTime;
+    liveNote.gain.gain.cancelScheduledValues(now);
+    liveNote.gain.gain.setValueAtTime(
+      Math.max(0.0001, liveNote.gain.gain.value),
+      now,
+    );
+    liveNote.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
+    liveNote.oscillator.stop(now + 0.065);
+  }
+
+  previewAllNotesOff() {
+    for (const pitch of [...this.liveNotes.keys()]) {
+      this.previewNoteOff(pitch);
+    }
+  }
+
+  getCurrentBeat() {
+    const options = this.options;
+    const context = this.context;
+    if (!options || !context) return undefined;
+    const rawBeat =
+      this.originBeat +
+      Math.max(0, context.currentTime - this.originTime) *
+        (options.tempo / 60);
+    return this.displayBeat(rawBeat);
   }
 
   private getContext() {

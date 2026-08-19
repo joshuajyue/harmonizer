@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useHarmonize } from "./useHarmonize";
 import { usePlayback } from "./usePlayback";
 import { useStudioStore } from "../store";
 
@@ -15,12 +14,17 @@ function isInteractiveTarget(target: EventTarget | null) {
 }
 
 export function useKeyboardShortcuts() {
-  const { toggle, stop } = usePlayback();
-  const { compareBoth } = useHarmonize();
+  const { toggle, stop, toggleRecording } = usePlayback();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isInteractiveTarget(event.target) || event.metaKey || event.ctrlKey) {
+      if (
+        event.repeat ||
+        isInteractiveTarget(event.target) ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      ) {
         return;
       }
       const state = useStudioStore.getState();
@@ -32,7 +36,8 @@ export function useKeyboardShortcuts() {
       } else if (event.key.toLowerCase() === "m") {
         state.setMetronomeEnabled(!state.metronomeEnabled);
       } else if (event.key.toLowerCase() === "r") {
-        void compareBoth();
+        event.preventDefault();
+        toggleRecording();
       } else if (event.key === "1" && state.slots.A.result) {
         state.setViewMode("A");
       } else if (event.key === "2" && state.slots.B.result) {
@@ -85,5 +90,5 @@ export function useKeyboardShortcuts() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [compareBoth, stop, toggle]);
+  }, [stop, toggle, toggleRecording]);
 }

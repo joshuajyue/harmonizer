@@ -13,6 +13,7 @@ export type ComparisonView = ComparisonSlotId | "overlay";
 export type AsyncStatus = "idle" | "loading" | "ready" | "error";
 export type InputTab = "piano" | "midi" | "file" | "microphone";
 export type FocusedLane = "melody" | VoiceName;
+export type RecordingState = "idle" | "armed" | "recording";
 
 export interface ComparisonSlot {
   engineId: string;
@@ -104,11 +105,13 @@ export interface TransportSlice {
   loopEnd: number;
   loopRangeCustomized: boolean;
   metronomeEnabled: boolean;
+  recordingState: RecordingState;
   setPlaying: (playing: boolean) => void;
   setCurrentBeat: (beat: number) => void;
   setLoopEnabled: (enabled: boolean) => void;
   setLoopRange: (start: number, end: number, customized?: boolean) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
+  setRecordingState: (state: RecordingState) => void;
 }
 
 export interface EditorSlice {

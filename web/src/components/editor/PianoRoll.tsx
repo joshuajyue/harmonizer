@@ -29,9 +29,21 @@ export function PianoRoll() {
   const currentBeat = useStudioStore((state) => state.currentBeat);
   const isPlaying = useStudioStore((state) => state.isPlaying);
   const focusedLane = useStudioStore((state) => state.focusedLane);
-  const duration = useMemo(
+  const recordingState = useStudioStore((state) => state.recordingState);
+  const pieceDuration = useMemo(
     () => pieceLength(melody, [slots.A.result, slots.B.result]),
     [melody, slots.A.result, slots.B.result],
+  );
+  const signature = melody.timeSignature ?? {
+    numerator: 4,
+    denominator: 4,
+  };
+  const barLength = signature.numerator * (4 / signature.denominator);
+  const positionHorizon =
+    recordingState === "recording" ? currentBeat + barLength : currentBeat;
+  const duration = Math.max(
+    pieceDuration,
+    Math.ceil(positionHorizon / barLength) * barLength,
   );
   const canvasWidth = Math.max(
     780,

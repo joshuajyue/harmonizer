@@ -10,9 +10,17 @@ import { useEffect } from "react";
 import { usePlayback } from "../../hooks/usePlayback";
 import { useStudioStore } from "../../store";
 import { formatTime, KEY_NAMES } from "../../utils/music";
+import { RecordControls } from "./RecordControls";
 
 export function TransportBar() {
-  const { duration, isPlaying, toggle, stop } = usePlayback();
+  const {
+    duration,
+    isPlaying,
+    toggle,
+    stop,
+    armRecording,
+    toggleRecording,
+  } = usePlayback();
   const melody = useStudioStore((state) => state.melody);
   const currentBeat = useStudioStore((state) => state.currentBeat);
   const loopEnabled = useStudioStore((state) => state.loopEnabled);
@@ -21,6 +29,7 @@ export function TransportBar() {
   const loopRangeCustomized = useStudioStore(
     (state) => state.loopRangeCustomized,
   );
+  const recordingState = useStudioStore((state) => state.recordingState);
   const metronome = useStudioStore((state) => state.metronomeEnabled);
   const setCurrentBeat = useStudioStore((state) => state.setCurrentBeat);
   const setLoop = useStudioStore((state) => state.setLoopEnabled);
@@ -37,6 +46,13 @@ export function TransportBar() {
     numerator: 4,
     denominator: 4,
   };
+  const barLength = signature.numerator * (4 / signature.denominator);
+  const positionHorizon =
+    recordingState === "recording" ? currentBeat + barLength : currentBeat;
+  const displayDuration = Math.max(
+    duration,
+    Math.ceil(positionHorizon / barLength) * barLength,
+  );
   const secondsPerBeat = 60 / melody.tempo;
 
   useEffect(() => {
@@ -60,7 +76,10 @@ export function TransportBar() {
   }
 
   return (
-    <div className="transport-bar" aria-label="Transport and score settings">
+    <div
+      className={`transport-bar ${recordingState === "recording" ? "recording-live" : ""}`}
+      aria-label="Transport and score settings"
+    >
       <div className="transport-buttons">
         <button
           type="button"
@@ -86,6 +105,11 @@ export function TransportBar() {
         >
           <CircleStop size={15} />
         </button>
+        <RecordControls
+          state={recordingState}
+          onArm={armRecording}
+          onToggleRecording={toggleRecording}
+        />
         <button
           type="button"
           className={`transport-icon ${loopEnabled ? "active" : ""}`}
@@ -112,13 +136,13 @@ export function TransportBar() {
         <input
           type="range"
           min={0}
-          max={duration}
+          max={displayDuration}
           step={0.01}
-          value={Math.min(currentBeat, duration)}
+          value={Math.min(currentBeat, displayDuration)}
           onChange={(event) => seek(event.currentTarget.valueAsNumber)}
           aria-label="Playback position"
         />
-        <span>{formatTime(duration * secondsPerBeat)}</span>
+        <span>{formatTime(displayDuration * secondsPerBeat)}</span>
       </div>
 
       <div className="score-settings">

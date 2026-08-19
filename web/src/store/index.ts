@@ -17,6 +17,7 @@ export type {
   ComparisonView,
   FocusedLane,
   InputTab,
+  RecordingState,
   SelectedNote,
   SelectionOrigin,
   TranscriptionRegister,
