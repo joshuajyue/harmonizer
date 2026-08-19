@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, v2]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  contract:
+    name: Contract sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pydantic
+      # Gates the hand-maintained types.ts <-> schema.py mirror. Runs first and alone:
+      # if the contract has drifted, every downstream failure is just noise.
+      - run: python contracts/test_contract_sync.py
+
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    needs: contract
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install pytest pydantic
+          for req in ml/requirements.txt backend/requirements.txt; do
+            if [ -f "$req" ]; then pip install -r "$req"; fi
+          done
+      - name: Run tests
+        run: |
+          if find . -name 'test_*.py' -not -path './.git/*' | grep -q .; then
+            pytest -q
+          else
+            echo "No tests yet; skipping."
+          fi
+
+  web:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    needs: contract
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build
+        run: |
+          if [ ! -f web/package.json ]; then
+            echo "No frontend yet; skipping."
+            exit 0
+          fi
+          cd web
+          npm ci || npm install
+          npm run lint --if-present
+          npm run build

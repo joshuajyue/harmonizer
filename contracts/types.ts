@@ -39,9 +39,10 @@ export interface TimeSignature {
 
 export interface Melody {
   notes: Note[];
-  /** Beats per minute. */
+  /** Beats per minute. Required — a defaulted tempo renders at the wrong speed silently. */
   tempo: number;
-  timeSignature: TimeSignature;
+  /** Defaults to 4/4 when omitted. */
+  timeSignature?: TimeSignature;
   /** If omitted, the backend detects the key and returns it in the response. */
   key?: KeySignature;
 }
@@ -121,8 +122,8 @@ export interface EnginesResponse {
 export interface RenderRequest {
   voices: Voice[];
   tempo: number;
-  /** Synthesis backend id, e.g. "sf2" (fast preview) or "ddsp" (neural voice). */
-  synth: string;
+  /** Synthesis backend id. Defaults to "sf2" (fast preview); "ddsp" is the neural voice. */
+  synth?: string;
   /** Timbre/model id for neural synths. */
   timbre?: string;
 }

@@ -30,14 +30,20 @@ class KeySignature(BaseModel):
 
 
 class TimeSignature(BaseModel):
-    numerator: int = Field(default=4, gt=0)
-    denominator: int = Field(default=4, gt=0)
+    # No defaults: a partially-specified time signature is meaningless, and silently
+    # filling in 4/4 would misplace every downbeat.
+    numerator: int = Field(gt=0)
+    denominator: int = Field(gt=0)
 
 
 class Melody(BaseModel):
     notes: list[Note]
-    tempo: float = Field(default=90.0, gt=0)
-    timeSignature: TimeSignature = Field(default_factory=TimeSignature)
+    # Required: defaulting the tempo silently renders the result at the wrong speed
+    # with no error anywhere, which is worse than rejecting the request.
+    tempo: float = Field(gt=0)
+    timeSignature: TimeSignature = Field(
+        default_factory=lambda: TimeSignature(numerator=4, denominator=4)
+    )
     key: Optional[KeySignature] = Field(
         default=None, description="If omitted, the backend detects it and returns it."
     )
@@ -109,6 +115,6 @@ class RenderRequest(BaseModel):
     """POST /api/v1/render -> audio/wav."""
 
     voices: list[Voice]
-    tempo: float = Field(default=90.0, gt=0)
+    tempo: float = Field(gt=0)
     synth: str = Field(default="sf2", description='"sf2" (fast preview) or "ddsp" (neural voice).')
     timbre: Optional[str] = None
