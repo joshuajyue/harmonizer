@@ -33,6 +33,7 @@ from ml.eval.harness import (  # noqa: E402
 from ml.eval.metrics import DEFECT_KINDS, StyleCounts, summarize_distribution  # noqa: E402
 
 REPORT_PATH = Path(__file__).resolve().parent / "REPORT.md"
+ABLATION_PATH = Path(__file__).resolve().parents[1] / "models" / "ablation.json"
 
 
 def discover_engines() -> None:
@@ -67,6 +68,17 @@ def render_table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     return out.getvalue()
 
 
+def load_ablation() -> dict | None:
+    if not ABLATION_PATH.exists():
+        return None
+    try:
+        import json
+
+        return json.loads(ABLATION_PATH.read_text())
+    except (OSError, ValueError):
+        return None
+
+
 def build_report(
     results: Sequence[EngineResult],
     reference: StyleCounts,
@@ -74,6 +86,7 @@ def build_report(
     key_stats: dict,
     detected_results: Sequence[EngineResult] | None,
     split_sizes: tuple[int, int, int],
+    ablation: dict | None = None,
 ) -> str:
     names = [result.engine_id for result in results]
     out = io.StringIO()
@@ -195,7 +208,39 @@ def build_report(
         out.write(render_table(["metric"] + detected_names, rows))
         out.write("\n")
 
-    out.write("## 7. Most frequent chords\n\n")
+    if ablation:
+        out.write("## 7. Representation ablation — what the v1 handicap actually cost\n\n")
+        out.write(
+            "Identical architecture, identical data, identical number of gradient steps; "
+            "only the pitch representation differs. `absolute` is exactly the information "
+            "v1's network had: raw pitch plus a mode flag, no tonic. `absolute_augmented` "
+            "adds per-epoch transposition, which is the standard remedy. Validation NLL is "
+            "in nats per predicted note token, so lower is better.\n\n"
+        )
+        rows = []
+        for name, values in ablation.items():
+            rows.append([
+                name,
+                _fmt(values["val_loss"], 4),
+                _fmt(values["val_perplexity"], 3),
+                str(values.get("variants_per_piece", 1)),
+                str(values["best_epoch"]),
+                _fmt(values["seconds"] / 60.0, 1),
+            ])
+        out.write(render_table(
+            ["representation", "val NLL/token", "perplexity", "transpositions/piece", "best epoch", "minutes"],
+            rows,
+        ))
+        baseline = ablation.get("tonic_relative", {}).get("val_perplexity")
+        if baseline:
+            out.write("\nRelative to tonic-relative: ")
+            deltas = [
+                f"`{name}` {100 * (values['val_perplexity'] / baseline - 1):+.1f}% perplexity"
+                for name, values in ablation.items() if name != "tonic_relative"
+            ]
+            out.write(", ".join(deltas) + ".\n\n")
+
+    out.write("## 8. Most frequent chords\n\n")
     for result in list(results):
         top = summarize_distribution(result.style.chord_unigram, [], top=8)
         out.write(f"* `{result.engine_id}`: " + ", ".join(f"{k} {100 * v:.1f}%" for k, v in top) + "\n")
@@ -276,7 +321,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not args.no_report:
         report = build_report(
             results, reference, oracle, key_stats, detected_results,
-            (len(train), len(val), len(test)),
+            (len(train), len(val), len(test)), load_ablation(),
         )
         existing = REPORT_PATH.read_text() if REPORT_PATH.exists() else ""
         marker = "\n<!-- NARRATIVE -->\n"

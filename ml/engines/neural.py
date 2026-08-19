@@ -78,11 +78,17 @@ class NeuralHarmonyEngine(HarmonyEngine):
         checkpoint: Path = DEFAULT_CHECKPOINT,
         *,
         sweeps: int = DEFAULT_SWEEPS,
+        mask_rate_start: float = MASK_RATE_START,
+        polish_rounds: int = 0,
+        rule_weight: float = 1.0,
         engine_id: str | None = None,
         name: str | None = None,
     ) -> None:
         self.checkpoint = Path(checkpoint)
         self.sweeps = sweeps
+        self.mask_rate_start = mask_rate_start
+        self.polish_rounds = polish_rounds
+        self.rule_weight = rule_weight
         if engine_id:
             self.id = engine_id
         if name:
@@ -138,11 +144,20 @@ class NeuralHarmonyEngine(HarmonyEngine):
             "mode": np.array([1 if key.is_minor else 0], dtype=np.int64),
         }
 
-    def _shift(self, key: Key) -> int:
-        from ..nn.encoding import Encoding
+    def _shift(self, key: Key, grid: MelodyGrid | None = None) -> int:
+        from ..nn.encoding import Encoding, register_correction
 
         loaded = self._load()
-        return normalization_shift(key) if loaded.encoding is Encoding.TONIC_RELATIVE else 0
+        if loaded.encoding is not Encoding.TONIC_RELATIVE:
+            return 0
+        shift = normalization_shift(key)
+        if grid is None:
+            return shift
+        sounding = [p for p in grid.pitches if p != REST]
+        if not sounding:
+            return shift
+        median = float(np.median(np.array(sounding, dtype=np.float64))) + shift
+        return shift + register_correction(median)
 
     # -- decoding ----------------------------------------------------------
 
@@ -191,7 +206,7 @@ class NeuralHarmonyEngine(HarmonyEngine):
 
         loaded = self._load()
         vocabulary = loaded.vocabulary
-        shift = self._shift(key)
+        shift = self._shift(key, grid)
         length = grid.length
         context = self._context(grid, key)
         rng = np.random.default_rng(0 if seed is None else seed)
@@ -237,7 +252,7 @@ class NeuralHarmonyEngine(HarmonyEngine):
             for sweep in range(self.sweeps):
                 progress = min(1.0, sweep / max(1e-9, ANNEAL_FRACTION * self.sweeps))
                 rate = 1.0 if sweep == 0 and initial is None else max(
-                    MASK_RATE_END, MASK_RATE_START * (1.0 - progress)
+                    MASK_RATE_END, self.mask_rate_start * (1.0 - progress)
                 )
                 hidden_count = max(1, int(round(rate * total)))
                 hidden = site_array[rng.permutation(total)[:hidden_count]]
@@ -258,16 +273,26 @@ class NeuralHarmonyEngine(HarmonyEngine):
                     if rows.size == 0:
                         continue
                     voice_logits = logits[voice][0, rows].clone()
-                    # Never emit the MASK symbol as an actual note.
+                    # Never emit the MASK symbol as a note, and never drop a
+                    # voice out where the melody is sounding: both are hard
+                    # facts about the output, not preferences to be learned.
                     voice_logits[:, vocabulary.voices[voice].mask_id] = -1e9
+                    voice_logits[:, vocabulary.voices[voice].rest_id] = -1e9
                     if step_temperature <= 1e-6:
                         picked = torch.argmax(voice_logits, dim=-1).numpy()
                     else:
                         probabilities = torch.softmax(voice_logits / step_temperature, dim=-1).numpy()
-                        picked = np.array([
-                            rng.choice(row.shape[0], p=row / row.sum()) for row in probabilities
-                        ])
+                        # Vectorised inverse-CDF sampling: a Python loop over a
+                        # few hundred rows per sweep dominates the runtime.
+                        thresholds = rng.random((probabilities.shape[0], 1))
+                        picked = (probabilities.cumsum(axis=1) < thresholds).sum(axis=1)
+                        picked = np.minimum(picked, probabilities.shape[1] - 1)
                     tokens[0, voice, rows] = picked
+
+        if self.polish_rounds:
+            tokens = self._polish(
+                tokens, tensors, rest_steps, loaded, vocabulary, length,
+            )
 
         lines = [list(grid.pitches)]
         for voice in FREE_VOICES:
@@ -275,6 +300,51 @@ class NeuralHarmonyEngine(HarmonyEngine):
             decoded = [vocab.decode(int(token)) for token in tokens[0, voice]]
             lines.append([REST if p == REST else p - shift for p in decoded])
         return lines
+
+    def _polish(self, tokens, tensors, rest_steps, loaded, vocabulary, length):
+        """Coordinate ascent: re-choose each voice's whole line by Viterbi.
+
+        With one voice fully masked the model's logits for it are independent of
+        its own current notes, so its line can be re-solved exactly against the
+        other three under the voice-leading rulebook. The model keeps every
+        harmonic decision; the rules only rule out illegal realisations of it.
+        """
+        import torch
+
+        from ._polish import polish_voice
+
+        pitch_tables = {
+            voice: np.array(vocabulary.voices[voice].pitches, dtype=np.int64)
+            for voice in FREE_VOICES
+        }
+        active = ~rest_steps
+
+        with torch.no_grad():
+            for _ in range(self.polish_rounds):
+                for voice in FREE_VOICES:
+                    masked = tokens.copy()
+                    masked[0, voice, :] = vocabulary.voices[voice].mask_id
+                    logits = loaded.model(torch.from_numpy(masked), **tensors)[voice][0]
+                    n_pitches = len(vocabulary.voices[voice].pitches)
+                    log_probs = torch.log_softmax(logits[:, :n_pitches], dim=-1).numpy().astype(np.float64)
+
+                    fixed = np.full((4, length), -1, dtype=np.int64)
+                    for other in range(4):
+                        table = np.array(vocabulary.voices[other].pitches, dtype=np.int64)
+                        row = tokens[0, other]
+                        pitched = row < table.shape[0]
+                        fixed[other, pitched] = table[row[pitched]]
+
+                    chosen = polish_voice(
+                        log_probs, pitch_tables[voice], fixed, voice,
+                        active=active, rule_weight=self.rule_weight,
+                    )
+                    lookup = {int(p): i for i, p in enumerate(pitch_tables[voice])}
+                    for t in range(length):
+                        if not active[t]:
+                            continue
+                        tokens[0, voice, t] = lookup[int(chosen[t])]
+        return tokens
 
     # -- likelihood --------------------------------------------------------
 
@@ -303,7 +373,7 @@ class NeuralHarmonyEngine(HarmonyEngine):
         if grid.length == 0:
             return None
         key = Key(melody.key.tonic, melody.key.mode) if melody.key else detect_melody_key(grid)[0]
-        shift = self._shift(key)
+        shift = self._shift(key, grid)
         lines = voices_to_grid(voices, length=grid.length)
         while len(lines) < N_VOICES:
             lines.append([REST] * grid.length)
@@ -414,8 +484,25 @@ class NeuralRefinementEngine(NeuralHarmonyEngine):
     )
     learned = True
 
-    def __init__(self, checkpoint: Path = DEFAULT_CHECKPOINT, *, sweeps: int = 32) -> None:
-        super().__init__(checkpoint, sweeps=sweeps)
+    #: A refiner must not demolish the draft it was given: the schedule starts
+    #: by erasing about a third of the texture rather than nearly all of it.
+    REFINE_MASK_RATE_START = 0.35
+
+    def __init__(
+        self,
+        checkpoint: Path = DEFAULT_CHECKPOINT,
+        *,
+        sweeps: int = 16,
+        polish_rounds: int = 2,
+        rule_weight: float = 1.0,
+    ) -> None:
+        super().__init__(
+            checkpoint,
+            sweeps=sweeps,
+            mask_rate_start=self.REFINE_MASK_RATE_START,
+            polish_rounds=polish_rounds,
+            rule_weight=rule_weight,
+        )
         self._rules = None
 
     def _rule_engine(self):
@@ -465,5 +552,41 @@ class NeuralRefinementEngine(NeuralHarmonyEngine):
         return voices_to_grid(draft.voices, length=grid.length)
 
 
+class ConstrainedNeuralEngine(NeuralHarmonyEngine):
+    """The learned model with the voice-leading rulebook as a veto.
+
+    Same model and same blocked-Gibbs decode as `neural`, followed by
+    constrained coordinate ascent (see `_polish.py`). This is the deployable
+    engine: it keeps the model's harmonic vocabulary and removes the parallel
+    fifths and octaves that blocked Gibbs cannot see, because independent
+    resampling has no way to notice two voices about to move together.
+
+    `neural` is kept registered alongside it, unpolished, as the control — the
+    difference between the two rows in the report is exactly what the veto buys.
+    """
+
+    id = "neural_vl"
+    name = "Learned harmony, enforced counterpoint"
+    description = (
+        "The learned model decoded by blocked Gibbs, then each voice re-solved by "
+        "Viterbi under the voice-leading rules. The model makes every harmonic "
+        "decision; the rules only veto illegal ways of realising it."
+    )
+    learned = True
+
+    def __init__(
+        self,
+        checkpoint: Path = DEFAULT_CHECKPOINT,
+        *,
+        sweeps: int = 24,
+        polish_rounds: int = 2,
+        rule_weight: float = 1.0,
+    ) -> None:
+        super().__init__(
+            checkpoint, sweeps=sweeps, polish_rounds=polish_rounds, rule_weight=rule_weight,
+        )
+
+
 register(NeuralHarmonyEngine())
+register(ConstrainedNeuralEngine())
 register(NeuralRefinementEngine())

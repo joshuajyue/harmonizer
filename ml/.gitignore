@@ -1,4 +1,9 @@
 .venv/
 data/cache/
 runs/
-!models/*.pt
+
+# Checkpoints are ignored by the repo-root rules; the shipped model is the one
+# exception, so the backend can serve the learned engine from a fresh clone.
+# Ablation checkpoints stay local: they exist to produce a number in the report,
+# not to be served.
+!models/masked_satb.pt

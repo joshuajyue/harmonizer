@@ -1,0 +1,35 @@
+{
+  "tonic_relative": {
+    "val_loss": 0.6942630277829468,
+    "val_perplexity": 2.002232940024277,
+    "val_nll_per_token": 0.6942630277829468,
+    "best_epoch": 137,
+    "epochs_run": 140,
+    "seconds": 1769.2,
+    "params": 1597547,
+    "train_examples": 263,
+    "variants_per_piece": 1.0
+  },
+  "absolute": {
+    "val_loss": 0.7089472666517717,
+    "val_perplexity": 2.0318511349062325,
+    "val_nll_per_token": 0.7089472666517717,
+    "best_epoch": 131,
+    "epochs_run": 140,
+    "seconds": 2008.6,
+    "params": 1583258,
+    "train_examples": 263,
+    "variants_per_piece": 1.0
+  },
+  "absolute_augmented": {
+    "val_loss": 0.6960801220711743,
+    "val_perplexity": 2.0058744935844,
+    "val_nll_per_token": 0.6960801220711743,
+    "best_epoch": 140,
+    "epochs_run": 140,
+    "seconds": 1847.1,
+    "params": 1583258,
+    "train_examples": 263,
+    "variants_per_piece": 10.64
+  }
+}

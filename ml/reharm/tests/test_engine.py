@@ -1,0 +1,196 @@
+"""The engines, end to end, against the contract they have to satisfy.
+
+The API-facing promises are the ones worth pinning: the melody survives as the
+soprano, the output validates as a `HarmonizeResponse`, the same seed gives the
+same music, and every substitution says what it replaced and how. That last one
+is a product requirement rather than a technical one — a reharmonization the
+user cannot interrogate is indistinguishable from a random chord generator.
+"""
+
+import pytest
+
+from contracts.schema import (
+    HarmonizeResponse,
+    KeySignature,
+    Melody,
+    Note,
+    TimeSignature,
+)
+from ml.engines.base import all_engines, get_engine
+from ml.reharm.chords import EXTENSION_SEMITONES, SUBSTITUTION_KINDS
+from ml.reharm.engine import JAZZ_REHARM, JAZZ_REHARM_RULES
+from ml.reharm.melodies import TRADITIONAL
+
+ENGINES = (JAZZ_REHARM, JAZZ_REHARM_RULES)
+
+
+def response(harmonization, engine_id: str) -> HarmonizeResponse:
+    return HarmonizeResponse(
+        key=harmonization.key,
+        chords=harmonization.chords,
+        voices=harmonization.voices,
+        violations=harmonization.violations,
+        engine=engine_id,
+        latencyMs=0.0,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Registration
+# ---------------------------------------------------------------------------
+
+
+def test_engines_are_registered_under_stable_ids():
+    assert get_engine("jazz_reharm") is JAZZ_REHARM
+    assert get_engine("jazz_reharm_rules") is JAZZ_REHARM_RULES
+    assert {"jazz_reharm", "jazz_reharm_rules"} <= {engine.id for engine in all_engines()}
+
+
+def test_learned_flag_distinguishes_the_two():
+    assert JAZZ_REHARM.learned is True
+    assert JAZZ_REHARM_RULES.learned is False
+
+
+def test_availability():
+    assert JAZZ_REHARM_RULES.is_available()
+    assert JAZZ_REHARM.is_available(), "the shipped chord model should be present"
+
+
+# ---------------------------------------------------------------------------
+# Contract
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("engine", ENGINES, ids=lambda engine: engine.id)
+def test_output_validates_against_the_contract(engine):
+    result = engine.harmonize(TRADITIONAL["twinkle"], voice_count=4, temperature=1.0, seed=3)
+    payload = response(result, engine.id)
+    assert payload.chords and payload.voices
+    for chord in payload.chords:
+        assert 0 <= chord.root <= 11
+        assert chord.duration > 0
+        assert all(extension in EXTENSION_SEMITONES for extension in chord.extensions)
+        if chord.substitutionKind is not None:
+            assert chord.substitutionKind in SUBSTITUTION_KINDS
+            assert chord.substitutionOf, "a substitution must say what it replaced"
+
+
+@pytest.mark.parametrize("engine", ENGINES, ids=lambda engine: engine.id)
+def test_melody_survives_as_the_soprano(engine):
+    melody = TRADITIONAL["shenandoah"]
+    result = engine.harmonize(melody, voice_count=4, temperature=1.0, seed=1)
+    soprano = next(voice for voice in result.voices if voice.name == "soprano")
+    assert [(note.pitch, note.start) for note in soprano.notes] == [
+        (note.pitch, note.start) for note in melody.notes
+    ]
+
+
+@pytest.mark.parametrize("count", [2, 3, 4, 5, 6])
+def test_voice_count_is_respected(count):
+    result = JAZZ_REHARM.harmonize(TRADITIONAL["twinkle"], voice_count=count, temperature=1.0, seed=2)
+    assert len(result.voices) == count
+    assert result.voices[0].name == "soprano"
+    assert result.voices[-1].name == "bass"
+
+
+def test_empty_melody_does_not_explode():
+    empty = Melody(notes=[], tempo=120.0, timeSignature=TimeSignature(numerator=4, denominator=4))
+    for engine in ENGINES:
+        result = engine.harmonize(empty)
+        assert result.voices == [] or all(voice.notes == [] for voice in result.voices)
+
+
+def test_offset_melody_keeps_its_offset():
+    """A melody that starts at bar 5 must come back at bar 5."""
+    notes = [Note(pitch=60 + i, start=16.0 + i, duration=1.0) for i in range(8)]
+    melody = Melody(
+        notes=notes,
+        tempo=120.0,
+        timeSignature=TimeSignature(numerator=4, denominator=4),
+        key=KeySignature(tonic=0, mode="major"),
+    )
+    result = JAZZ_REHARM.harmonize(melody, temperature=1.0, seed=1)
+    assert result.chords[0].start == pytest.approx(16.0)
+    bass = next(voice for voice in result.voices if voice.name == "bass")
+    assert bass.notes[0].start == pytest.approx(16.0)
+
+
+# ---------------------------------------------------------------------------
+# Determinism
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("engine", ENGINES, ids=lambda engine: engine.id)
+def test_zero_temperature_is_deterministic(engine):
+    first = engine.harmonize(TRADITIONAL["twinkle"], temperature=0.0, seed=None)
+    second = engine.harmonize(TRADITIONAL["twinkle"], temperature=0.0, seed=99)
+    assert [chord.roman for chord in first.chords] == [chord.roman for chord in second.chords]
+
+
+def test_same_seed_reproduces_the_same_music():
+    first = JAZZ_REHARM.harmonize(TRADITIONAL["greensleeves"], temperature=1.2, seed=42)
+    second = JAZZ_REHARM.harmonize(TRADITIONAL["greensleeves"], temperature=1.2, seed=42)
+    assert [chord.roman for chord in first.chords] == [chord.roman for chord in second.chords]
+    assert [
+        (note.pitch, note.start, note.duration) for voice in first.voices for note in voice.notes
+    ] == [(note.pitch, note.start, note.duration) for voice in second.voices for note in voice.notes]
+
+
+def test_different_seeds_give_different_reharmonizations():
+    outputs = {
+        tuple(chord.roman for chord in JAZZ_REHARM.harmonize(
+            TRADITIONAL["twinkle"], temperature=1.3, seed=seed
+        ).chords)
+        for seed in range(6)
+    }
+    assert len(outputs) > 1
+
+
+# ---------------------------------------------------------------------------
+# Musical properties of the output
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", ["twinkle", "greensleeves", "amazing_grace", "blues_riff"])
+def test_no_voiced_note_sounds_a_semitone_under_the_melody(name):
+    """The one chorale rule that survives, because it is acoustics not style."""
+    result = JAZZ_REHARM.harmonize(TRADITIONAL[name], voice_count=4, temperature=1.1, seed=8)
+    soprano = next(voice for voice in result.voices if voice.name == "soprano")
+    others = [voice for voice in result.voices if voice.name != "soprano"]
+    windows = [(note.start, note.start + note.duration, note.pitch) for note in soprano.notes]
+    for voice in others:
+        if voice.name == "bass":
+            continue
+        for note in voice.notes:
+            for start, stop, pitch in windows:
+                if not (start - 1e-6 <= note.start < stop - 1e-6):
+                    continue
+                gap = pitch - note.pitch
+                assert abs(gap) >= 2, f"{voice.name} collides with the melody at {note.start}"
+                assert not (0 < gap <= 13 and gap % 12 == 1), (
+                    f"{voice.name} sounds a minor ninth under the melody at {note.start}"
+                )
+
+
+@pytest.mark.parametrize("engine", ENGINES, ids=lambda engine: engine.id)
+def test_reharmonization_states_sevenths(engine):
+    """The rules engine emits triads; jazz states sevenths. That is the floor."""
+    result = engine.harmonize(TRADITIONAL["twinkle"], temperature=1.0, seed=5)
+    sevenths = sum(1 for chord in result.chords if chord.quality not in ("maj", "min", "dim", "aug"))
+    assert sevenths / len(result.chords) > 0.9
+
+
+def test_substitutions_are_explained():
+    result = JAZZ_REHARM.harmonize(TRADITIONAL["twinkle"], temperature=1.3, seed=4)
+    substituted = [chord for chord in result.chords if chord.substitutionKind not in (None, "extension")]
+    assert substituted, "a reharmonization with no substitutions is not one"
+    for chord in substituted:
+        assert chord.substitutionOf
+        assert chord.roman != chord.substitutionOf
+
+
+def test_violations_are_jazz_violations_not_chorale_ones():
+    for name in TRADITIONAL:
+        result = JAZZ_REHARM.harmonize(TRADITIONAL[name], temperature=1.2, seed=6)
+        for violation in result.violations:
+            assert violation.kind in ("melody_conflict", "unresolved_substitution")

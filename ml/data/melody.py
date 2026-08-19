@@ -76,13 +76,7 @@ def melody_to_grid(melody: Melody) -> MelodyGrid:
     denominator = melody.timeSignature.denominator
     steps_per_beat = max(1, int(round(STEPS_PER_QUARTER * 4 / denominator)))
     steps_per_measure = max(1, steps_per_beat * numerator)
-
-    # Infer a pickup: if the first note is shorter than a full measure and the
-    # total length is not a whole number of measures, assume an anacrusis.
-    pickup_steps = 0
-    remainder = length % steps_per_measure
-    if remainder and _quantize(origin) % steps_per_measure == 0:
-        pickup_steps = remainder
+    pickup_steps = infer_pickup(pitches, onsets, steps_per_measure)
 
     beat_strength = []
     for t in range(length):
@@ -104,6 +98,42 @@ def melody_to_grid(melody: Melody) -> MelodyGrid:
         time_signature=(numerator, denominator),
         pickup_steps=pickup_steps,
     )
+
+
+def infer_pickup(pitches: Sequence[int], onsets: Sequence[bool], steps_per_measure: int) -> int:
+    """Length of the anacrusis, in grid steps, inferred from note placement.
+
+    A pickup cannot be read off the total length: a chorale that begins with a
+    quarter-note upbeat normally ends with a three-quarter bar that completes it,
+    so the total is a whole number of measures anyway. Instead, score every
+    candidate downbeat alignment by the total duration of the notes that would
+    begin on a downbeat, and take the best — long notes fall on strong beats.
+
+    Both the corpus encoder and the inference path call this, so the model is
+    never trained on one alignment and asked to use another. Getting that wrong
+    is invisible: the features stay in range, the loss stays finite, and only the
+    output quietly degrades.
+    """
+    length = len(pitches)
+    if length == 0 or steps_per_measure <= 1:
+        return 0
+    starts = [t for t in range(length) if onsets[t] and pitches[t] != REST]
+    if not starts:
+        return 0
+    durations = []
+    for index, start in enumerate(starts):
+        stop = starts[index + 1] if index + 1 < len(starts) else length
+        durations.append(stop - start)
+
+    best_offset, best_score = 0, -1.0
+    for offset in range(steps_per_measure):
+        score = sum(
+            duration for start, duration in zip(starts, durations)
+            if (start + offset) % steps_per_measure == 0
+        )
+        if score > best_score:
+            best_score, best_offset = score, offset
+    return (steps_per_measure - best_offset) % steps_per_measure
 
 
 def infer_phrase_ends(pitches: Sequence[int], onsets: Sequence[bool], steps_per_beat: int) -> list[bool]:

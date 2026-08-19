@@ -166,8 +166,10 @@ def evaluate_engine(
         if score_likelihood:
             scored = engine.log_likelihood(melody, _reference_voices(chorale))
             if scored is not None:
-                nats, tokens = scored
-                result.nll_nats += nats
+                log_probability, tokens = scored
+                # `log_likelihood` returns a log-probability, which is negative;
+                # the report wants a negative log-likelihood.
+                result.nll_nats += -log_probability
                 result.nll_tokens += tokens
 
     return result

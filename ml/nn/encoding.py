@@ -28,11 +28,21 @@ from typing import Sequence
 import numpy as np
 
 from ..data.corpus import REST, STEPS_PER_QUARTER, Chorale
-from ..data.melody import infer_phrase_ends
+from ..data.melody import infer_phrase_ends, infer_pickup
 
 N_VOICES = 4
 #: Largest metric position index kept; 4/4 at a sixteenth grid needs 16.
 MAX_POSITION = 16
+
+#: Median soprano pitch of the corpus AFTER tonic normalization, measured over
+#: all 368 chorales. Used at inference to keep an incoming melody in the
+#: register the model was trained in: `normalization_shift` is chosen by key
+#: alone, so a tune written high and then transposed up a fifth normalizes an
+#: octave above anything the model has seen, and the output degrades silently.
+NORMALIZED_SOPRANO_MEDIAN = 72
+#: Only correct by whole octaves, and only when the melody is clearly outside
+#: the trained register — a real high or low setting is information, not noise.
+REGISTER_CORRECTION_THRESHOLD = 7.0
 
 
 class Encoding(str, Enum):
@@ -110,6 +120,19 @@ class Vocabulary:
         )
 
 
+def register_correction(median_pitch: float, target: int = NORMALIZED_SOPRANO_MEDIAN) -> int:
+    """Octave shift that brings a normalized melody back into the trained register.
+
+    Returns a multiple of 12 (usually 0). Applied on top of the tonic
+    normalization at inference and undone on output, so it changes nothing about
+    the harmonization except keeping the model in distribution.
+    """
+    offset = target - median_pitch
+    if abs(offset) < REGISTER_CORRECTION_THRESHOLD:
+        return 0
+    return int(round(offset / 12.0)) * 12
+
+
 def build_vocabulary(chorales: Sequence[Chorale], encoding: Encoding, *, margin: int = 2) -> Vocabulary:
     """Pitch alphabets covering every note in the corpus, plus a little headroom.
 
@@ -163,15 +186,30 @@ def phrase_feature(chorale: Chorale) -> np.ndarray:
 
 
 def metric_features(chorale: Chorale) -> tuple[np.ndarray, np.ndarray]:
+    """Beat strength and position-in-measure, derived exactly as at inference.
+
+    The pickup is INFERRED from the soprano rather than read from
+    `chorale.pickup_steps`, even though the corpus knows the true value. A user
+    melody carries no barlines, so training on the notated alignment and running
+    on an inferred one is a silent distribution shift — measured at 41 of 61
+    held-out chorales before this was shared.
+    """
     numerator, denominator = chorale.time_signature
     steps_per_beat = max(1, int(round(STEPS_PER_QUARTER * 4 / denominator)))
     steps_per_measure = max(1, steps_per_beat * numerator)
-    offset = (steps_per_measure - chorale.pickup_steps) % steps_per_measure
+    pickup = infer_pickup(chorale.voices[0], chorale.onsets[0], steps_per_measure)
+    offset = (steps_per_measure - pickup) % steps_per_measure
     position = np.array(
         [min((t + offset) % steps_per_measure, MAX_POSITION - 1) for t in range(chorale.length)],
         dtype=np.int64,
     )
-    metric = np.array(chorale.beat_strength, dtype=np.int64)
+    metric = np.array([
+        3 if (t + offset) % steps_per_measure == 0
+        else 2 if (t + offset) % steps_per_beat == 0
+        else 1 if (t + offset) % max(1, steps_per_beat // 2) == 0
+        else 0
+        for t in range(chorale.length)
+    ], dtype=np.int64)
     return metric, position
 
 
