@@ -280,21 +280,24 @@ Metrics cannot answer this, so here is the actual output. Shenandoah, whose
 skeleton is `F | C | Bb/D | F | F | F | F | F | F | Bb | Dm | F | C`:
 
 ```
-rules    Fmaj7 | C6 | Bbmaj7(9) | Fmaj7(13) | Dm7* | Fmaj7 | Dm7* | Fmaj7(13) |
-         F7 | Bbmaj7#11 | Dm7 | Fmaj7 | C7
-sampled  Fmaj7 | Gm7(11)* | C7(9)* | Fmaj7(13) | Fmaj7 | Fmaj7 | Fmaj7 |
-         Fmaj7(13) | F7 | Bbmaj7#11 | C7(9)* | Fmaj7 | C7      (* = substitution)
+rules     Fmaj7 | C6 | Bbmaj7(9) | Fmaj7(13) | Dm7* | Fmaj7 | Dm7* |
+          Fmaj7(13) | F7 | Bbmaj7#11 | Dm7 | Fmaj7 | C7
+seed 1    Fmaj7 | Gm7(11)* | C7(9)* | Fmaj7(13) | Gm7(11)* | Fmaj7 | Dm7* |
+          Cm7(9)* | F7 | Bbmaj7#11 | Dm7 | G7(9)* | C7
+seed 2    Cm7(11,13)* | Gm7(11)* | C7(9)* | Fmaj7(13) | Fmaj7 | Gm7* | F6 |
+          Cm7(9)* | F7 | Bb6#11 | C7(9)* | Fmaj7 | G7(9)* | C7
 ```
 
-The sampled version turns bars 2–3 into a ii-V (`Gm7 | C7`) instead of the plain
-`C | Bb` the skeleton had, keeps `F7 → Bbmaj7#11` as a dominant into the
-subdominant with a lydian colour on top, and turns the penultimate bar into the
-dominant that sets up the last one. Those are choices a player would make.
-Different seeds produce different but equally defensible sets, which is the
-point; the tritone substitutions and borrowed chords show up on tunes with more
-chromatic room in the melody, such as `--tune greensleeves --temperature 1.3`,
-where a `Bb7#11` arrives as the tritone substitute of the V and resolves down a
-semitone into the tonic minor.
+Seed 1 turns bars 2–3 into a ii-V (`Gm7 | C7`) where the skeleton had a plain
+`C | Bb`, sets up the subdominant with `Cm7 | F7 → Bbmaj7#11` — a ii-V into IV
+with a lydian colour on top — and makes the penultimate bar the dominant that
+prepares the last. Seed 2 opens on the ii of the tune's own key before the tonic
+has been stated, which is a different and equally defensible reading.
+
+Greensleeves at the same settings is where the chromatic devices appear, because
+its melody leaves more room: `Eb7b13` arrives as a chromatic approach to the V
+and `Dm7(9,11) | G7(13) | Cmaj7` is a backdoor ii-V into the relative major, all
+at zero melody conflicts.
 
 `python -m ml.reharm.demo --tune shenandoah --midi out.mid` writes it as MIDI.
 
