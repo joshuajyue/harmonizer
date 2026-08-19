@@ -15,9 +15,10 @@ service smoke tests; all musical decisions belong in `ml/`.
 
 - `POST /api/v1/harmonize` and `GET /api/v1/engines`
 - `POST /api/v1/render` and `GET /api/v1/synths`
-- `POST /api/v1/transcribe` (`audio` multipart field; `file` is also accepted)
+- `POST /api/v1/transcribe` (`audio` multipart field; `file` is also accepted).
+  Supply tempo explicitly or it is estimated from note-onset intervals.
 - `POST /api/v1/midi/import`
-- `POST /api/v1/midi/export?tempo=90`
+- `POST /api/v1/midi/export?tempo=<bpm>` (tempo is required)
 - `GET /api/v1/health`
 
 Engine modules are imported lazily from `ml.engines`; the API never owns an

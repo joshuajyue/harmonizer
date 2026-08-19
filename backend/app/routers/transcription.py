@@ -20,15 +20,20 @@ router = APIRouter(tags=["audio"])
 async def transcribe(
     audio: UploadFile | None = File(default=None),
     file: UploadFile | None = File(default=None),
-    tempo: float = Query(default=90.0, gt=0),
-    numerator: int = Query(default=4, gt=0),
-    denominator: int = Query(default=4, gt=0),
+    tempo: float | None = Query(default=None, gt=0),
+    numerator: int | None = Query(default=None, gt=0),
+    denominator: int | None = Query(default=None, gt=0),
     settings: Settings = Depends(get_settings),
     service: TranscriptionService = Depends(get_transcription_service),
 ) -> Melody:
     upload = audio or file
     if upload is None:
         raise HTTPException(status_code=422, detail="Upload an audio file.")
+    if (numerator is None) != (denominator is None):
+        raise HTTPException(
+            status_code=422,
+            detail="Provide both time-signature numerator and denominator.",
+        )
     data = await upload.read(settings.max_upload_bytes + 1)
     if len(data) > settings.max_upload_bytes:
         raise HTTPException(status_code=413, detail="The uploaded audio file is too large.")
@@ -38,8 +43,8 @@ async def transcribe(
             data,
             tempo=tempo,
             time_signature=TimeSignature(
-                numerator=numerator,
-                denominator=denominator,
+                numerator=numerator if numerator is not None else 4,
+                denominator=denominator if denominator is not None else 4,
             ),
         )
     except (AudioDecodeError, TranscriptionError) as exc:

@@ -35,23 +35,23 @@ class MidiService:
 
         ticks_per_beat = midi.ticks_per_beat
         absolute_tick = 0
-        first_tempo = mido.bpm2tempo(120)
-        tempo_seen = False
+        first_tempo: int | None = None
         time_signature = TimeSignature(numerator=4, denominator=4)
+        time_signature_seen = False
         key_signature: KeySignature | None = None
         active: dict[tuple[int, int], list[tuple[int, int]]] = defaultdict(list)
         notes: list[Note] = []
 
         for message in mido.merge_tracks(midi.tracks):
             absolute_tick += message.time
-            if message.type == "set_tempo" and not tempo_seen:
+            if message.type == "set_tempo" and first_tempo is None:
                 first_tempo = message.tempo
-                tempo_seen = True
-            elif message.type == "time_signature":
+            elif message.type == "time_signature" and not time_signature_seen:
                 time_signature = TimeSignature(
                     numerator=message.numerator,
                     denominator=message.denominator,
                 )
+                time_signature_seen = True
             elif message.type == "key_signature" and key_signature is None:
                 key_signature = _parse_midi_key(message.key)
             elif message.type == "note_on" and message.velocity > 0:
@@ -84,6 +84,10 @@ class MidiService:
                 )
 
         notes.sort(key=lambda note: (note.start, note.pitch, note.duration))
+        if first_tempo is None:
+            raise MidiConversionError(
+                "The MIDI file does not declare a tempo with a Set Tempo event."
+            )
         return Melody(
             notes=notes,
             tempo=float(mido.tempo2bpm(first_tempo)),

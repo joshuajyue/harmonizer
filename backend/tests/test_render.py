@@ -66,6 +66,25 @@ def test_unknown_synth_is_rejected(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_render_requires_tempo(client: TestClient) -> None:
+    payload = render_request()
+    del payload["tempo"]
+
+    response = client.post("/api/v1/render", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_render_defaults_to_sf2_when_synth_is_omitted(client: TestClient) -> None:
+    payload = render_request()
+    del payload["synth"]
+
+    response = client.post("/api/v1/render", json=payload)
+
+    assert response.status_code == 200
+    assert response.headers["x-harmonaizer-synth-used"] == "sf2"
+
+
 def test_ddsp_adapter_is_discovered_without_eager_import() -> None:
     module_name = "backend.tests.fake_ddsp_adapter"
     sys.modules.pop(module_name, None)

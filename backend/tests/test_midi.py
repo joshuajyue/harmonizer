@@ -1,3 +1,6 @@
+from io import BytesIO
+
+import mido
 from fastapi.testclient import TestClient
 
 
@@ -59,6 +62,33 @@ def test_invalid_midi_is_rejected(client: TestClient) -> None:
     response = client.post(
         "/api/v1/midi/import",
         files={"file": ("bad.mid", b"not-midi", "audio/midi")},
+    )
+
+    assert response.status_code == 422
+
+
+def test_midi_without_declared_tempo_is_rejected(client: TestClient) -> None:
+    midi = mido.MidiFile(type=0, ticks_per_beat=480)
+    track = mido.MidiTrack()
+    midi.tracks.append(track)
+    track.append(mido.Message("note_on", note=60, velocity=80, time=0))
+    track.append(mido.Message("note_off", note=60, velocity=0, time=480))
+    output = BytesIO()
+    midi.save(file=output)
+
+    response = client.post(
+        "/api/v1/midi/import",
+        files={"file": ("no-tempo.mid", output.getvalue(), "audio/midi")},
+    )
+
+    assert response.status_code == 422
+    assert "does not declare a tempo" in response.json()["detail"]
+
+
+def test_midi_export_requires_tempo(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/midi/export",
+        json=harmonization_payload(),
     )
 
     assert response.status_code == 422

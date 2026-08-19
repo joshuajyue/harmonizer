@@ -41,7 +41,7 @@ async def import_midi(
 )
 async def export_midi(
     harmonization: HarmonizeResponse,
-    tempo: float = Query(default=90.0, gt=0),
+    tempo: float = Query(gt=0),
     service: MidiService = Depends(get_midi_service),
 ) -> Response:
     data = await run_in_threadpool(

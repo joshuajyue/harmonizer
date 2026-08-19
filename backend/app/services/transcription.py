@@ -37,18 +37,53 @@ class TranscriptionService:
         self,
         data: bytes,
         *,
-        tempo: float,
+        tempo: float | None,
         time_signature: TimeSignature,
     ) -> Melody:
         samples = self._decode(data)
-        notes = self._track_pitch(samples, tempo)
+        resolved_tempo = tempo if tempo is not None else self._detect_tempo(samples)
+        notes = self._track_pitch(samples, resolved_tempo)
         if not notes:
             raise TranscriptionError("No stable monophonic pitch was detected.")
         return Melody(
             notes=notes,
-            tempo=tempo,
+            tempo=resolved_tempo,
             timeSignature=time_signature,
         )
+
+    def _detect_tempo(self, samples: np.ndarray) -> float:
+        import librosa
+
+        hop_length = 512
+        onset_envelope = librosa.onset.onset_strength(
+            y=samples,
+            sr=self._analysis_sample_rate,
+            hop_length=hop_length,
+        )
+        onset_frames = librosa.onset.onset_detect(
+            onset_envelope=onset_envelope,
+            sr=self._analysis_sample_rate,
+            hop_length=hop_length,
+            units="frames",
+        )
+        if onset_frames.size < 2:
+            raise TranscriptionError(
+                "Could not detect tempo from the audio; provide tempo explicitly."
+            )
+        onset_intervals = (
+            np.diff(onset_frames) * hop_length / self._analysis_sample_rate
+        )
+        onset_intervals = onset_intervals[onset_intervals > 0]
+        if onset_intervals.size == 0:
+            raise TranscriptionError(
+                "Could not detect tempo from the audio; provide tempo explicitly."
+            )
+        tempo = float(60.0 / np.median(onset_intervals))
+        if not np.isfinite(tempo) or not 20.0 <= tempo <= 300.0:
+            raise TranscriptionError(
+                "Could not detect a plausible tempo; provide tempo explicitly."
+            )
+        return tempo
 
     def _decode(self, data: bytes) -> np.ndarray:
         if not data:

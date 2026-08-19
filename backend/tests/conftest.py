@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from backend.app.config import Settings
 from backend.app.main import create_app
 from backend.app.services.engines import EngineService
-from contracts.schema import KeySignature, Melody, Voice
+from contracts.schema import Chord, KeySignature, Melody, Voice
 from ml.engines.base import Harmonization, HarmonyEngine
 
 
@@ -27,6 +27,15 @@ class StubEngine(HarmonyEngine):
         del voice_count, temperature, seed
         return Harmonization(
             key=melody.key or KeySignature(tonic=0, mode="major", confidence=1.0),
+            chords=[
+                Chord(
+                    start=0,
+                    duration=1,
+                    roman="I",
+                    root=0,
+                    quality="maj",
+                )
+            ],
             voices=[Voice(name="soprano", notes=melody.notes)],
         )
 
