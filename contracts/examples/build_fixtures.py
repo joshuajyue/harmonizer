@@ -131,10 +131,25 @@ def build_response() -> HarmonizeResponse:
 
     voices = []
     for index, name in enumerate(VOICE_ORDER):
-        notes = [
-            Note(pitch=pitches[index], start=start, duration=duration, velocity=76)
-            for start, duration, _, _, _, _, pitches in PROGRESSION
-        ]
+        # Merge consecutive segments on the same pitch into one sustained note, which
+        # is what the real engines emit. An earlier fixture gave every voice an
+        # identical onset grid, a property real responses do not have (the `rules`
+        # engine returns 14 alto notes against 16 soprano), so the frontend was
+        # developing its piano roll against a guarantee it will never actually get.
+        notes: list[Note] = []
+        for start, duration, _, _, _, _, pitches in PROGRESSION:
+            pitch = pitches[index]
+            if notes and notes[-1].pitch == pitch and (
+                abs(notes[-1].start + notes[-1].duration - start) < 1e-9
+            ):
+                notes[-1] = Note(
+                    pitch=pitch,
+                    start=notes[-1].start,
+                    duration=notes[-1].duration + duration,
+                    velocity=76,
+                )
+            else:
+                notes.append(Note(pitch=pitch, start=start, duration=duration, velocity=76))
         voices.append(Voice(name=name, notes=notes))
 
     return HarmonizeResponse(

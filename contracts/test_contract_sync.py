@@ -82,9 +82,13 @@ def normalise_ts_type(raw: str, aliases: dict[str, str], depth: int = 0) -> tupl
     if len(parts) > 1:
         kept = [p for p in parts if p not in ("null", "undefined")]
         nullable = len(kept) != len(parts)
-        # A union of string literals ("major" | "minor") is a string on the wire.
+        # A union of string literals becomes an ordered member set rather than a bare
+        # "string", so gaining or losing a member is visible. Losing one is the
+        # dangerous direction: the backend starts 422-ing payloads the frontend still
+        # considers valid, while a members-blind guard reports "in sync".
         if kept and all(re.fullmatch(r'"[^"]*"', p) for p in kept):
-            return "string", nullable
+            members = sorted(p.strip('"') for p in kept)
+            return "enum(" + "|".join(members) + ")", nullable
         if len(kept) != 1:
             return None, nullable
         text = kept[0]
@@ -174,7 +178,9 @@ def normalise_py_type(annotation: object, depth: int = 0) -> tuple[str | None, b
         return (f"{inner}[]" if inner else None), False
 
     if origin is typing.Literal:
-        return ("string" if all(isinstance(a, str) for a in args) else None), False
+        if args and all(isinstance(a, str) for a in args):
+            return "enum(" + "|".join(sorted(args)) + ")", False
+        return None, False
 
     if annotation is bool:
         return "boolean", False
@@ -290,6 +296,34 @@ def test_guard_detects_a_type_change():
     finally:
         field.annotation = original
     assert any("KeySignature.tonic" in e and "type mismatch" in e for e in errors), errors
+
+
+def test_guard_detects_an_added_enum_member():
+    """Mode gaining "dorian" must not read as in sync."""
+    import typing as t
+
+    field = schema.KeySignature.model_fields["mode"]
+    original = field.annotation
+    try:
+        field.annotation = t.Literal["major", "minor", "dorian"]
+        errors = check()
+    finally:
+        field.annotation = original
+    assert any("KeySignature.mode" in e and "type mismatch" in e for e in errors), errors
+
+
+def test_guard_detects_a_removed_enum_member():
+    """The dangerous direction: the backend 422s payloads the frontend still sends."""
+    import typing as t
+
+    field = schema.Violation.model_fields["severity"]
+    original = field.annotation
+    try:
+        field.annotation = t.Literal["info", "warning"]  # "error" dropped
+        errors = check()
+    finally:
+        field.annotation = original
+    assert any("Violation.severity" in e and "type mismatch" in e for e in errors), errors
 
 
 def test_guard_detects_a_field_added_only_in_python():

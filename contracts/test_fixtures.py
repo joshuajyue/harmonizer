@@ -56,12 +56,38 @@ def test_all_voices_are_in_range():
             assert low <= note.pitch <= high, f"{voice.name} note {note.pitch} out of range at {note.start}"
 
 
-def test_voices_are_rhythmically_aligned():
-    """Every voice must share the same onset grid, or the piano roll cannot align lanes."""
+def test_voices_span_the_same_range_and_are_contiguous():
+    """Real engines merge tied notes, so voices do NOT share an onset grid.
+
+    The `rules` engine returns 14 alto notes against 16 soprano for this melody.
+    What is actually true of engine output — and what the piano roll can rely on —
+    is that every voice covers the same span with no internal gaps.
+    """
     voices = load_response().voices
-    grid = [(n.start, n.duration) for n in voices[0].notes]
-    for voice in voices[1:]:
-        assert [(n.start, n.duration) for n in voice.notes] == grid, f"{voice.name} is off-grid"
+    spans = set()
+    for voice in voices:
+        notes = sorted(voice.notes, key=lambda n: n.start)
+        assert notes, f"{voice.name} is empty"
+        spans.add((notes[0].start, notes[-1].start + notes[-1].duration))
+        for current, following in zip(notes, notes[1:]):
+            assert abs((current.start + current.duration) - following.start) < 1e-9, (
+                f"{voice.name} has a gap or overlap at beat {current.start}"
+            )
+    assert len(spans) == 1, f"voices cover different spans: {spans}"
+
+
+def sounding_pitches(voices, at: float) -> tuple[int | None, ...]:
+    """The pitch each voice is sounding at a given beat, in SATB order."""
+    by_name = {v.name: v.notes for v in voices}
+    out = []
+    for name in ("soprano", "alto", "tenor", "bass"):
+        pitch = None
+        for note in by_name[name]:
+            if note.start - 1e-9 <= at < note.start + note.duration - 1e-9:
+                pitch = note.pitch
+                break
+        out.append(pitch)
+    return tuple(out)
 
 
 def test_deliberate_defects_are_actually_present():
@@ -111,7 +137,7 @@ def test_declared_violations_match_the_detector_exactly():
     Skipped if the ml package is unavailable.
     """
     try:
-        from ml.theory.voicing import find_parallels, find_voice_crossings, texture_from_voices
+        from ml.theory.voicing import find_parallels, find_voice_crossings
     except ImportError:  # pragma: no cover - ml deps not installed
         import pytest
 
@@ -119,18 +145,20 @@ def test_declared_violations_match_the_detector_exactly():
 
     response = load_response()
     order = ["soprano", "alto", "tenor", "bass"]
-    by_name = {v.name: v.notes for v in response.voices}
-    starts = [n.start for n in by_name["soprano"]]
-    texture = texture_from_voices([[n.pitch for n in by_name[name]] for name in order])
+    # Sample at chord boundaries rather than by note index: tied notes mean the
+    # voices no longer share an onset grid, so index alignment would compare
+    # different moments in different voices.
+    times = [chord.start for chord in response.chords]
+    grid = [sounding_pitches(response.voices, t) for t in times]
 
     detected: set[tuple[float, str, frozenset[str]]] = set()
-    for i in range(1, len(texture.grid)):
-        for upper, lower, kind in find_parallels(texture.grid[i - 1], texture.grid[i]):
-            detected.add((starts[i], kind, frozenset({order[upper], order[lower]})))
-    for i in range(len(texture.grid)):
-        for upper, lower in find_voice_crossings(texture.grid[i]):
+    for i in range(1, len(grid)):
+        for upper, lower, kind in find_parallels(grid[i - 1], grid[i]):
+            detected.add((times[i], kind, frozenset({order[upper], order[lower]})))
+    for i, sonority in enumerate(grid):
+        for upper, lower in find_voice_crossings(sonority):
             detected.add(
-                (starts[i], "voice_crossing", frozenset({order[upper], order[lower]}))
+                (times[i], "voice_crossing", frozenset({order[upper], order[lower]}))
             )
 
     declared = {(v.start, v.kind, frozenset(v.voices)) for v in response.violations}
