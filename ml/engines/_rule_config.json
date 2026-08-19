@@ -1,0 +1,15 @@
+{
+  "chord_tone_bonus": 2.8,
+  "seventh_penalty": 0.05,
+  "applied_prior": -0.6,
+  "first_inversion_prior": -0.15,
+  "six_four_prior": -2.9,
+  "third_inversion_prior": -2.094,
+  "weak_beat_64_penalty": -1.8,
+  "cadence_tonic_bonus": 2.8,
+  "cadence_dominant_bonus": 0.6,
+  "cadence_inversion_penalty": -1.5,
+  "pre_cadence_dominant_bonus": 0.9,
+  "root_position_dominant_bonus": 1.4,
+  "harmony_weight": 0.9
+}

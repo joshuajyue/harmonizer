@@ -68,6 +68,18 @@ class HarmonyEngine(ABC):
         """Whether this engine can currently run (e.g. its checkpoint exists)."""
         return True
 
+    def log_likelihood(
+        self, melody: Melody, voices: list[Voice]
+    ) -> tuple[float, int] | None:
+        """Total log-probability (nats) this engine assigns to `voices`, and the
+        number of predicted tokens it covers.
+
+        Optional. Probabilistic engines implement it so the eval harness can
+        report held-out likelihood on real Bach — the one metric that measures
+        the model rather than a proxy for it. Rule engines return None.
+        """
+        return None
+
 
 _REGISTRY: dict[str, HarmonyEngine] = {}
 
