@@ -32,6 +32,7 @@ from ..data.melody import (
     melody_to_grid,
     select_voices,
     voices_to_grid,
+    voices_with_melody,
 )
 from ..theory.chords import analyze_chord
 from ..theory.pitch import Key, normalization_shift
@@ -194,12 +195,13 @@ class NeuralHarmonyEngine(HarmonyEngine):
             )
 
         lines = self._decode(grid, key, temperature=temperature, seed=seed, melody=melody)
-        chords = self._chords(lines, key, grid.steps_per_beat)
+        chords = self._chords(lines, key, grid.steps_per_beat, grid.origin)
         violations = self._violations(lines, key, grid.steps_per_beat, grid.phrase_end)
         selected, names = select_voices(lines, voice_count)
+        voices = voices_with_melody(selected, melody, origin=grid.origin, names=names)
         return Harmonization(
             key=KeySignature(tonic=key.tonic, mode=key.mode, confidence=confidence),
-            voices=grid_to_voices(selected, names=names),
+            voices=voices,
             chords=chords,
             violations=violations,
         )
@@ -436,7 +438,9 @@ class NeuralHarmonyEngine(HarmonyEngine):
 
     # -- output ------------------------------------------------------------
 
-    def _chords(self, lines: Sequence[Sequence[int]], key: Key, steps_per_beat: int) -> list[Chord]:
+    def _chords(
+        self, lines: Sequence[Sequence[int]], key: Key, steps_per_beat: int, origin: float = 0.0
+    ) -> list[Chord]:
         out: list[Chord] = []
         length = len(lines[0])
         for start in range(0, length, steps_per_beat):
@@ -447,12 +451,12 @@ class NeuralHarmonyEngine(HarmonyEngine):
             roman = label.roman(key.mode)
             span = round(min(steps_per_beat, length - start) * STEP, 6)
             if out and out[-1].roman == roman and math.isclose(
-                out[-1].start + out[-1].duration, round(start * STEP, 6), abs_tol=1e-6
+                out[-1].start + out[-1].duration, round(origin + start * STEP, 6), abs_tol=1e-6
             ):
                 out[-1] = out[-1].model_copy(update={"duration": round(out[-1].duration + span, 6)})
                 continue
             out.append(Chord(
-                start=round(start * STEP, 6), duration=span, roman=roman,
+                start=round(origin + start * STEP, 6), duration=span, roman=roman,
                 root=label.absolute_root(key), quality=label.contract_quality(),
                 inversion=label.inversion,
                 secondaryOf=None if label.applied_to is None else key.to_absolute(label.applied_to),

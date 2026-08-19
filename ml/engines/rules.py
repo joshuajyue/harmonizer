@@ -34,7 +34,14 @@ import numpy as np
 from contracts.schema import Chord, KeySignature, Melody, Violation
 
 from ..data.corpus import REST, STEP
-from ..data.melody import MelodyGrid, detect_melody_key, grid_to_voices, melody_to_grid, select_voices
+from ..data.melody import (
+    MelodyGrid,
+    detect_melody_key,
+    grid_to_voices,
+    melody_to_grid,
+    select_voices,
+    voices_with_melody,
+)
 from ..theory.chords import ChordLabel, build_vocabulary
 from ..theory.pitch import Key
 from ..theory.voicing import (
@@ -781,11 +788,11 @@ class RuleHarmonyEngine(HarmonyEngine):
         slots = build_slots(grid)
         plan = self._plan(slots, key, temperature=temperature, seed=seed)
         lines = self._expand(plan, slots, grid)
-        chords = self._chord_list(plan, slots, key)
+        chords = self._chord_list(plan, slots, key, grid.origin)
         violations = self._violations(lines, plan, slots, grid, key)
 
         selected, names = select_voices(lines, voice_count)
-        voices = grid_to_voices(selected, names=names)
+        voices = voices_with_melody(selected, melody, origin=grid.origin, names=names)
         if voice_count > 4:
             voices = voices + self._extra_voices(lines, voice_count - 4)
         return Harmonization(
@@ -926,14 +933,16 @@ class RuleHarmonyEngine(HarmonyEngine):
                     lines[voice][t] = state.voicing[voice]
         return lines
 
-    def _chord_list(self, plan: Sequence[_State | None], slots: Sequence[Slot], key: Key) -> list[Chord]:
+    def _chord_list(
+        self, plan: Sequence[_State | None], slots: Sequence[Slot], key: Key, origin: float = 0.0
+    ) -> list[Chord]:
         vocab, _ = self._vocabulary(key.mode)
         out: list[Chord] = []
         for state, slot in zip(plan, slots):
             if state is None:
                 continue
             label = vocab[state.chord_index]
-            start = round(slot.start * STEP, 6)
+            start = round(origin + slot.start * STEP, 6)
             duration = round((slot.stop - slot.start) * STEP, 6)
             if out and out[-1].roman == label.roman(key.mode) and math.isclose(out[-1].start + out[-1].duration, start):
                 out[-1] = out[-1].model_copy(update={"duration": round(out[-1].duration + duration, 6)})

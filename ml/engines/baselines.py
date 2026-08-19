@@ -11,7 +11,13 @@ from __future__ import annotations
 from contracts.schema import Chord, KeySignature, Melody, Violation
 
 from ..data.corpus import REST, STEP
-from ..data.melody import detect_melody_key, grid_to_voices, melody_to_grid, select_voices
+from ..data.melody import (
+    detect_melody_key,
+    grid_to_voices,
+    melody_to_grid,
+    select_voices,
+    voices_with_melody,
+)
 from ..theory.chords import analyze_chord
 from ..theory.pitch import MAJOR_SCALE, NATURAL_MINOR, Key
 from ..theory.voicing import ALTO, BASS, TENOR, VOICE_NAMES, VOICE_RANGES, analyze_texture, texture_from_voices
@@ -91,16 +97,16 @@ class FixedIntervalEngine(HarmonyEngine):
             ])
 
         selected, names = select_voices(lines, voice_count)
-        chords = self._chords(selected, key, grid.steps_per_beat)
+        chords = self._chords(selected, key, grid.steps_per_beat, grid.origin)
         violations = self._violations(selected, key, grid.steps_per_beat, grid.phrase_end)
         return Harmonization(
             key=KeySignature(tonic=key.tonic, mode=key.mode, confidence=confidence),
-            voices=grid_to_voices(selected, names=names),
+            voices=voices_with_melody(selected, melody, origin=grid.origin, names=names),
             chords=chords,
             violations=violations,
         )
 
-    def _chords(self, lines, key: Key, steps_per_beat: int) -> list[Chord]:
+    def _chords(self, lines, key: Key, steps_per_beat: int, origin: float = 0.0) -> list[Chord]:
         out: list[Chord] = []
         length = len(lines[0])
         for start in range(0, length, steps_per_beat):
@@ -114,7 +120,7 @@ class FixedIntervalEngine(HarmonyEngine):
                 out[-1] = out[-1].model_copy(update={"duration": round(out[-1].duration + span, 6)})
                 continue
             out.append(Chord(
-                start=round(start * STEP, 6), duration=span, roman=roman,
+                start=round(origin + start * STEP, 6), duration=span, roman=roman,
                 root=label.absolute_root(key), quality=label.contract_quality(),
                 inversion=label.inversion,
                 secondaryOf=None if label.applied_to is None else key.to_absolute(label.applied_to),

@@ -31,6 +31,11 @@ class MelodyGrid:
     step: float = STEP
     time_signature: tuple[int, int] = (4, 4)
     pickup_steps: int = 0
+    #: Absolute beat of grid index 0. The grid starts at the melody's first note
+    #: so it stays compact, which means everything converted back out of it must
+    #: have this added again. Forgetting to shifted every generated voice to beat
+    #: zero and silently misaligned the harmony against the melody it accompanies.
+    origin: float = 0.0
 
     @property
     def length(self) -> int:
@@ -97,6 +102,7 @@ def melody_to_grid(melody: Melody) -> MelodyGrid:
         phrase_end=infer_phrase_ends(pitches, onsets, steps_per_beat),
         time_signature=(numerator, denominator),
         pickup_steps=pickup_steps,
+        origin=origin,
     )
 
 
@@ -232,6 +238,31 @@ def select_voices(lines: Sequence[Sequence[int]], voice_count: int) -> tuple[lis
     """Pick `voice_count` parts from a full SATB grid, keeping the outer frame."""
     indices = VOICE_SUBSETS.get(max(1, min(voice_count, 4)), (0, 1, 2, 3))
     return [list(lines[i]) for i in indices], [VOICE_ORDER[i] for i in indices]
+
+
+def voices_with_melody(
+    lines: Sequence[Sequence[int]],
+    melody: Melody,
+    *,
+    origin: float,
+    names: Sequence[VoiceName],
+) -> list[Voice]:
+    """Generated parts placed at absolute beats, with the melody itself as soprano.
+
+    Two invariants, both of which used to be broken:
+
+    * Everything is offset by `origin`, so a melody starting in bar 2 is
+      accompanied in bar 2 rather than from beat 0.
+    * The soprano is the caller's melody **verbatim**, not a re-gridded
+      reconstruction of it. Round-tripping through a sixteenth grid moves any
+      note that does not land on it, so rebuilding the soprano could silently
+      alter the user's own notes. The contract says the melody is retained; this
+      makes that exact by construction rather than true-when-quantization-permits.
+    """
+    voices = grid_to_voices(lines, origin=origin, names=names)
+    if voices and voices[0].name == "soprano":
+        voices[0] = Voice(name="soprano", notes=list(melody.notes))
+    return voices
 
 
 def voices_to_grid(voices: Sequence[Voice], *, length: int | None = None, origin: float = 0.0) -> list[list[int]]:
