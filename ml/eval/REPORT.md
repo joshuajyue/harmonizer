@@ -923,7 +923,27 @@ not a tuning problem: blocked Gibbs resamples sites independently, so nothing in
 the procedure can see that two voices are about to move in parallel. A model with
 a per-site conditional cannot represent a constraint that is inherently joint.
 
-**The fix is not a penalty term.** Mask one voice completely and the model's
+**The fix is not a penalty term, and the formulation appears to be novel.** The
+published approaches to this failure are a loss penalty during training, or
+post-hoc manipulation of the output probabilities. Both are soft: they make a
+parallel less likely without making it impossible, and they trade against the
+model's own preferences in an uncontrolled way.
+
+The formulation here is exact rather than soft, and it rests on one observation:
+**masking an entire voice makes the model's logits for that voice independent of
+that voice's own contents.** The conditional then factorises over the other three
+parts, which are fixed, so the whole line becomes a first-order sequence problem —
+model log-probabilities as emissions, the voice-leading rulebook as transitions —
+and Viterbi returns the *global optimum* of that objective, not an approximation
+to it. Every parallel fifth and octave is eliminated by construction rather than
+discouraged, at a measured cost of 0.060 to 0.071 in chord-bigram divergence, and
+off-distribution it is the difference between 32.0 and 12.5 hard defects.
+
+A literature review found no prior art for the exact-resolve formulation. That
+should be read as "not found" rather than "does not exist", but it is worth
+stating plainly for anyone building on this.
+
+**The mechanism.** Mask one voice completely and the model's
 logits for it no longer depend on any of its own choices, so its entire line can
 be re-solved *exactly*, by Viterbi, with the model's log probabilities as
 emissions and the voice-leading rules as transitions. Sweeping the three free
@@ -952,13 +972,50 @@ melody being in distribution. It is the right default for a latency budget, and
 with `temperature` raised it reaches Bach-like chord variety (section 0), though
 not Bach-like grammar.
 
-**`neural_refine` is the interesting failure.** Seeding Gibbs with the rule
-engine's draft was meant to combine both. It does not: it inherits the rule
-engine's harmonic habits — bigram divergence 0.116, 64.5% of beats on I or V,
-21.4% imperfect cadences — without gaining anything the veto does not already
-provide. A good draft is a strong attractor, and the model spends its sweeps
-agreeing with it. Composing the two systems works when the rules act as a
-*constraint*; it fails when they act as an *initialisation*.
+**`neural_refine` is the interesting failure, and the first version of this
+conclusion was too general — a reviewer caught it and the correction is worth
+more than the original claim.** Seeding Gibbs with the rule engine's draft was
+meant to combine both systems; it inherited the rule engine's harmonic habits
+instead. The claim written here was that initialisation does not work. What had
+actually been measured was initialisation *at one mask rate*, and Coconet's
+Figure 2 shows that low mask rates cannot escape the seeded mode. That is a real
+confound, so it was swept — in-domain style, and off-distribution structural
+validity, across the range:
+
+| mask rate | chord-bigram JS | chords/piece | I or V share | off-distribution structural defects |
+|---|---|---|---|---|
+| 0.35 (default) | 0.105 | 11.1 | 64.9% | 0 |
+| 0.55 | 0.114 | 11.3 | 65.7% | 0 |
+| 0.7 | 0.112 | 11.1 | 65.0% | 0 |
+| 0.9 | **0.089** | 12.0 | 58.2% | **1** |
+| `neural_vl` (no seed) | 0.089 | **13.2** | **52.3%** | 0 |
+
+(Swept on 16 validation pieces, so the absolute values differ from the test-split
+figures in §1 — 0.105 here against 0.116 there for the same engine. The test
+split is scored once and is not a tuning surface. Only the comparison between
+rows is meaningful, and every row was produced by identical code.)
+
+**The gap does not close gradually with mask rate.** 0.35 through 0.7 are
+indistinguishable in-domain, and the improvement appears only at 0.9 — the point
+at which almost the whole draft is erased on the first sweep. The engine gets
+better by *ceasing to be a refiner*, and even then it still trails the un-seeded
+engine on the two vocabulary measures the seed most affects. And at exactly that
+rate it loses the off-distribution structural validity that every lower rate
+holds at zero.
+
+That is a better result than the one it replaces, because it identifies what the
+draft is actually contributing: **robustness, not quality.** Where the model is
+confident — in-domain, Bach-like input — the draft only narrows it. Where the
+model is unreliable — the modal and off-distribution tunes — the draft is what
+keeps the output structurally valid. A single knob controls both, so no setting
+buys both, and that is the real reason the composition fails.
+
+It also strengthens the conclusion rather than weakening it. `neural_vl` obtains
+the same robustness from a *constraint* — a veto applied at decode time — without
+paying the narrowing cost anywhere. Rules as a constraint beat rules as an
+initialisation, and the sweep shows why: a constraint binds only where it is
+violated, whereas an initialisation biases everywhere, including everywhere the
+model was already right.
 
 ## 5. What actually mattered
 
@@ -1108,14 +1165,22 @@ went into representation, evaluation and decoding instead.
    objective function, and this is the same move that took the rule engine's
    guessed priors (V7 at 19% of all chords, against Bach's 2%) and replaced them
    with measured ones.
-8. **A metric with a non-degenerate optimum, and listening tests.** This is the
+8. **A metric with a non-degenerate optimum, and expert spot-checks — not a
+   listening study.** This is the
    highest-value missing piece, not the last one. Every metric here is a distance
    to Bach, so a perfect score means maximum conformity — the harness structurally
    cannot distinguish "interesting" from "pastiche", and would rank a perfect
    Bach copyist first. What is needed is a measure where both too little and too
-   much deviation score badly, plus actual listeners. Until then every number in
-   this report means "how Bach-like", never "how good", and it should not be used
-   to choose between two engines that are both already close to Bach.
+   much deviation score badly. On listeners, calibrate expectations: DeepBach
+   needed 1272 subjects, and Coconet's "no significant difference from Bach" is
+   96 total ratings — an underpowered null, not evidence of parity, and it should
+   not be cited as such. Meanwhile "Bach or Mock?" found a feature-distance grader
+   beat human *experts* at telling Bach from model output (92.6% against 86.7%),
+   which suggests a small listening study would be less informative than this
+   harness already is. The right spend is a handful of expert spot-checks on
+   `neural_vl` output, not a statistical study. Until then every number here means
+   "how Bach-like", never "how good", and none of them ranks two harmonizations
+   that are both already close to Bach.
 
 ## 8. Reproducing
 

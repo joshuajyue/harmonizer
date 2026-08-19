@@ -504,8 +504,25 @@ class NeuralRefinementEngine(NeuralHarmonyEngine):
     )
     learned = True
 
-    #: A refiner must not demolish the draft it was given: the schedule starts
-    #: by erasing about a third of the texture rather than nearly all of it.
+    #: Swept, after a reviewer pointed out that the original value was chosen by
+    #: intuition ("a refiner must not demolish the draft it was given") and that
+    #: a low mask rate cannot escape the mode it was seeded into (Coconet Fig. 2).
+    #: That confound was real and worth testing, but the sweep did not show what
+    #: either of us expected:
+    #:
+    #:   rate   in-domain bigram JS   off-distribution structural defects
+    #:   0.35        0.105                    0
+    #:   0.55        0.114                    0
+    #:   0.70        0.112                    0
+    #:   0.90        0.089                    1
+    #:
+    #: The gap does not close gradually. 0.35-0.7 are indistinguishable, and the
+    #: improvement arrives only at 0.9 - where almost the entire draft is erased
+    #: on the first sweep, so the engine improves by *ceasing to be a refiner*.
+    #: At exactly that point it loses the off-distribution structural safety the
+    #: draft was providing. One knob controls both, so the composition cannot be
+    #: tuned into giving both. Anywhere in 0.35-0.7 is equivalent; kept at the
+    #: original value, now for a measured reason rather than an assumed one.
     REFINE_MASK_RATE_START = 0.35
 
     def __init__(

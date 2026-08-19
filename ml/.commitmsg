@@ -1,0 +1,31 @@
+eval: sweep the neural_refine mask rate, and correct an over-general claim
+
+A reviewer noted that the conclusion "rules-as-initialisation does not work"
+had only been measured at one mask rate (0.35), and that Coconet Figure 2 shows
+low mask rates cannot escape the seeded mode. That confound was real, so it was
+swept across 0.35-0.9 on both in-domain style and off-distribution structural
+validity.
+
+The result did not match either expectation. The gap does not close gradually:
+0.35-0.7 are indistinguishable in-domain, and the improvement appears only at
+0.9, where almost the whole draft is erased on the first sweep - the engine
+improves by ceasing to be a refiner. At exactly that rate it becomes the only
+setting that fails an off-distribution structural check.
+
+That identifies what the draft actually contributes: robustness, not quality.
+Where the model is confident the draft only narrows it; where the model is
+unreliable the draft is what keeps the output valid. One knob controls both, so
+no setting buys both. This strengthens the constraint-over-initialisation
+conclusion rather than weakening it - a constraint binds only where it is
+violated, an initialisation biases everywhere, including where the model was
+already right.
+
+Default stays at 0.35, now for a measured reason rather than an assumed one.
+
+Also documents the exact-resolve polish formulation as a distinct contribution
+(published alternatives are soft: a loss penalty, or post-hoc probability
+manipulation; no prior art found for resolving the line exactly by Viterbi),
+and recalibrates the listening-test item toward expert spot-checks after
+evidence that a feature-distance grader outperforms human experts.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
