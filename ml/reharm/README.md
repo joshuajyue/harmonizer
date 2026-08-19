@@ -21,7 +21,7 @@ only in how a path is chosen. That is what makes the comparison in
 ## Why this exists
 
 The rules engine is diatonic-functional *by construction*: it cannot choose to
-be surprising, and it emits triads (measured: 7.9% of its chords are sevenths or
+be surprising, and it emits triads (measured: 5% of its chords are sevenths or
 sixths, against 93% in real jazz lead sheets). Reharmonization is where a
 learned or stochastic model has a structural advantage, because unlike chorale
 harmonization it is a genuine one-to-many mapping — there is no correct tritone
@@ -69,8 +69,8 @@ Two, and both were calibrated by measurement rather than taste (numbers from a
 
 | dial | 0.0 | 1.0+ | what it moves |
 | --- | --- | --- | --- |
-| `adventure` | roots changed 0.01 | roots changed 0.44 | how far the harmony travels from the tune. Scales the substitution cost and the anchor. |
-| `temperature` | diversity 0.007 | diversity 0.425 | how different two runs are. Barely touches quality (headline 0.631 → 0.641). |
+| `adventure` | roots changed 0.10 | roots changed 0.43 | how far the harmony travels from the tune. Scales the substitution cost and the anchor. |
+| `temperature` | diversity 0.001 | diversity 0.374 | how different two runs are. Barely touches quality (headline 0.609 → 0.627). |
 
 `adventure` is a `ReharmConfig` field; `temperature` is the contract's own
 option, so the UI already has it.
@@ -153,7 +153,7 @@ chord model, so the engine works from a fresh clone with no corpus.
 ## Tests
 
 ```bash
-pytest ml/reharm            # 129 tests, ~10s
+pytest ml/reharm            # 130 tests, ~10s
 ```
 
 Corpus tests skip themselves when the cache is absent, so CI passes without a

@@ -365,6 +365,7 @@ def secondary_dominant_candidates(unit: Unit, context: Context) -> list[Candidat
                 0.85 - (penalty_a + penalty_b),
                 (penalty_a + penalty_b) / 2,
                 split=True,
+                kinds=("secondary_dominant", "secondary_dominant"),
             ))
         # ...and its tritone substitute, which is the same ii-V with a
         # chromatic bass: Dm7 Db7 | Cmaj7.
@@ -378,6 +379,7 @@ def secondary_dominant_candidates(unit: Unit, context: Context) -> list[Candidat
                 0.8 - (penalty_a + penalty_c),
                 (penalty_a + penalty_c) / 2,
                 split=True,
+                kinds=("secondary_dominant", "tritone"),
             ))
     return out
 
@@ -439,6 +441,7 @@ def backdoor_candidates(unit: Unit, context: Context) -> list[Candidate]:
             out.append(_candidate(
                 unit, [minor_iv, backdoor], "backdoor",
                 0.9 - (penalty_a + penalty_b), (penalty_a + penalty_b) / 2, split=True,
+                kinds=("backdoor", "backdoor"),
             ))
     return out
 
@@ -582,6 +585,7 @@ def coltrane_candidates(unit: Unit, context: Context) -> list[Candidate]:
     return [_candidate(
         unit, [first, second], "coltrane",
         0.5 - (penalty_a + penalty_b), (penalty_a + penalty_b) / 2, split=True,
+        kinds=("coltrane", "coltrane"),
     )]
 
 
@@ -660,6 +664,7 @@ def approach_split(
     return [_candidate(
         unit, [base_chord, approach], kind,
         bonus - (penalty_a + penalty_b), (penalty_a + penalty_b) / 2, split=True,
+        kinds=(None, kind),
     )]
 
 
@@ -689,7 +694,16 @@ def _candidate(
     penalty: float,
     *,
     split: bool = False,
+    kinds: Sequence[str | None] | None = None,
 ) -> Candidate:
+    """Build a candidate, tagging each chord with the provenance it actually has.
+
+    `kinds` exists because a two-chord candidate rarely has one story. In
+    "Dm7 | Db7" the Db7 is the tritone substitute and the Dm7 is its related ii;
+    tagging both as "tritone" would tell the user something false, and telling
+    the user something false about why a chord is there is worse than telling
+    them nothing.
+    """
     if split and len(chords) == 2:
         half = unit.duration / 2
         starts = (unit.start, unit.start + half)
@@ -699,9 +713,10 @@ def _candidate(
         durations = tuple(unit.duration / len(chords) for _ in chords)
         if len(chords) > 1:
             starts = tuple(unit.start + i * unit.duration / len(chords) for i in range(len(chords)))
+    per_chord = list(kinds) if kinds is not None else [kind] * len(chords)
     tagged = tuple(
-        chord.with_provenance(unit.base_roman or None, kind) if kind else chord
-        for chord in chords
+        chord.with_provenance(unit.base_roman or None, chord_kind) if chord_kind else chord
+        for chord, chord_kind in zip(chords, per_chord)
     )
     return Candidate(
         chords=tagged,

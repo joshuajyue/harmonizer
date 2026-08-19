@@ -10,7 +10,7 @@ failure mode this package exists to avoid.
 
 import pytest
 
-from ml.reharm.chords import JazzChord
+from ml.reharm.chords import SUBSTITUTION_KINDS, JazzChord
 from ml.reharm.melodies import TRADITIONAL
 from ml.reharm.metrics import note_weight
 from ml.reharm.skeleton import Unit, skeleton_from_rules
@@ -76,6 +76,23 @@ def test_tritone_candidates_carry_their_provenance():
         assert candidate.kind == "tritone"
         substituted = [chord for chord in candidate.chords if chord.substitution_kind == "tritone"]
         assert substituted and all(chord.substitution_of == "V" for chord in substituted)
+        # The substitute is the chord that was substituted IN, never the tune's
+        # own chord sitting in front of it.
+        assert all(chord.quality == "dom7" for chord in substituted)
+
+
+def test_an_approach_split_only_tags_the_approach_chord():
+    """"Dm7 | Db7" is a tritone sub of the Db7; the Dm7 is not a tritone of anything."""
+    candidates = secondary_dominant_candidates(
+        unit(JazzChord(root=C, quality="maj7"), duration=4.0, roman="I"),
+        context(JazzChord(root=C, quality="maj7")),
+    )
+    for candidate in candidates:
+        if len(candidate.chords) < 2:
+            continue
+        head = candidate.chords[0]
+        if head.root == C:
+            assert head.substitution_kind is None
 
 
 # ---------------------------------------------------------------------------
@@ -238,6 +255,7 @@ def test_every_substitution_records_what_it_replaced(name):
                 continue
             tagged = [chord for chord in candidate.chords if chord.substitution_kind]
             assert tagged, f"{candidate.label()} claims kind {candidate.kind} but tags nothing"
+            assert any(chord.substitution_kind == candidate.kind for chord in tagged)
             for chord in tagged:
-                assert chord.substitution_kind == candidate.kind
+                assert chord.substitution_kind in SUBSTITUTION_KINDS
                 assert chord.substitution_of == item.base_roman

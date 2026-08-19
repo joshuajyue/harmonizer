@@ -120,10 +120,18 @@ def build_units(
 ) -> list[Unit]:
     """Reduce a beat-level skeleton onto bar / half-bar harmonic units.
 
-    A bar with a single chord stays one unit. A bar the rules engine harmonized
-    with several chords is split in half, and each half keeps whichever chord
-    holds the most weight in it — weight being duration times metric emphasis,
-    so a downbeat chord wins a tie against a passing one.
+    The grid is decided by the METRE and the MELODY, never by which chord the
+    rules engine happened to pick. That is a deliberate constraint and it was
+    found by a test: deciding to split a bar because its two halves want
+    different chords makes the unit count depend on chord choice, chord choice
+    depends on register because SATB ranges are absolute, and so the same tune a
+    fifth higher came out with a different number of chords — a transposition
+    bug manufactured entirely inside this function.
+
+    So: every bar splits at the half, and two halves merge back into one unit
+    when the melody does not articulate the boundary. A held note across the
+    middle of the bar is the tune saying the harmony can stay put, and it says
+    the same thing in every key.
     """
     if not spans:
         return []
@@ -131,62 +139,43 @@ def build_units(
     beats_per_bar = numerator * (4.0 / denominator)
     start = spans[0].start
     end = spans[-1].stop
-    units: list[Unit] = []
+    splittable = beats_per_bar >= 2 * min_unit and numerator % 2 == 0
+    onsets = sorted(round(note_start, 6) for note_start, _, _ in melody)
 
+    def articulated(offset: float) -> bool:
+        return any(abs(onset - offset) < 0.05 for onset in onsets)
+
+    boundaries: list[tuple[float, float]] = []
     bar_start = start
     while bar_start < end - 1e-6:
         bar_stop = min(bar_start + beats_per_bar, end)
-        splittable = beats_per_bar >= 2 * min_unit and numerator % 2 == 0
-        boundaries: list[tuple[float, float]]
         middle = bar_start + beats_per_bar / 2
-        # Split the bar only when the two halves genuinely want different
-        # chords. Counting distinct chords anywhere in the bar splits on a
-        # single passing chord, which on a dense line is every bar — and the
-        # oracle puts real jazz at 2.8 to 4.2 beats per chord, not 2.
-        if splittable and middle < bar_stop - 1e-6:
-            first = _dominant_chord(spans, bar_start, middle)
-            second = _dominant_chord(spans, middle, bar_stop)
-            different = first is not None and second is not None and not first.same_harmony(second)
-            boundaries = [(bar_start, middle), (middle, bar_stop)] if different else [(bar_start, bar_stop)]
+        if splittable and middle < bar_stop - 1e-6 and articulated(middle):
+            boundaries.append((bar_start, middle))
+            boundaries.append((middle, bar_stop))
         else:
-            boundaries = [(bar_start, bar_stop)]
-
-        for index, (unit_start, unit_stop) in enumerate(boundaries):
-            if unit_stop - unit_start <= 1e-6:
-                continue
-            chord = _dominant_chord(spans, unit_start, unit_stop)
-            if chord is None:
-                continue
-            level = 3 if index == 0 else 2
-            units.append(Unit(
-                start=unit_start,
-                duration=unit_stop - unit_start,
-                base=chord,
-                base_roman="",
-                melody=clip_melody(melody, unit_start, unit_stop),
-                metric_level=level,
-            ))
+            boundaries.append((bar_start, bar_stop))
         bar_start = bar_stop
 
-    # Merge a repeated chord across consecutive units back into one unit: two
-    # bars of Imaj7 are one harmonic event, and treating them as two invites
-    # the reharmonizer to "substitute" the second half of a held chord.
-    merged: list[Unit] = []
-    for unit in units:
-        previous = merged[-1] if merged else None
-        if (
-            previous is not None
-            and previous.base.same_harmony(unit.base)
-            and abs(previous.stop - unit.start) < 1e-6
-            and previous.duration + unit.duration <= 2 * max(min_unit, 2.0)
-        ):
-            previous.duration += unit.duration
-            previous.melody = previous.melody + unit.melody
-        else:
-            merged.append(unit)
-    if merged:
-        merged[-1].is_last = True
-    return merged
+    units: list[Unit] = []
+    for unit_start, unit_stop in boundaries:
+        if unit_stop - unit_start <= 1e-6:
+            continue
+        chord = _dominant_chord(spans, unit_start, unit_stop)
+        if chord is None:
+            continue
+        position = (unit_start - start) % beats_per_bar
+        units.append(Unit(
+            start=unit_start,
+            duration=unit_stop - unit_start,
+            base=chord,
+            base_roman="",
+            melody=clip_melody(melody, unit_start, unit_stop),
+            metric_level=3 if position < 1e-6 else 2,
+        ))
+    if units:
+        units[-1].is_last = True
+    return units
 
 
 def _dominant_chord(spans: Sequence[ChordSpan], start: float, stop: float) -> JazzChord | None:

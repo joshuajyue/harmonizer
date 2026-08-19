@@ -6,14 +6,14 @@ not so sampling should win. Half of that survived measurement, and it is the
 half that matters for the product.
 
 Sampling delivers genuine one-to-many variety at no measurable cost in quality:
-five draws of the same tune differ in 27% of their chord roots, where the
-deterministic engine differs in exactly 0%, and the headline score moves by 0.01
-across a 30× change in temperature. That is the thing search structurally cannot
+five draws of the same tune differ in 22% of their chord roots, where the
+deterministic engine differs in exactly 0%, and the headline score moves by 0.02
+across a 36× change in temperature. That is the thing search structurally cannot
 do, and it is real.
 
 Sampling does **not** deliver adventure. Given an identical candidate space and
 identical constraints, the argmax of hand-written substitution rules is *more*
-chromatic than the learned sampler (0.112 vs 0.071 chromatic tones per chord
+chromatic than the learned sampler (0.109 vs 0.066 chromatic tones per chord
 tone; the rules engine wins that on 20 tunes out of 20). A model of 1170
 standards puts its mass where the corpus does, and the middle of the jazz corpus
 is a diatonic ii-V-I. Adventurousness lives in the objective, not in the sampler
@@ -22,9 +22,9 @@ is a diatonic ii-V-I. Adventurousness lives in the objective, not in the sampler
 On the one criterion no engine optimises for — distance from the changes a human
 rhythm section actually played under the same melody — all three reharmonizers
 beat the unreharmonized skeleton, and the learned ones are **not** systematically
-better than the rules (mean paired difference 0.000 to 0.005 with a standard
-deviation six times larger, 9/20 and 13/20 wins). That is a negative result and
-it is stated as one.
+better than the rules (mean paired difference 0.000 to 0.004 against a standard
+deviation five to nine times larger, 10/20 and 11/20 wins). That is a negative
+result and it is stated as one.
 
 ---
 
@@ -67,7 +67,7 @@ lead sheet and what the band played can be compared directly:
 1. **Real jazz melodies sit on avoid notes 8% of the time.** A zero-tolerance
    melody constraint would have been stricter than the music it imitates. The
    constraint became "no chord may hard-conflict with more than 30% of the
-   melodic weight over it", and the engines land at 0.031–0.042 aggregate —
+   melodic weight over it", and the engines land at 0.037–0.053 aggregate —
    below the human rate of 0.061 on the same melodies.
 2. **Version-to-version variation is mostly quality, not roots** (0.34 chord
    change but only 0.14 root change). So "distance travelled" is measured on
@@ -106,41 +106,41 @@ unreharmonized. 5 samples per tune, `adventure=0.75`, `temperature=1.0`.
 
 | metric | skeleton | rules | sampled | hybrid | human |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| headline | 0.114 | **0.789** | 0.648 | 0.707 | 0.613 |
-| hard melody conflicts | 0.200 | **0.031** | 0.042 | 0.040 | 0.061 |
-| chord-tone rate | 0.539 | 0.603 | 0.570 | 0.558 | 0.591 |
-| seventh rate | 0.079 | 0.935 | 0.976 | 0.982 | 0.833 |
-| dominants that resolve | 0.237 | 0.845 | 0.611 | 0.774 | 0.725 |
-| ii-V per 16 bars | 0.053 | 1.120 | 4.229 | 5.051 | 3.343 |
-| chromatic tone rate | 0.049 | **0.112** | 0.071 | 0.085 | 0.141 |
-| beats per chord | 2.458 | 2.367 | 2.452 | 2.435 | 4.895 |
-| roots changed vs skeleton | 0.000 | 0.313 | 0.367 | 0.453 | 0.734 |
-| **distance from human** | 0.628 | 0.583 | **0.579** | 0.583 | — |
-| **sample diversity** | — | **0.000** | **0.266** | 0.230 | — |
-| **style divergence** | 0.480 | 0.229 | 0.190 | **0.185** | 0.278 |
+| headline | 0.108 | **0.777** | 0.612 | 0.678 | 0.613 |
+| hard melody conflicts | 0.215 | **0.037** | 0.053 | 0.048 | 0.061 |
+| chord-tone rate | 0.509 | 0.598 | 0.558 | 0.549 | 0.591 |
+| seventh rate | 0.051 | 0.914 | 0.973 | 0.979 | 0.833 |
+| dominants that resolve | 0.274 | 0.877 | 0.618 | 0.786 | 0.725 |
+| ii-V per 16 bars | 0.053 | 1.143 | 3.129 | 3.663 | 3.343 |
+| chromatic tone rate | 0.036 | **0.109** | 0.066 | 0.082 | 0.141 |
+| beats per chord | 3.306 | 3.034 | 3.296 | 3.239 | 4.895 |
+| roots changed vs skeleton | 0.000 | 0.319 | 0.337 | 0.423 | 0.733 |
+| **distance from human** | 0.635 | 0.592 | 0.592 | **0.588** | — |
+| **sample diversity** | — | **0.000** | **0.221** | 0.194 | — |
+| **style divergence** | 0.476 | 0.242 | 0.216 | **0.209** | 0.278 |
 
 Seven traditional tunes, same configuration, no human reference:
 
 | metric | skeleton | rules | sampled | hybrid |
 | --- | ---: | ---: | ---: | ---: |
-| headline | 0.295 | 0.865 | 0.761 | 0.835 |
-| hard melody conflicts | 0.048 | 0.000 | 0.001 | 0.002 |
-| seventh rate | 0.043 | 0.959 | 0.998 | 0.997 |
-| ii-V per 16 bars | 0.254 | 1.024 | 3.303 | 4.039 |
-| roots changed | 0.000 | 0.206 | 0.271 | 0.309 |
-| sample diversity | — | 0.000 | 0.214 | 0.223 |
-| style divergence | 0.445 | 0.331 | 0.312 | 0.312 |
+| headline | 0.302 | 0.854 | 0.762 | 0.830 |
+| hard melody conflicts | 0.045 | 0.000 | 0.001 | 0.000 |
+| seventh rate | 0.042 | 0.966 | 0.998 | 0.997 |
+| ii-V per 16 bars | 0.254 | 1.215 | 3.596 | 4.484 |
+| roots changed | 0.000 | 0.212 | 0.269 | 0.327 |
+| sample diversity | — | 0.000 | 0.213 | 0.243 |
+| style divergence | 0.446 | 0.331 | 0.313 | 0.309 |
 
 ### Paired per tune, because means hide whether a difference is systematic
 
 | | hybrid − rules | | | sampled − rules | | |
 | metric | mean | sd | wins | mean | sd | wins |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| headline | −0.082 | 0.033 | 0/20 | −0.140 | 0.041 | 0/20 |
-| hard conflicts | +0.009 | 0.010 | 17/20 | +0.012 | 0.008 | 17/20 |
-| chromatic tone rate | −0.027 | 0.020 | 1/20 | −0.041 | 0.020 | 0/20 |
-| distance from human | −0.000 | 0.031 | 13/20 | −0.005 | 0.027 | 9/20 |
-| style divergence | −0.044 | 0.018 | 0/20 | −0.039 | 0.018 | 0/20 |
+| headline | −0.099 | 0.038 | 0/20 | −0.165 | 0.044 | 0/20 |
+| hard conflicts | +0.011 | 0.014 | 16/20 | +0.017 | 0.016 | 16/20 |
+| chromatic tone rate | −0.027 | 0.020 | 1/20 | −0.042 | 0.017 | 0/20 |
+| distance from human | −0.004 | 0.036 | 10/20 | −0.000 | 0.020 | 11/20 |
+| style divergence | −0.033 | 0.016 | 0/20 | −0.026 | 0.013 | 1/20 |
 
 Four of those five are near-unanimous in one direction or the other. Those are
 real effects. "Distance from human" is a coin flip with a mean smaller than a
@@ -153,7 +153,7 @@ dishonest.
 
 **The headline metric is contaminated and I do not lean on it.** Dominant
 resolution is 25% of it, and the rules engine explicitly optimises dominant
-resolution — it scores 0.845 there against the human reference's 0.725. An
+resolution — it scores 0.877 there against the human reference's 0.725. An
 engine that wins a metric correlated with its own objective has demonstrated
 nothing. This is the same trap the chorale side of the project already fell into
 once, and the reason the table carries three metrics that no engine optimises.
@@ -171,12 +171,12 @@ vocabulary, and a weak one for anything resembling "quality".
 * *Style divergence* (chord vocabulary vs the treebank): learned engines win
   20/20 paired. Systematic, and the effect is what you would hope — the model
   produces more idiomatic jazz vocabulary than hand-written rules do. It is also
-  *more* typical than the human reference (0.185 vs 0.278), which is the same
+  *more* typical than the human reference (0.209 vs 0.278), which is the same
   fact seen from the other side: a model of the corpus average writes the corpus
   average.
 * *Distance from what the human played*: everything beats the skeleton
-  (0.579–0.583 vs 0.628); nothing systematically beats anything else.
-* *Diversity*: 0.266 versus exactly 0.000. This is not a marginal effect and it
+  (0.588–0.592 vs 0.635); nothing systematically beats anything else.
+* *Diversity*: 0.221 versus exactly 0.000. This is not a marginal effect and it
   is the one search cannot have at any setting.
 
 ---
@@ -187,18 +187,18 @@ Both were calibrated by sweeping, not chosen by taste. 20 jazz tunes:
 
 | temperature | headline | chromatic | diversity |
 | ---: | ---: | ---: | ---: |
-| 0.05 | 0.631 | 0.065 | 0.007 |
-| 0.60 | 0.635 | 0.067 | 0.144 |
-| 1.30 | 0.635 | 0.082 | 0.327 |
-| 1.80 | 0.641 | 0.102 | 0.425 |
+| 0.05 | 0.609 | 0.059 | 0.001 |
+| 0.60 | 0.607 | 0.062 | 0.103 |
+| 1.30 | 0.614 | 0.076 | 0.286 |
+| 1.80 | 0.627 | 0.090 | 0.374 |
 
 | adventure | rules: roots changed | rules: chromatic | hybrid: roots changed |
 | ---: | ---: | ---: | ---: |
-| 0.00 | 0.014 | 0.063 | 0.267 |
-| 0.50 | 0.147 | 0.090 | 0.382 |
-| 1.00 | 0.439 | 0.146 | 0.491 |
+| 0.00 | 0.103 | 0.062 | 0.277 |
+| 0.50 | 0.184 | 0.079 | 0.375 |
+| 1.00 | 0.431 | 0.148 | 0.473 |
 
-Temperature buys variety at flat quality across a 30× range — that is what a
+Temperature buys variety at flat quality across a 36× range — that is what a
 dial should do, and it is the product. `adventure` is the one that moves how far
 out the harmony goes, and it is a hand-written cost, not a property of the
 model.
@@ -208,20 +208,24 @@ model.
 ## 6. Does it sound good?
 
 Metrics cannot answer this, so here is the actual output. Shenandoah, whose
-skeleton is `C/E | F | C | Bb/D | F | F | F | F | Bb | Dm | C | F | C`:
+skeleton is `F | C | Bb/D | F | F | F | F | F | F | Bb | Dm | F | C`:
 
 ```
-rules    Csus4(7) | Fmaj7 | C6 | Bbmaj7(9) | Fmaj7(13) | Dm7* | Fmaj7 | F7(13) |
-         Bbmaj7#11 | G7* | C7(13) | Fmaj7 | C7
-sampled  C7 | F6 | Gm7(11)* | C7(9)* | Fmaj7(13) | Fmaj7 | Cm7(11,13)* | F7(13) |
-         Bbmaj7#11 | Gm7* | C7(13) | Fmaj7 | C7          (* = substitution)
+rules    Fmaj7 | C6 | Bbmaj7(9) | Fmaj7(13) | Dm7* | Fmaj7 | Dm7* | Fmaj7(13) |
+         F7 | Bbmaj7#11 | Dm7 | Fmaj7 | C7
+sampled  Fmaj7 | Gm7(11)* | C7(9)* | Fmaj7(13) | Fmaj7 | Fmaj7 | Fmaj7 |
+         Fmaj7(13) | F7 | Bbmaj7#11 | C7(9)* | Fmaj7 | C7      (* = substitution)
 ```
 
-The sampled version turns bars 3–4 into a ii-V (`Gm7 | C7`), turns bar 7 into
-the related ii of the F7 that was already there so that `Cm7 F7 → Bbmaj7` is a
-textbook ii-V into the subdominant, and makes that Bb a `maj7#11`. Those are
-choices a player would make. Three different seeds produce three different but
-equally defensible sets, which is the point.
+The sampled version turns bars 2–3 into a ii-V (`Gm7 | C7`) instead of the plain
+`C | Bb` the skeleton had, keeps `F7 → Bbmaj7#11` as a dominant into the
+subdominant with a lydian colour on top, and turns the penultimate bar into the
+dominant that sets up the last one. Those are choices a player would make.
+Different seeds produce different but equally defensible sets, which is the
+point; the tritone substitutions and borrowed chords show up on tunes with more
+chromatic room in the melody, such as `--tune greensleeves --temperature 1.3`,
+where a `Bb7#11` arrives as the tritone substitute of the V and resolves down a
+semitone into the tonic minor.
 
 `python -m ml.reharm.demo --tune shenandoah --midi out.mid` writes it as MIDI.
 
@@ -237,7 +241,7 @@ diversity column is as clean a confirmation as one could ask for.
 music.** It produces *different* music, reliably, but its centre of mass is the
 corpus average, and the corpus average of 1170 jazz standards is not
 adventurous. Every measure of harmonic colour favours the hand-written argmax:
-chromatic tones 0.112 vs 0.071, unanimous across 20 tunes. If you want output
+chromatic tones 0.109 vs 0.066, unanimous across 20 tunes. If you want output
 that is both surprising and varied you need an objective that wants surprise and
 a sampler that supplies variety, which is exactly why `jazz_reharm` ships the
 hybrid.
@@ -258,14 +262,14 @@ would otherwise have been set to a value stricter than real jazz.
 ## 8. Limitations
 
 * **The skeleton is the weakest link.** It comes from a chorale engine, and on
-  bebop lines it starts at a 0.200 hard-conflict rate — worse than anything
+  bebop lines it starts at a 0.215 hard-conflict rate — worse than anything
   downstream produces. A jazz-native skeleton would probably improve the final
   result more than any further work on the substitution stage.
-* **Harmonic rhythm is too fast**: 2.4 beats per chord against 4.9 in the
-  reference (2.8 in the treebank). The reduction to bar and half-bar units
-  inherits the rules engine's chord changes rather than deciding jazz phrasing
-  for itself.
-* **Chromaticism is still below the oracle** (0.112 best vs 0.141–0.184). Most
+* **Harmonic rhythm is decided by the melody, not by phrasing**: 3.0–3.3 beats
+  per chord, which sits between the treebank's 2.8 and the reference's 4.9, but
+  it comes from where the melody articulates the middle of the bar rather than
+  from any notion of where a phrase wants a chord change.
+* **Chromaticism is still below the oracle** (0.109 best vs 0.141–0.184). Most
   real jazz colour comes from chromatic *roots* under a melody written over
   them; a diatonic folk melody vetoes many of those, correctly.
 * **Coltrane changes are implemented but off by default.** They almost never
