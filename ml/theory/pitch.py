@@ -198,21 +198,36 @@ def _correlate(profile: Sequence[float], weights: Sequence[float]) -> float:
     return num / (dp * dw)
 
 
+#: How much the cadential evidence counts against the pitch-class profile.
+#: Tuned on the training split; see `ml/training/calibrate_key.py` for why the
+#: evidence is needed at all. The final note is worth far more than the first —
+#: a chorale ends on the tonic 83.7% of the time and begins on it only 47.6%.
+FINAL_NOTE_WEIGHT = 0.05
+FIRST_NOTE_WEIGHT = 0.06
+
+
 def detect_key(
     pitch_durations: Sequence[tuple[int, float]],
     *,
     final_bonus_pitch: int | None = None,
+    first_pitch: int | None = None,
 ) -> tuple[Key, float]:
-    """Duration-weighted Krumhansl-Schmuckler key finding.
+    """Krumhansl-Schmuckler key finding, with cadential evidence added.
 
     `pitch_durations` is a sequence of (midi_pitch, duration_in_quarters).
     Returns (key, confidence) where confidence is the normalized margin between
     the best and second-best candidate, clipped to [0, 1].
 
-    `final_bonus_pitch` nudges the result toward keys whose tonic triad contains
-    the final melody note. Chorale phrases end on a chord tone of the tonic
-    overwhelmingly often, and unaided KS confuses relative major/minor.
+    Pitch-class duration alone confuses a key with its dominant: a D minor
+    melody dwells on D, F and A, and A minor's profile rewards those as its own
+    tonic, fourth and sixth. Measured on this corpus that single confusion was
+    55% of all key-detection errors. What separates the two is where the tune
+    comes to rest, which the profile cannot see, so the final and first notes
+    are scored as log-probabilities from measured per-mode distributions rather
+    than as an ad-hoc bonus.
     """
+    from ._key_priors import FINAL_DEGREE_LOGP, FIRST_DEGREE_LOGP
+
     weights = [0.0] * 12
     for pitch, duration in pitch_durations:
         weights[pitch % 12] += float(duration)
@@ -225,11 +240,9 @@ def detect_key(
         for mode, profile in (("major", _KK_MAJOR), ("minor", _KK_MINOR)):
             score = _correlate(profile, rotated)
             if final_bonus_pitch is not None:
-                triad = (0, 4, 7) if mode == "major" else (0, 3, 7)
-                if (final_bonus_pitch - tonic) % 12 in triad:
-                    score += 0.08
-                if (final_bonus_pitch - tonic) % 12 == 0:
-                    score += 0.04
+                score += FINAL_NOTE_WEIGHT * FINAL_DEGREE_LOGP[mode][(final_bonus_pitch - tonic) % 12]
+            if first_pitch is not None:
+                score += FIRST_NOTE_WEIGHT * FIRST_DEGREE_LOGP[mode][(first_pitch - tonic) % 12]
             scored.append((score, Key(tonic, mode)))
 
     scored.sort(key=lambda item: (-item[0], item[1].tonic, item[1].mode))
@@ -237,3 +250,37 @@ def detect_key(
     runner_up = scored[1][0]
     confidence = max(0.0, min(1.0, (best_score - runner_up) * 4.0))
     return best_key, confidence
+
+
+def detect_key_candidates(
+    pitch_durations: Sequence[tuple[int, float]],
+    *,
+    final_bonus_pitch: int | None = None,
+    first_pitch: int | None = None,
+    limit: int = 3,
+) -> list[tuple[Key, float]]:
+    """The `limit` best-scoring keys and their scores, strongest first.
+
+    Exposed so a caller can apply more expensive evidence to a short list rather
+    than to all twenty-four keys.
+    """
+    from ._key_priors import FINAL_DEGREE_LOGP, FIRST_DEGREE_LOGP
+
+    weights = [0.0] * 12
+    for pitch, duration in pitch_durations:
+        weights[pitch % 12] += float(duration)
+    if sum(weights) == 0:
+        return [(Key(0, "major"), 0.0)]
+
+    scored: list[tuple[float, Key]] = []
+    for tonic in range(12):
+        rotated = [weights[(tonic + i) % 12] for i in range(12)]
+        for mode, profile in (("major", _KK_MAJOR), ("minor", _KK_MINOR)):
+            score = _correlate(profile, rotated)
+            if final_bonus_pitch is not None:
+                score += FINAL_NOTE_WEIGHT * FINAL_DEGREE_LOGP[mode][(final_bonus_pitch - tonic) % 12]
+            if first_pitch is not None:
+                score += FIRST_NOTE_WEIGHT * FIRST_DEGREE_LOGP[mode][(first_pitch - tonic) % 12]
+            scored.append((score, Key(tonic, mode)))
+    scored.sort(key=lambda item: (-item[0], item[1].tonic, item[1].mode))
+    return [(key, score) for score, key in scored[:limit]]

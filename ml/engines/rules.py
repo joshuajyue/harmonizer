@@ -735,6 +735,31 @@ class _State:
     voicing: tuple[int, int, int, int]
 
 
+_FIT_ENGINE: "RuleHarmonyEngine | None" = None
+
+
+def harmonic_fit_scores(grid: MelodyGrid, keys: Sequence[Key]) -> dict[Key, float]:
+    """Best achievable chord-path score for a melody under each candidate key.
+
+    Used by key detection to break the dominant ambiguity that a pitch-class
+    histogram cannot: a melody in the wrong key has to be explained by a worse
+    progression, and this measures how much worse. Normalised per slot so long
+    and short melodies are comparable.
+    """
+    global _FIT_ENGINE
+    if _FIT_ENGINE is None:
+        _FIT_ENGINE = RuleHarmonyEngine()
+    slots = build_slots(grid)
+    if not slots:
+        return {key: 0.0 for key in keys}
+    out: dict[Key, float] = {}
+    for key in keys:
+        vocab, transition = _FIT_ENGINE._vocabulary(key.mode)
+        emission = emission_scores(slots, vocab, key, _FIT_ENGINE.config)
+        out[key] = float(chord_max_marginals(emission, transition).max()) / len(slots)
+    return out
+
+
 class RuleHarmonyEngine(HarmonyEngine):
     """Functional harmony + voice-leading search. No learned parameters."""
 

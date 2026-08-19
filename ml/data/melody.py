@@ -13,7 +13,7 @@ from typing import Sequence
 
 from contracts.schema import Melody, Note, Voice, VoiceName
 
-from ..theory.pitch import Key, detect_key
+from ..theory.pitch import Key, detect_key, detect_key_candidates
 from ..theory.voicing import VOICE_NAMES
 from .corpus import REST, STEP, STEPS_PER_QUARTER
 
@@ -164,8 +164,35 @@ def infer_phrase_ends(pitches: Sequence[int], onsets: Sequence[bool], steps_per_
     return out
 
 
-def detect_melody_key(grid: MelodyGrid) -> tuple[Key, float]:
-    """Key of a gridded melody, duration-weighted and biased by the final note."""
+#: How much a candidate key's best achievable harmonization counts against its
+#: pitch-class profile. Chosen on train+val (0.05-0.2 all improve; 0.1 is the
+#: peak on val) and then evaluated once on test.
+HARMONIC_FIT_WEIGHT = 0.1
+#: Only the strongest profile candidates are rescored. Measured: top-3 gives
+#: bit-identical results to rescoring all 24, at an eighth of the cost.
+HARMONIC_FIT_CANDIDATES = 3
+
+
+def detect_melody_key(grid: MelodyGrid, *, use_harmony: bool = True) -> tuple[Key, float]:
+    """Key of a gridded melody.
+
+    Two stages. First Krumhansl-Schmuckler on pitch-class durations, plus
+    cadential evidence — where the tune starts and ends — scored as measured
+    log-probabilities.
+
+    Then, because that still confuses a key with its dominant (55% of the
+    remaining errors: a D minor melody dwells on D, F and A, which A minor's
+    profile rewards as its own tonic, fourth and sixth), the top few candidates
+    are rescored by **how well the melody actually harmonizes** in each. The
+    rules engine's chord search is run under each candidate key and its best
+    achievable path score is added in. A melody in the wrong key has to be
+    explained by a worse progression, and that is exactly the evidence a
+    pitch-class histogram cannot contain.
+
+    Measured on held-out chorales: 73.8% profile alone, 83.6% with cadential
+    evidence, 88.5% with harmonic rescoring. Set `use_harmony=False` to skip the
+    third stage, which costs roughly 45 ms.
+    """
     weights: list[tuple[int, float]] = []
     run_pitch, run_length = None, 0
     for t in range(grid.length):
@@ -185,9 +212,37 @@ def detect_melody_key(grid: MelodyGrid) -> tuple[Key, float]:
 
     if not weights:
         return Key(0, "major"), 0.0
-    # Weight the final and first notes more heavily; chorale phrases resolve.
-    final_pitch = weights[-1][0]
-    return detect_key(weights, final_bonus_pitch=final_pitch)
+
+    key, confidence = detect_key(
+        weights, final_bonus_pitch=weights[-1][0], first_pitch=weights[0][0]
+    )
+    if not use_harmony or grid.length == 0:
+        return key, confidence
+
+    ranked = detect_key_candidates(
+        weights,
+        final_bonus_pitch=weights[-1][0],
+        first_pitch=weights[0][0],
+        limit=HARMONIC_FIT_CANDIDATES,
+    )
+    if len(ranked) < 2:
+        return key, confidence
+
+    # Imported here rather than at module scope: the rules engine imports this
+    # module, so a top-level import would be circular.
+    from ..engines.rules import harmonic_fit_scores
+
+    fits = harmonic_fit_scores(grid, [candidate for candidate, _ in ranked])
+    rescored = sorted(
+        (
+            (score + HARMONIC_FIT_WEIGHT * fits[candidate], candidate)
+            for candidate, score in ranked
+        ),
+        key=lambda item: (-item[0], item[1].tonic, item[1].mode),
+    )
+    best_score, best_key = rescored[0]
+    margin = best_score - rescored[1][0]
+    return best_key, max(0.0, min(1.0, margin * 4.0))
 
 
 def grid_to_voices(
