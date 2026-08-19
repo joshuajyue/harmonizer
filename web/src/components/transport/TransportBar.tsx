@@ -18,6 +18,9 @@ export function TransportBar() {
   const loopEnabled = useStudioStore((state) => state.loopEnabled);
   const loopStart = useStudioStore((state) => state.loopStart);
   const loopEnd = useStudioStore((state) => state.loopEnd);
+  const loopRangeCustomized = useStudioStore(
+    (state) => state.loopRangeCustomized,
+  );
   const metronome = useStudioStore((state) => state.metronomeEnabled);
   const setCurrentBeat = useStudioStore((state) => state.setCurrentBeat);
   const setLoop = useStudioStore((state) => state.setLoopEnabled);
@@ -37,10 +40,19 @@ export function TransportBar() {
   const secondsPerBeat = 60 / melody.tempo;
 
   useEffect(() => {
-    if (loopStart !== 0 || Math.abs(loopEnd - duration) > 0.001) {
-      setLoopRange(0, duration);
+    if (
+      !loopRangeCustomized &&
+      (loopStart !== 0 || Math.abs(loopEnd - duration) > 0.001)
+    ) {
+      setLoopRange(0, duration, false);
     }
-  }, [duration, loopEnd, loopStart, setLoopRange]);
+  }, [
+    duration,
+    loopEnd,
+    loopRangeCustomized,
+    loopStart,
+    setLoopRange,
+  ]);
 
   function seek(beat: number) {
     if (isPlaying) stop();

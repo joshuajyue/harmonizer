@@ -22,7 +22,7 @@ export function PianoRollCanvas({
   const slots = useStudioStore((state) => state.slots);
   const viewMode = useStudioStore((state) => state.viewMode);
   const activeSlot = useStudioStore((state) => state.activeSlot);
-  const selectedNote = useStudioStore((state) => state.selectedNote);
+  const selectedNotes = useStudioStore((state) => state.selectedNotes);
   const pxPerBeat = useStudioStore((state) => state.pxPerBeat);
   const currentBeat = useStudioStore((state) => state.currentBeat);
   const loopEnabled = useStudioStore((state) => state.loopEnabled);
@@ -38,7 +38,7 @@ export function PianoRollCanvas({
       resultB: slots.B.result,
       viewMode,
       activeSlot,
-      selectedNote,
+      selectedNotes,
       pxPerBeat,
       duration,
       loopEnabled,
@@ -54,7 +54,7 @@ export function PianoRollCanvas({
       loopStart,
       melody,
       pxPerBeat,
-      selectedNote,
+      selectedNotes,
       slots.A.result,
       slots.B.result,
       viewMode,
@@ -84,7 +84,7 @@ export function PianoRollCanvas({
         ref={canvasRef}
         className="roll-canvas"
         style={{ width, height: ROLL_HEIGHT }}
-        aria-label="Editable multi-voice piano roll. Double-click the melody lane to add a note."
+        aria-label="Editable multi-voice piano roll. Drag empty space to select notes; drag the ruler to set the cycle range."
         role="application"
         tabIndex={0}
         onPointerDown={interaction.onPointerDown}
@@ -100,6 +100,18 @@ export function PianoRollCanvas({
         aria-hidden="true"
         style={{ transform: `translateX(${currentBeat * pxPerBeat}px)` }}
       />
+      {interaction.marquee && (
+        <div
+          className="roll-marquee"
+          aria-hidden="true"
+          style={{
+            left: interaction.marquee.x,
+            top: interaction.marquee.y,
+            width: interaction.marquee.width,
+            height: interaction.marquee.height,
+          }}
+        />
+      )}
       {interaction.hoveredViolation && (
         <div
           className={`violation-tooltip severity-${interaction.hoveredViolation.violation.severity}`}

@@ -16,6 +16,8 @@ export const LANES: LaneName[] = [
 ];
 export const ROLL_HEIGHT =
   RULER_HEIGHT + LANES.length * LANE_HEIGHT + CHORD_HEIGHT;
+export const NOTE_AREA_BOTTOM =
+  RULER_HEIGHT + LANES.length * LANE_HEIGHT;
 
 export interface Rect {
   x: number;
@@ -58,4 +60,25 @@ export function contains(rect: Rect, x: number, y: number) {
     y >= rect.y &&
     y <= rect.y + rect.height
   );
+}
+
+export function intersects(first: Rect, second: Rect) {
+  return (
+    first.x <= second.x + second.width &&
+    first.x + first.width >= second.x &&
+    first.y <= second.y + second.height &&
+    first.y + first.height >= second.y
+  );
+}
+
+export function rectBetween(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+): Rect {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    width: Math.abs(end.x - start.x),
+    height: Math.abs(end.y - start.y),
+  };
 }

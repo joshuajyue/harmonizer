@@ -65,6 +65,7 @@ export const createComparisonSlice: StateCreator<
           error: undefined,
         },
       },
+      selectedNotes: [],
     })),
   setSlotLoading: (slot) =>
     set((state) => ({
@@ -91,6 +92,7 @@ export const createComparisonSlice: StateCreator<
       },
       activeSlot: slot,
       viewMode: state.viewMode === "overlay" ? "overlay" : slot,
+      selectedNotes: [],
     })),
   setSlotError: (slot, message) =>
     set((state) => ({
@@ -107,9 +109,9 @@ export const createComparisonSlice: StateCreator<
     set((state) => ({
       viewMode,
       activeSlot: viewMode === "overlay" ? state.activeSlot : viewMode,
-      selectedNote: undefined,
+      selectedNotes: [],
     })),
-  setActiveSlot: (activeSlot) => set({ activeSlot, selectedNote: undefined }),
+  setActiveSlot: (activeSlot) => set({ activeSlot, selectedNotes: [] }),
   updateVoiceNote: (slot, voiceName, index, patch) =>
     set((state) => {
       const result = state.slots[slot].result;
@@ -160,7 +162,7 @@ export const createComparisonSlice: StateCreator<
             },
           },
         },
-        selectedNote: undefined,
+        selectedNotes: [],
       };
     }),
 });

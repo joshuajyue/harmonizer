@@ -17,4 +17,5 @@ export type {
   ComparisonView,
   InputTab,
   SelectedNote,
+  SelectionOrigin,
 } from "./types";

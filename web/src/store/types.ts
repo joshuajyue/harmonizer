@@ -28,6 +28,11 @@ export interface SelectedNote {
   voice?: VoiceName;
 }
 
+export interface SelectionOrigin {
+  selection: SelectedNote;
+  note: Note;
+}
+
 export interface ProjectSlice {
   projectName: string;
   melody: Melody;
@@ -82,11 +87,12 @@ export interface TransportSlice {
   loopEnabled: boolean;
   loopStart: number;
   loopEnd: number;
+  loopRangeCustomized: boolean;
   metronomeEnabled: boolean;
   setPlaying: (playing: boolean) => void;
   setCurrentBeat: (beat: number) => void;
   setLoopEnabled: (enabled: boolean) => void;
-  setLoopRange: (start: number, end: number) => void;
+  setLoopRange: (start: number, end: number, customized?: boolean) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
 }
 
@@ -96,7 +102,7 @@ export interface EditorSlice {
   voiceVisibility: Record<VoiceName, boolean>;
   voiceMute: Record<VoiceName, boolean>;
   voiceSolo: Record<VoiceName, boolean>;
-  selectedNote?: SelectedNote;
+  selectedNotes: SelectedNote[];
   inputTab: InputTab;
   inputDockOpen: boolean;
   setZoom: (pxPerBeat: number) => void;
@@ -104,7 +110,17 @@ export interface EditorSlice {
   toggleVoiceVisibility: (voice: VoiceName) => void;
   toggleVoiceMute: (voice: VoiceName) => void;
   toggleVoiceSolo: (voice: VoiceName) => void;
-  setSelectedNote: (note?: SelectedNote) => void;
+  setSelectedNotes: (notes: SelectedNote[]) => void;
+  clearSelection: () => void;
+  deleteSelectedNotes: () => void;
+  transformSelectedNotes: (
+    origins: SelectionOrigin[],
+    deltaBeats: number,
+    deltaPitch: number,
+  ) => void;
+  nudgeSelectedNotes: (deltaBeats: number) => void;
+  transposeSelectedNotes: (semitones: number) => void;
+  setSelectedNotesDuration: (duration: number) => void;
   setInputTab: (tab: InputTab) => void;
   setInputDockOpen: (open: boolean) => void;
 }

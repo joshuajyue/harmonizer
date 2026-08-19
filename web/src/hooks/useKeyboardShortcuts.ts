@@ -46,6 +46,22 @@ export function useKeyboardShortcuts() {
       } else if (event.key === "Home") {
         stop();
         state.setCurrentBeat(0);
+      } else if (
+        state.selectedNotes.length > 0 &&
+        (event.key === "ArrowUp" || event.key === "ArrowDown")
+      ) {
+        event.preventDefault();
+        state.transposeSelectedNotes(
+          (event.key === "ArrowUp" ? 1 : -1) * (event.shiftKey ? 12 : 1),
+        );
+      } else if (
+        state.selectedNotes.length > 0 &&
+        (event.key === "ArrowLeft" || event.key === "ArrowRight")
+      ) {
+        event.preventDefault();
+        state.nudgeSelectedNotes(
+          event.key === "ArrowLeft" ? -state.snap : state.snap,
+        );
       } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
         event.preventDefault();
         stop();
@@ -57,22 +73,13 @@ export function useKeyboardShortcuts() {
           ),
         );
       } else if (event.key === "Escape") {
-        state.setSelectedNote(undefined);
+        state.clearSelection();
       } else if (
         (event.key === "Delete" || event.key === "Backspace") &&
-        state.selectedNote
+        state.selectedNotes.length > 0
       ) {
         event.preventDefault();
-        const selected = state.selectedNote;
-        if (selected.source === "melody") {
-          state.deleteMelodyNote(selected.index);
-        } else if (selected.slot && selected.voice) {
-          state.deleteVoiceNote(
-            selected.slot,
-            selected.voice,
-            selected.index,
-          );
-        }
+        state.deleteSelectedNotes();
       }
     };
     window.addEventListener("keydown", onKeyDown);

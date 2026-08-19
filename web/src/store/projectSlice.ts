@@ -56,7 +56,8 @@ export const createProjectSlice: StateCreator<
       melodyRevision: state.melodyRevision + 1,
       currentBeat: 0,
       isPlaying: false,
-      selectedNote: undefined,
+      selectedNotes: [],
+      loopRangeCustomized: false,
     })),
   addMelodyNote: (note) => {
     let index = 0;
@@ -91,7 +92,7 @@ export const createProjectSlice: StateCreator<
         ),
       },
       melodyRevision: state.melodyRevision + 1,
-      selectedNote: undefined,
+      selectedNotes: [],
     })),
   clearMelody: () =>
     set((state) => ({
@@ -99,6 +100,7 @@ export const createProjectSlice: StateCreator<
       melodyRevision: state.melodyRevision + 1,
       currentBeat: 0,
       isPlaying: false,
-      selectedNote: undefined,
+      selectedNotes: [],
+      loopRangeCustomized: false,
     })),
 });

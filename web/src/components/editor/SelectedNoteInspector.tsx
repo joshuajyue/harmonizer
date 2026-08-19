@@ -1,52 +1,110 @@
 import { Trash2, X } from "lucide-react";
 import type { Note } from "../../../../contracts/types";
-import { useStudioStore } from "../../store";
+import {
+  useStudioStore,
+  type SelectedNote,
+} from "../../store";
 import { midiToName } from "../../utils/music";
 
 export function SelectedNoteInspector() {
-  const selected = useStudioStore((state) => state.selectedNote);
+  const selections = useStudioStore((state) => state.selectedNotes);
   const melody = useStudioStore((state) => state.melody);
   const slots = useStudioStore((state) => state.slots);
   const snap = useStudioStore((state) => state.snap);
-  const setSelected = useStudioStore((state) => state.setSelectedNote);
+  const clearSelection = useStudioStore((state) => state.clearSelection);
+  const deleteSelection = useStudioStore(
+    (state) => state.deleteSelectedNotes,
+  );
+  const transposeSelection = useStudioStore(
+    (state) => state.transposeSelectedNotes,
+  );
+  const setSelectionDuration = useStudioStore(
+    (state) => state.setSelectedNotesDuration,
+  );
   const updateMelody = useStudioStore((state) => state.updateMelodyNote);
-  const deleteMelody = useStudioStore((state) => state.deleteMelodyNote);
   const updateVoice = useStudioStore((state) => state.updateVoiceNote);
-  const deleteVoice = useStudioStore((state) => state.deleteVoiceNote);
 
-  if (!selected) {
+  const selected = selections.flatMap((selection) => {
+    const note = resolveNote(selection, melody.notes, slots);
+    return note ? [{ selection, note }] : [];
+  });
+
+  if (selected.length === 0) {
     return (
       <div className="note-inspector-empty">
-        Select a note to edit exact pitch, position, and duration
+        Drag empty space to select · ruler drag sets cycle range
       </div>
     );
   }
 
-  let note: Note | undefined;
-  let label = "Melody";
-  if (selected.source === "melody") {
-    note = melody.notes[selected.index];
-  } else if (selected.slot && selected.voice) {
-    note = slots[selected.slot].result?.voices
-      .find((voice) => voice.name === selected.voice)
-      ?.notes.at(selected.index);
-    label = `${selected.slot} · ${selected.voice}`;
+  if (selected.length > 1) {
+    const starts = selected.map(({ note }) => note.start);
+    const ends = selected.map(({ note }) => note.start + note.duration);
+    const durations = selected.map(({ note }) => note.duration);
+    const sharedDuration = durations.every(
+      (duration) => Math.abs(duration - durations[0]) < 0.0001,
+    )
+      ? durations[0]
+      : undefined;
+    const lanes = new Set(
+      selected.map(({ selection }) =>
+        selection.source === "melody" ? "melody" : selection.voice,
+      ),
+    );
+
+    return (
+      <div className="note-inspector multi-note-inspector">
+        <div className="note-inspector-name">
+          <span>SELECTION</span>
+          <strong>{selected.length} notes</strong>
+        </div>
+        <span className="selection-summary">
+          {lanes.size} tracks · {Math.min(...starts).toFixed(2)}–
+          {Math.max(...ends).toFixed(2)} beats
+        </span>
+        <div className="transpose-cluster" aria-label="Transpose selection">
+          <span>Transpose</span>
+          {[-12, -1, 1, 12].map((semitones) => (
+            <button
+              type="button"
+              key={semitones}
+              onClick={() => transposeSelection(semitones)}
+              aria-label={`Transpose ${semitones} semitones`}
+            >
+              {semitones > 0 ? `+${semitones}` : semitones}
+            </button>
+          ))}
+        </div>
+        {sharedDuration !== undefined ? (
+          <NumberField
+            label="Length"
+            value={sharedDuration}
+            min={snap}
+            step={snap}
+            onChange={(duration) => setSelectionDuration(duration)}
+          />
+        ) : (
+          <span className="mixed-value">Mixed lengths</span>
+        )}
+        <SelectionButtons
+          count={selected.length}
+          onDelete={deleteSelection}
+          onClear={clearSelection}
+        />
+      </div>
+    );
   }
-  if (!note) return null;
 
+  const { selection, note } = selected[0];
+  const label =
+    selection.source === "melody"
+      ? "Melody"
+      : `${selection.slot} · ${selection.voice}`;
   const update = (patch: Partial<Note>) => {
-    if (selected.source === "melody") {
-      updateMelody(selected.index, patch);
-    } else if (selected.slot && selected.voice) {
-      updateVoice(selected.slot, selected.voice, selected.index, patch);
-    }
-  };
-
-  const remove = () => {
-    if (selected.source === "melody") {
-      deleteMelody(selected.index);
-    } else if (selected.slot && selected.voice) {
-      deleteVoice(selected.slot, selected.voice, selected.index);
+    if (selection.source === "melody") {
+      updateMelody(selection.index, patch);
+    } else if (selection.slot && selection.voice) {
+      updateVoice(selection.slot, selection.voice, selection.index, patch);
     }
   };
 
@@ -78,24 +136,56 @@ export function SelectedNoteInspector() {
         step={snap}
         onChange={(duration) => update({ duration: Math.max(snap, duration) })}
       />
+      <SelectionButtons
+        count={1}
+        onDelete={deleteSelection}
+        onClear={clearSelection}
+      />
+    </div>
+  );
+}
+
+function resolveNote(
+  selection: SelectedNote,
+  melodyNotes: Note[],
+  slots: ReturnType<typeof useStudioStore.getState>["slots"],
+) {
+  if (selection.source === "melody") return melodyNotes[selection.index];
+  if (!selection.slot || !selection.voice) return undefined;
+  return slots[selection.slot].result?.voices
+    .find((voice) => voice.name === selection.voice)
+    ?.notes.at(selection.index);
+}
+
+function SelectionButtons({
+  count,
+  onDelete,
+  onClear,
+}: {
+  count: number;
+  onDelete: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <>
       <button
         type="button"
         className="icon-button danger-hover"
-        onClick={remove}
-        aria-label="Delete selected note"
-        title="Delete note"
+        onClick={onDelete}
+        aria-label={`Delete ${count === 1 ? "selected note" : `${count} selected notes`}`}
+        title="Delete selection"
       >
         <Trash2 size={15} />
       </button>
       <button
         type="button"
         className="icon-button"
-        onClick={() => setSelected(undefined)}
+        onClick={onClear}
         aria-label="Clear selection"
       >
         <X size={15} />
       </button>
-    </div>
+    </>
   );
 }
 

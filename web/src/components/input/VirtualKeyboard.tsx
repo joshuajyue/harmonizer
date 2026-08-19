@@ -47,7 +47,7 @@ export function VirtualKeyboard() {
   const snap = useStudioStore((state) => state.snap);
   const addNote = useStudioStore((state) => state.addMelodyNote);
   const setCurrentBeat = useStudioStore((state) => state.setCurrentBeat);
-  const setSelectedNote = useStudioStore((state) => state.setSelectedNote);
+  const setSelectedNotes = useStudioStore((state) => state.setSelectedNotes);
 
   function capture(pitch: number, velocity = 94) {
     previewPitch(pitch, velocity);
@@ -58,7 +58,7 @@ export function VirtualKeyboard() {
       duration,
       velocity,
     });
-    setSelectedNote({ source: "melody", index });
+    setSelectedNotes([{ source: "melody", index }]);
     if (!isPlaying) setCurrentBeat(currentBeat + duration);
   }
 

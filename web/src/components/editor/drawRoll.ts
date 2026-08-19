@@ -4,6 +4,7 @@ import type {
   VoiceName,
 } from "../../../../contracts/types";
 import { midiToName, VOICE_COLORS } from "../../utils/music";
+import { selectionKey } from "../../store/selection";
 import { drawChords, drawViolations } from "./drawAnnotations";
 import { drawGrid } from "./drawGrid";
 import {
@@ -31,14 +32,13 @@ function roundedRect(
   context.roundRect(x, y, width, height, radius);
 }
 
-function isSelected(hit: NoteHit, model: DrawModel) {
-  const selected = model.selectedNote;
-  return (
-    selected?.source === hit.source &&
-    selected.index === hit.index &&
-    selected.slot === hit.slot &&
-    selected.voice === hit.voice
-  );
+function hitKey(hit: NoteHit) {
+  return selectionKey({
+    source: hit.source,
+    index: hit.index,
+    slot: hit.slot,
+    voice: hit.voice,
+  });
 }
 
 function drawNote(
@@ -47,6 +47,7 @@ function drawNote(
   color: string,
   model: DrawModel,
   style: "solid" | "outline" | "melody",
+  selectedKeys: Set<string>,
 ) {
   const { rect } = hit;
   roundedRect(context, rect.x, rect.y, rect.width, rect.height);
@@ -66,7 +67,20 @@ function drawNote(
     context.lineWidth = 1;
     context.stroke();
   }
-  if (isSelected(hit, model)) {
+  const selected = selectedKeys.has(hitKey(hit));
+  if (selected) {
+    if (model.selectedNotes.length > 1) {
+      roundedRect(
+        context,
+        rect.x - 1,
+        rect.y - 1,
+        rect.width + 2,
+        rect.height + 2,
+        5,
+      );
+      context.fillStyle = "rgba(97, 184, 255, .18)";
+      context.fill();
+    }
     roundedRect(
       context,
       rect.x - 2,
@@ -75,7 +89,8 @@ function drawNote(
       rect.height + 4,
       5,
     );
-    context.strokeStyle = "#c7ff5e";
+    context.strokeStyle =
+      model.selectedNotes.length > 1 ? "#61b8ff" : "#c7ff5e";
     context.lineWidth = 2;
     context.stroke();
   }
@@ -88,7 +103,7 @@ function drawNote(
       rect.y + rect.height - 3,
     );
   }
-  if (hit.editable && isSelected(hit, model)) {
+  if (hit.editable && selected && model.selectedNotes.length === 1) {
     context.fillStyle = "#c7ff5e";
     context.fillRect(rect.x + rect.width - 3, rect.y + 2, 2, rect.height - 4);
   }
@@ -101,6 +116,7 @@ function collectVoiceNotes(
   hits: NoteHit[],
   context: CanvasRenderingContext2D,
   style: "solid" | "outline",
+  selectedKeys: Set<string>,
 ) {
   if (!result) return;
   for (const voice of result.voices) {
@@ -117,7 +133,14 @@ function collectVoiceNotes(
         editable: slot === model.activeSlot,
       };
       hits.push(hit);
-      drawNote(context, hit, VOICE_COLORS[voice.name], model, style);
+      drawNote(
+        context,
+        hit,
+        VOICE_COLORS[voice.name],
+        model,
+        style,
+        selectedKeys,
+      );
     });
   }
 }
@@ -143,6 +166,7 @@ export function drawRoll(
 ): DrawResult {
   const noteHits: NoteHit[] = [];
   const violationHits: ViolationHit[] = [];
+  const selectedKeys = new Set(model.selectedNotes.map(selectionKey));
   context.clearRect(0, 0, model.duration * model.pxPerBeat, ROLL_HEIGHT);
   drawGrid(context, model);
   if (model.melody.notes.length === 0) {
@@ -164,7 +188,7 @@ export function drawRoll(
       editable: true,
     };
     noteHits.push(hit);
-    drawNote(context, hit, "#ffffff", model, "melody");
+    drawNote(context, hit, "#ffffff", model, "melody", selectedKeys);
   });
 
   if (model.viewMode === "overlay") {
@@ -175,6 +199,7 @@ export function drawRoll(
       noteHits,
       context,
       model.activeSlot === "A" ? "solid" : "outline",
+      selectedKeys,
     );
     collectVoiceNotes(
       model.resultB,
@@ -183,6 +208,7 @@ export function drawRoll(
       noteHits,
       context,
       model.activeSlot === "B" ? "solid" : "outline",
+      selectedKeys,
     );
     drawViolations(context, model.resultA, "A", model, violationHits);
     drawViolations(context, model.resultB, "B", model, violationHits);
@@ -196,6 +222,7 @@ export function drawRoll(
       noteHits,
       context,
       "solid",
+      selectedKeys,
     );
     drawViolations(context, result, slot, model, violationHits);
   }
@@ -217,9 +244,11 @@ export function drawRoll(
     const x = model.loopStart * model.pxPerBeat;
     const width = (model.loopEnd - model.loopStart) * model.pxPerBeat;
     context.fillStyle = "rgba(199,255,94,.035)";
-    context.fillRect(x, RULER_HEIGHT, width, ROLL_HEIGHT - RULER_HEIGHT);
+    context.fillRect(x, 0, width, ROLL_HEIGHT);
+    context.fillStyle = "rgba(199,255,94,.12)";
+    context.fillRect(x, 0, width, RULER_HEIGHT);
     context.strokeStyle = "rgba(199,255,94,.46)";
-    context.strokeRect(x + 0.5, RULER_HEIGHT, width - 1, ROLL_HEIGHT - RULER_HEIGHT);
+    context.strokeRect(x + 0.5, 0.5, width - 1, ROLL_HEIGHT - 1);
   }
 
   return { noteHits, violationHits };

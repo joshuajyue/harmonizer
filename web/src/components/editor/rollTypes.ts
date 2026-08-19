@@ -34,7 +34,7 @@ export interface DrawModel {
   resultB?: HarmonizeResponse;
   viewMode: ComparisonView;
   activeSlot: ComparisonSlotId;
-  selectedNote?: SelectedNote;
+  selectedNotes: SelectedNote[];
   pxPerBeat: number;
   duration: number;
   loopEnabled: boolean;

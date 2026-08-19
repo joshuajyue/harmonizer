@@ -206,6 +206,56 @@
   font: 500 11px "DM Mono", monospace;
 }
 
+.multi-note-inspector {
+  gap: 9px;
+}
+
+.selection-summary,
+.mixed-value {
+  color: var(--muted);
+  font: 9px "DM Mono", monospace;
+  white-space: nowrap;
+}
+
+.mixed-value {
+  padding: 0 8px;
+  color: var(--dim);
+}
+
+.transpose-cluster {
+  display: flex;
+  height: 27px;
+  align-items: center;
+  gap: 2px;
+  padding: 0 3px 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--dim);
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.transpose-cluster > span {
+  margin-right: 3px;
+}
+
+.transpose-cluster button {
+  height: 20px;
+  min-width: 25px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--muted);
+  background: var(--surface-3);
+  font: 8px "DM Mono", monospace;
+  cursor: pointer;
+}
+
+.transpose-cluster button:hover {
+  color: #10150a;
+  background: var(--accent);
+}
+
 .compact-number {
   display: flex;
   height: 27px;
@@ -412,6 +462,19 @@
   background: var(--accent);
   clip-path: polygon(0 0, 100% 0, 50% 100%);
   content: "";
+}
+
+.roll-marquee {
+  position: absolute;
+  z-index: 4;
+  border: 1px solid rgb(97 184 255 / 88%);
+  border-radius: 2px;
+  background:
+    linear-gradient(135deg, rgb(97 184 255 / 12%), rgb(199 255 94 / 7%));
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 6%),
+    0 0 12px rgb(97 184 255 / 10%);
+  pointer-events: none;
 }
 
 .violation-tooltip {

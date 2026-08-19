@@ -31,7 +31,7 @@ export function EditorToolbar() {
           <MousePointer2 size={15} />
           <div>
             <strong>Voicing editor</strong>
-            <span>drag · resize edge · right-click delete</span>
+            <span>marquee select · ruler cycle · arrows nudge</span>
           </div>
         </div>
         {viewMode === "overlay" && (

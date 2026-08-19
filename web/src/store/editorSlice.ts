@@ -1,5 +1,14 @@
 import type { StateCreator } from "zustand";
 import { clamp } from "../utils/music";
+import {
+  buildSelectionTransform,
+  collectSelectionOrigins,
+  dedupeSelection,
+} from "./selection";
+import {
+  buildSelectionDelete,
+  buildSelectionDuration,
+} from "./selectionEdits";
 import type { EditorSlice, StudioStore } from "./types";
 
 const allEnabled = {
@@ -27,6 +36,7 @@ export const createEditorSlice: StateCreator<
   voiceVisibility: { ...allEnabled },
   voiceMute: { ...allDisabled },
   voiceSolo: { ...allDisabled },
+  selectedNotes: [],
   inputTab: "piano",
   inputDockOpen:
     typeof window === "undefined" ? true : window.innerHeight >= 800,
@@ -54,7 +64,37 @@ export const createEditorSlice: StateCreator<
         [voice]: !state.voiceSolo[voice],
       },
     })),
-  setSelectedNote: (selectedNote) => set({ selectedNote }),
+  setSelectedNotes: (selectedNotes) =>
+    set({ selectedNotes: dedupeSelection(selectedNotes) }),
+  clearSelection: () => set({ selectedNotes: [] }),
+  deleteSelectedNotes: () =>
+    set((state) => buildSelectionDelete(state)),
+  transformSelectedNotes: (origins, deltaBeats, deltaPitch) =>
+    set((state) =>
+      buildSelectionTransform(state, origins, deltaBeats, deltaPitch),
+    ),
+  nudgeSelectedNotes: (deltaBeats) =>
+    set((state) =>
+      buildSelectionTransform(
+        state,
+        collectSelectionOrigins(state),
+        deltaBeats,
+        0,
+      ),
+    ),
+  transposeSelectedNotes: (semitones) =>
+    set((state) =>
+      buildSelectionTransform(
+        state,
+        collectSelectionOrigins(state),
+        0,
+        semitones,
+      ),
+    ),
+  setSelectedNotesDuration: (duration) =>
+    set((state) =>
+      buildSelectionDuration(state, Math.max(state.snap, duration)),
+    ),
   setInputTab: (inputTab) => set({ inputTab }),
   setInputDockOpen: (inputDockOpen) => set({ inputDockOpen }),
 });
