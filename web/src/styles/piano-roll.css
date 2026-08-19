@@ -1,0 +1,458 @@
+.piano-roll-panel {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 20%);
+}
+
+.editor-toolbar {
+  position: relative;
+  z-index: 8;
+  border-bottom: 1px solid var(--line);
+  background: #151922;
+}
+
+.editor-toolbar-top {
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 9px 6px 12px;
+}
+
+.editor-title {
+  display: flex;
+  min-width: 185px;
+  align-items: center;
+  gap: 9px;
+}
+
+.editor-title > svg {
+  color: var(--accent);
+}
+
+.editor-title div {
+  display: grid;
+  gap: 1px;
+}
+
+.editor-title strong {
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+
+.editor-title span {
+  color: var(--dim);
+  font: 9px "DM Mono", monospace;
+}
+
+.edit-layer-toggle,
+.roll-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.edit-layer-toggle {
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #10141a;
+}
+
+.edit-layer-toggle span {
+  padding: 0 5px;
+  color: var(--dim);
+  font: 9px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.edit-layer-toggle button {
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--muted);
+  background: transparent;
+  font: 600 10px "DM Mono", monospace;
+  cursor: pointer;
+}
+
+.edit-layer-toggle button.active {
+  color: #11150a;
+  background: var(--accent);
+}
+
+.roll-tool-group {
+  margin-left: auto;
+}
+
+.snap-control {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 5px 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.snap-control select {
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  font: 10px "DM Mono", monospace;
+}
+
+.zoom-readout {
+  min-width: 38px;
+  color: var(--dim);
+  font: 9px "DM Mono", monospace;
+  text-align: center;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: #11151c;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  border-color: #444d5e;
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.danger-hover:hover {
+  border-color: rgb(255 94 114 / 50%);
+  color: var(--danger);
+}
+
+.reharmonize-button {
+  display: inline-flex;
+  height: 29px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid rgb(199 255 94 / 35%);
+  border-radius: 6px;
+  color: var(--accent);
+  background: var(--accent-wash);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reharmonize-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.note-inspector,
+.note-inspector-empty {
+  min-height: 37px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px 5px 12px;
+  border-top: 1px solid var(--line-soft);
+  background: #12161d;
+}
+
+.note-inspector-empty {
+  color: var(--dim);
+  font: 9px "DM Mono", monospace;
+}
+
+.note-inspector-name {
+  display: grid;
+  min-width: 88px;
+  gap: 1px;
+}
+
+.note-inspector-name span {
+  color: var(--dim);
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.note-inspector-name strong {
+  color: var(--accent);
+  font: 500 11px "DM Mono", monospace;
+}
+
+.compact-number {
+  display: flex;
+  height: 27px;
+  align-items: center;
+  gap: 5px;
+  padding-left: 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--dim);
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.compact-number input {
+  width: 52px;
+  height: 25px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--text);
+  background: #0f1319;
+  font: 10px "DM Mono", monospace;
+  text-align: center;
+}
+
+.roll-scroller {
+  max-height: min(58vh, 542px);
+  overflow: auto;
+  scrollbar-color: #394252 #10141a;
+  scrollbar-width: thin;
+}
+
+.roll-stage {
+  position: relative;
+  min-height: 542px;
+}
+
+.lane-sidebar {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  overflow: hidden;
+  border-right: 1px solid #343c4a;
+  background: #151a22;
+  box-shadow: 8px 0 18px rgb(0 0 0 / 20%);
+}
+
+.lane-sidebar-ruler {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--dim);
+  background: #11151c;
+  font: 8px "DM Mono", monospace;
+  letter-spacing: 0.12em;
+}
+
+.lane-control {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 9px;
+  border-bottom: 1px solid #272e3a;
+  transition: opacity 150ms ease;
+}
+
+.lane-control.lane-hidden {
+  opacity: 0.45;
+}
+
+.lane-color {
+  width: 4px;
+  height: 32px;
+  border-radius: 4px;
+}
+
+.melody-dot {
+  background: var(--melody);
+  box-shadow: 0 0 10px rgb(244 247 255 / 25%);
+}
+
+.lane-name,
+.melody-control > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.lane-control strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.lane-control small {
+  overflow: hidden;
+  color: var(--dim);
+  font: 8px "DM Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-badge {
+  padding: 3px 5px;
+  border: 1px solid #515968;
+  border-radius: 4px;
+  color: #cbd0d9;
+  font: 600 8px "DM Mono", monospace;
+}
+
+.lane-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 20px);
+  gap: 2px;
+}
+
+.lane-icon-button,
+.lane-letter-button {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--dim);
+  background: transparent;
+  font: 600 8px "DM Mono", monospace;
+  cursor: pointer;
+}
+
+.lane-icon-button:hover,
+.lane-letter-button:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+.lane-letter-button.active.mute {
+  border-color: rgb(255 94 114 / 32%);
+  color: var(--danger);
+  background: rgb(255 94 114 / 10%);
+}
+
+.lane-letter-button.active.solo {
+  border-color: rgb(199 255 94 / 32%);
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.chord-sidebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  background: #0d1117;
+}
+
+.chord-sidebar span {
+  color: var(--accent);
+  font: 500 8px "DM Mono", monospace;
+}
+
+.chord-sidebar strong {
+  font-size: 10px;
+}
+
+.roll-canvas-position,
+.roll-canvas-wrap {
+  position: absolute;
+  top: 0;
+}
+
+.roll-canvas-wrap {
+  left: 0;
+  overflow: hidden;
+}
+
+.roll-canvas {
+  display: block;
+  touch-action: none;
+  user-select: none;
+}
+
+.roll-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: 1px;
+  pointer-events: none;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgb(199 255 94 / 38%);
+  will-change: transform;
+}
+
+.roll-playhead::before {
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 11px;
+  height: 7px;
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  content: "";
+}
+
+.violation-tooltip {
+  position: absolute;
+  z-index: 10;
+  display: grid;
+  width: 248px;
+  gap: 5px;
+  padding: 10px 11px;
+  border: 1px solid #3b4352;
+  border-left: 3px solid var(--warning);
+  border-radius: 7px;
+  background: rgb(15 19 26 / 96%);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 45%);
+  pointer-events: none;
+}
+
+.violation-tooltip.severity-error {
+  border-left-color: var(--danger);
+}
+
+.violation-tooltip.severity-info {
+  border-left-color: var(--info);
+}
+
+.violation-tooltip strong {
+  color: var(--text);
+  font: 500 10px "DM Mono", monospace;
+  text-transform: capitalize;
+}
+
+.violation-tooltip span {
+  color: #c1c7d1;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.violation-tooltip small {
+  color: var(--dim);
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+@media (max-height: 800px) {
+  .roll-scroller {
+    max-height: 410px;
+  }
+}
