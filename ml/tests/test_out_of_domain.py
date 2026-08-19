@@ -18,13 +18,10 @@ from ml.data.melody import voices_to_grid
 from ml.eval.metrics import beat_chords, collect_activity, collect_defects
 from ml.theory.pitch import Key
 
-import ml.engines.baselines  # noqa: F401
-import ml.engines.neural  # noqa: F401
-import ml.engines.rules  # noqa: F401
-from ml.engines.base import all_engines
+from ml.tests._engines import chorale_engines, engine_ids
 
-ENGINES = [e for e in all_engines() if e.is_available() and e.id != "fixed_thirds"]
-ENGINE_IDS = [e.id for e in ENGINES]
+ENGINES = chorale_engines(exclude={"fixed_thirds"})
+ENGINE_IDS = engine_ids(ENGINES)
 
 
 def melody(pitches, durations=None) -> Melody:

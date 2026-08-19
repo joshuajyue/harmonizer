@@ -16,8 +16,10 @@ import ml.engines.baselines  # noqa: F401  (registers fixed_thirds)
 import ml.engines.rules  # noqa: F401  (registers rules)
 import ml.engines.neural  # noqa: F401  (registers neural, if a checkpoint exists)
 
-ENGINES = [engine for engine in all_engines() if engine.is_available()]
-ENGINE_IDS = [engine.id for engine in ENGINES]
+from ml.tests._engines import OWNED_ENGINE_IDS, chorale_engines, engine_ids
+
+ENGINES = chorale_engines()
+ENGINE_IDS = engine_ids(ENGINES)
 
 
 #: A longer, harmonically determined tune. Transposition behaviour is not
@@ -202,6 +204,34 @@ def _fingerprint(harmonization):
         [(note.pitch, note.start, note.duration) for note in voice.notes]
         for voice in harmonization.voices
     ]
+
+
+def test_owned_set_is_current():
+    """A new engine in `ml/engines/` must be added to `OWNED_ENGINE_IDS`.
+
+    Without this, adding an engine would quietly exempt it from every
+    conformance, alignment and robustness test in the suite — the failure mode
+    that matters, because it is invisible. Ownership is attributed by defining
+    module, so it stays correct however the registry is populated.
+    """
+    import pkgutil
+
+    import ml.engines
+
+    for info in pkgutil.iter_modules(ml.engines.__path__):
+        if not info.name.startswith("_"):
+            __import__(f"ml.engines.{info.name}")
+
+    ours = {
+        engine.id
+        for engine in all_engines()
+        if type(engine).__module__.startswith("ml.engines.")
+    }
+    assert ours == set(OWNED_ENGINE_IDS), (
+        f"OWNED_ENGINE_IDS is out of date. Registered by ml/engines/ but unlisted: "
+        f"{sorted(ours - set(OWNED_ENGINE_IDS))}; listed but not registered: "
+        f"{sorted(set(OWNED_ENGINE_IDS) - ours)}."
+    )
 
 
 def test_registry_ids_are_unique():

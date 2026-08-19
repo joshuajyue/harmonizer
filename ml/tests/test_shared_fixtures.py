@@ -335,12 +335,9 @@ class TestEnginesOnTheSharedMelody:
 
     @staticmethod
     def engines():
-        import ml.engines.baselines  # noqa: F401
-        import ml.engines.neural  # noqa: F401
-        import ml.engines.rules  # noqa: F401
-        from ml.engines.base import all_engines
+        from ml.tests._engines import chorale_engines
 
-        return [e for e in all_engines() if e.is_available()]
+        return chorale_engines()
 
     def test_every_engine_harmonizes_it(self, request_body):
         from contracts.schema import HarmonizeResponse

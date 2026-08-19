@@ -19,13 +19,10 @@ import pytest
 from contracts.schema import KeySignature, Melody, Note, TimeSignature
 from ml.data.melody import melody_to_grid, voices_to_grid
 
-import ml.engines.baselines  # noqa: F401
-import ml.engines.neural  # noqa: F401
-import ml.engines.rules  # noqa: F401
-from ml.engines.base import all_engines
+from ml.tests._engines import chorale_engines, engine_ids
 
-ENGINES = [e for e in all_engines() if e.is_available()]
-ENGINE_IDS = [e.id for e in ENGINES]
+ENGINES = chorale_engines()
+ENGINE_IDS = engine_ids(ENGINES)
 
 TUNE = (72, 74, 76, 77, 76, 74, 72, 72)
 

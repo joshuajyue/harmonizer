@@ -23,15 +23,11 @@ import pytest
 
 from contracts.schema import Chord, HarmonizeResponse, KeySignature, Melody, Note, TimeSignature, Voice
 from ml.data.melody import chorale_to_melody
-from ml.engines.base import all_engines
 from ml.theory.chords import QUALITY_TEMPLATES
+from ml.tests._engines import chorale_engines, engine_ids
 
-import ml.engines.baselines  # noqa: F401
-import ml.engines.neural  # noqa: F401
-import ml.engines.rules  # noqa: F401
-
-ENGINES = [engine for engine in all_engines() if engine.is_available()]
-ENGINE_IDS = [engine.id for engine in ENGINES]
+ENGINES = chorale_engines()
+ENGINE_IDS = engine_ids(ENGINES)
 
 
 def documented_qualities() -> set[str]:
