@@ -327,6 +327,100 @@ hand-written transition table, which is exactly the part a learned model
 replaces. That is the clearest single argument in this report for the learned
 engine existing at all.
 
+## 0d. Three places the measurements contradict the brief
+
+Recorded because they are live numbers that could mislead later work, not to
+score points. Each is a case where running the code disagreed with a
+confidently-stated instruction, including my own.
+
+**The "aim for roughly Bach's ~4 defects" target is now wrong, and by a factor of
+ten.** That figure came from the old single-bucket score. Re-tiering showed **89%
+of it was voice crossing** (3.33 of 3.73) — the least audible thing in it, and
+something the same brief argued a listener never notices. Bach's HARD rate is
+**0.40**, not 3.73. So the guidance "a model landing near ~4 hard errors while
+matching Bach's distributions is a better result than one at 0.0" is false as
+stated: an engine at 4.0 hard is *ten times* Bach, not equal to him. The target
+zone for HARD is roughly 0.4, and `neural_vl` at 0.12 is already inside it.
+
+**"Do not optimise toward zero defects" is right about the objective and wrong as
+a preference for nonzero.** The two are easy to conflate and the sweep separates
+them: relaxing the constraint entirely does not buy freedom, it loses on every
+axis at once.
+
+| rule weight | hard defects | chord-bigram JS | chords/piece |
+|---|---|---|---|
+| 0.0 — unconstrained | 8.56 | 0.075 | 12.5 |
+| 0.15 — lightly constrained | **0.42** | **0.071** | **12.8** |
+
+Constraining the model made it cleaner *and* more Bach-like *and* more varied.
+The correlation between low defects and stiffness is real but not causal: it is
+confounded by *how* the low rate is obtained. `rules` gets there by refusing to
+leave I and V; `neural_vl` gets there by voicing a wide vocabulary carefully. So
+the rule is "never make zero the objective", not "prefer nonzero".
+
+**My own structural numbers were overclaimed.** At n = 61 the structural tier
+cannot distinguish any real engine from Bach:
+
+| | pieces with ≥1 structural defect | 95% CI |
+|---|---|---|
+| `bach_oracle` | 4.9% | [1.7%, 13.5%] |
+| `rules` | 11.5% | [5.7%, 21.8%] |
+| `neural_vl` | 13.1% | [6.8%, 23.8%] |
+| `neural` | 14.8% | [8.0%, 25.7%] |
+| `neural_refine` | 19.7% | [11.6%, 31.3%] |
+| `fixed_thirds` | **39.3%** | [28.1%, 51.9%] |
+
+Every interval overlaps Bach's except `fixed_thirds`. The tier does exactly the
+job it was added for — catching gross failure, and it catches a spectacular one —
+but it has no resolving power for fine comparison at this sample size, and the
+differences among the four real engines in section 2 should not be read as
+rankings. Structural defects are per-piece events, so the sample size is 61, not
+the ~3000 chord changes the other tiers get.
+
+## 0e. The deepest problem with this report: the objective is "be like Bach"
+
+Every headline metric here measures distance from Bach. That is the correct
+objective for *this benchmark* — it is a Bach chorale corpus, and without a
+fixed target the numbers would mean nothing. It is a questionable objective for
+*the product*, and the gap deserves stating plainly rather than being left
+implicit.
+
+`neural` matches Bach's chord-transition distribution to within the noise floor
+(0.060 against 0.056) and his cadence distribution exactly (0.004 against 0.004).
+Read as a benchmark result, that is as good as this corpus allows. Read as a
+product claim, it says the engine is an excellent **Bach pastiche generator** —
+and pastiche is not the same as interesting. Nothing in this harness can tell the
+difference, because every metric is a distance to a fixed style, and a perfect
+score means *maximum conformity*.
+
+Two concrete consequences, both measured:
+
+* **Every test melody is a Bach soprano.** The harness therefore cannot see an
+  engine that only works on Bach. Probing five deliberately non-chorale tunes
+  (pentatonic, blues-inflected, syncopated, Dorian, static) both engines stay
+  structurally valid and `neural_vl` keeps its vocabulary advantage — 7-10
+  distinct chords against `rules`' 3-9. That is reassuring and it was untested
+  until now (`ml/tests/test_out_of_domain.py`).
+* **They do degrade on wide-range melodies.** A tune with octave leaps drives
+  hard defects to 5.9 (`rules`), 12.5 (`neural_vl`) and 32.0 (unpolished
+  `neural`), against ~0.1 on chorale sopranos, and `rules` goes nearly static
+  because a leaping melody makes every chord fit equally badly. The soprano is
+  the user's and cannot be re-voiced, so some of this is irreducible — but it is
+  a real limitation that a Bach-only test set concealed.
+
+That second bullet also produces the strongest argument for the voice-leading
+veto, and it is one the on-distribution numbers do not make: on chorale sopranos
+the polish looks like a tidy-up (10.4 → 0.1), but off-distribution it is the
+difference between 32.0 and 12.5. The constraint is not cosmetic; it is what
+stops the model falling apart outside its training distribution, which is exactly
+where a user's melody lives.
+
+What would actually measure "interesting" is not a distance-to-Bach at all — it
+is listener preference, or at minimum a metric with a *non-degenerate optimum*,
+where both too little and too much variety score badly. Section 7 lists that as
+the highest-value missing piece. Until it exists, every number in this report
+should be read as "how Bach-like", never as "how good".
+
 ## 1. The v1 post-mortem, verified — and one correction
 
 v1 no longer exists on this branch; it survives only in git history on `main`.
@@ -636,9 +730,16 @@ went into representation, evaluation and decoding instead.
   0.35-0.80, against 0.50-0.85 for the rule draft it is seeded from and 1.00 for
   `neural` and `neural_vl`. Gibbs amplifies small differences in the draft rather
   than damping them. Another reason it is not the engine to ship.
-* **The style metrics are distributional.** An engine could match every histogram
-  and still be incoherent piece by piece. Nothing here is a substitute for
-  listening, and nothing here measures phrase-level structure.
+* **The style metrics are distributional, and they are all distances to Bach.**
+  An engine could match every histogram and still be incoherent piece by piece,
+  and a perfect score means maximum conformity rather than quality. See section
+  0e.
+* **Every held-out melody is a Bach soprano**, so the harness cannot detect an
+  engine that only works on Bach. Off-distribution probes are in
+  `ml/tests/test_out_of_domain.py`, not in the headline numbers.
+* **Wide-range melodies degrade every engine** — hard defects of 5.9 to 32.0
+  against ~0.1 on chorale sopranos. Partly irreducible, since the soprano is the
+  user's, but untested until section 0e.
 
 ## 7. What I would try next, in order
 
@@ -675,9 +776,14 @@ went into representation, evaluation and decoding instead.
    objective function, and this is the same move that took the rule engine's
    guessed priors (V7 at 19% of all chords, against Bach's 2%) and replaced them
    with measured ones.
-8. **Listening tests.** Every number here is a proxy. They are good proxies, and
-   they are calibrated against Bach, but the project is about how something
-   sounds and nothing above hears anything.
+8. **A metric with a non-degenerate optimum, and listening tests.** This is the
+   highest-value missing piece, not the last one. Every metric here is a distance
+   to Bach, so a perfect score means maximum conformity — the harness structurally
+   cannot distinguish "interesting" from "pastiche", and would rank a perfect
+   Bach copyist first. What is needed is a measure where both too little and too
+   much deviation score badly, plus actual listeners. Until then every number in
+   this report means "how Bach-like", never "how good", and it should not be used
+   to choose between two engines that are both already close to Bach.
 
 ## 8. Reproducing
 
