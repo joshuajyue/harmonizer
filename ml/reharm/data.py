@@ -44,6 +44,13 @@ LICENCES = {
 
 
 def _download(url: str, path: Path) -> Path:
+    # urllib and sqlite3 are imported inside the functions that use them, not at
+    # module scope. The backend imports every module in this package at startup
+    # to discover engines, and the engine path never touches a corpus — so 60 ms
+    # of import cost for a downloader that will not run is 60 ms of slower boot
+    # for every process that only wants to harmonize a melody.
+    import urllib.request
+
     if path.exists() and path.stat().st_size > 0:
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -346,6 +353,8 @@ def load_solos(
     meter: tuple[int, int] | None = (4, 4),
 ) -> list[Solo]:
     """Load solos with their beat-aligned chords and melody notes."""
+    import sqlite3
+
     if download:
         _download(WJAZZD_URL, path)
     db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
