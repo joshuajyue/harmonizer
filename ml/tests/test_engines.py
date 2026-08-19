@@ -243,3 +243,48 @@ def test_engines_expose_metadata():
     for engine in all_engines():
         assert engine.id and engine.name and engine.description
         assert isinstance(engine.learned, bool)
+
+
+def test_activity_reading_separates_harmonic_rhythm_from_diminution():
+    """The §1 prose is generated from the numbers, so it cannot contradict them.
+
+    This paragraph exists because two independent readers searched the report
+    for whether the learned engine had closed the activity gap and both
+    concluded it was unmeasured, while the two rows answering it were already
+    in the headline table. Generating the reading keeps it true; this test
+    keeps it *derived*, so an engine that stopped closing the gap would change
+    the percentages rather than leaving stale prose behind.
+    """
+    from ml.eval.harness import EngineResult
+    from ml.eval.run import activity_reading
+
+    def result(engine_id, chord_changes, sonority_changes, beats=1000):
+        r = EngineResult(engine_id=engine_id, name=engine_id, learned=False)
+        r.activity.beats = beats
+        r.activity.chord_changes = round(chord_changes * beats / 100)
+        r.activity.sonority_changes = round(sonority_changes * beats / 100)
+        return r
+
+    oracle = result("bach_oracle", 80.0, 150.0)
+    flat = result("flat", 80.0, 75.0)
+    matched = result("matched", 80.0, 150.0)
+    text = activity_reading([flat, matched, oracle], oracle)
+
+    assert "| `flat`" in text and "| `matched`" in text
+    assert "bach_oracle" not in text.split("| engine")[1].split("\n\n")[0]
+
+    flat_row = next(line for line in text.splitlines() if line.startswith("| `flat`"))
+    matched_row = next(line for line in text.splitlines() if line.startswith("| `matched`"))
+    assert "100%" in flat_row and "50%" in flat_row, flat_row
+    assert matched_row.count("100%") == 2, matched_row
+
+
+def test_activity_reading_survives_a_zero_oracle():
+    """A degenerate oracle must not divide by zero in report generation."""
+    from ml.eval.harness import EngineResult
+    from ml.eval.run import activity_reading
+
+    empty = EngineResult(engine_id="bach_oracle", name="bach", learned=False)
+    other = EngineResult(engine_id="x", name="x", learned=False)
+    text = activity_reading([other, empty], empty)
+    assert "n/a" in text

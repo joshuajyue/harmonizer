@@ -138,7 +138,7 @@ surface other workstreams depend on.
 <!-- GENERATED -->
 # HarmonAIzer v2 — engine evaluation
 
-Generated 2026-08-19 11:59 UTC.
+Generated 2026-08-19 12:39 UTC.
 
 Bach chorale corpus, piece-level split by hash of the piece id: 263 train / 44 val / 61 test. Every engine sees the same held-out sopranos and nothing else.
 
@@ -161,6 +161,25 @@ Bach chorale corpus, piece-level split by hash of the piece id: 263 train / 44 v
 The three defect rows are tiered by **audibility**, not by textbook tradition, and are never summed. STRUCTURAL is the category a listener notices instantly — a piece that never resolves, a phrase closing somewhere impossible — and it must stay near Bach's own ~0.02 whatever else an engine is doing. HARD is the classic audible errors. SOFT is real to a theorist and largely invisible to a listener; Bach breaks all of them, so drifting upward there in exchange for more interesting harmony is a fair trade.
 
 The bottom four rows are what a defect count cannot see at all. An engine reaches zero defects either by realising a full harmonic vocabulary carefully, or by narrowing the vocabulary until nothing can go wrong. Those look identical in the defect rows and completely different below them.
+
+### Reading the two activity rows: harmonic rhythm is not the gap
+
+The owner's goal is harmony that is *interesting*, so the question these two rows exist to answer is whether an engine is as active as Bach. They measure different things and are easy to conflate. **Chord changes** are harmonic rhythm — how often the harmony moves. **Voice moves** are diminution — how often the texture moves, including passing tones and neighbours that decorate a chord without changing it.
+
+Against Bach (78.2 chord changes and 149.3 voice moves per 100 beats):
+
+| engine          | harmonic rhythm vs Bach | diminution vs Bach |
+|-----------------|-------------------------|--------------------|
+| `fixed_thirds`  | 89%                     | 54%                |
+| `rules`         | 105%                    | 65%                |
+| `neural`        | 97%                     | 82%                |
+| `neural_refine` | 101%                    | 102%               |
+| `neural_vl`     | 97%                     | 106%               |
+
+
+**No engine has a harmonic-rhythm problem.** Every one of them changes chord at close to Bach's rate, and the rule engine slightly exceeds it. The gap that motivated this whole line of work is entirely in the second column, and it is a gap in *diminution*: the rule engine writes one frozen inner-voice sonority per beat slot, so it cannot decorate a held harmony at all. That is a representational ceiling rather than a timid setting — see the within-beat split in Discussion 0f, where the rule engine scores exactly 0.0 on off-beat inner-voice motion.
+
+It also answers the question directly: the learned engine closes that gap and slightly overshoots it. Whether overshooting Bach is good is a matter of taste and is not something any number in this report can settle.
 
 ## 2. Defects by tier
 
@@ -259,7 +278,7 @@ This is the metric v1 optimised. It is included for continuity and because watch
 |-----------------|--------------|-------|--------|---------------|-----------|-------------|
 | pieces scored   | 61           | 61    | 61     | 61            | 61        | 61          |
 | failures        | 0            | 0     | 0      | 0             | 0         | 0           |
-| seconds / piece | 0.019        | 0.189 | 0.779  | 0.532         | 0.432     | 0.000       |
+| seconds / piece | 0.019        | 0.190 | 0.979  | 0.880         | 1.347     | 0.000       |
 
 ## 7. Melody-only key detection
 

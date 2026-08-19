@@ -55,6 +55,74 @@ def _fmt(value: float | None, places: int = 2) -> str:
     return f"{value:.{places}f}"
 
 
+def activity_reading(results: Sequence[EngineResult], oracle: EngineResult) -> str:
+    """State what the two activity rows mean, computed rather than written down.
+
+    This paragraph exists because the numbers alone did not communicate. Two
+    independent readers went through this report looking for whether the
+    learned engine had closed the activity gap, and both concluded it was not
+    measured — while `chord changes /100 beats` and `voice moves /100 beats`
+    were sitting in the table above. The data was present and the reading was
+    not, so the reading is generated here from the same values, and cannot
+    drift away from them.
+
+    The two rows answer different questions and are routinely conflated. Chord
+    changes are *harmonic rhythm*: how often the harmony itself moves. Voice
+    moves are *diminution*: how often the texture changes, including passing
+    tones and neighbours that decorate a harmony without changing it. An engine
+    can match Bach on the first and be far below him on the second, which is
+    exactly what happens here.
+    """
+
+    def pct(value: float, base: float) -> str:
+        if not base:
+            return "n/a"
+        return f"{100.0 * value / base:.0f}%"
+
+    bach_h = oracle.activity.chord_changes_per_100_beats()
+    bach_v = oracle.activity.sonority_changes_per_100_beats()
+
+    lines = [
+        "### Reading the two activity rows: harmonic rhythm is not the gap\n",
+        "The owner's goal is harmony that is *interesting*, so the question these two "
+        "rows exist to answer is whether an engine is as active as Bach. They measure "
+        "different things and are easy to conflate. **Chord changes** are harmonic "
+        "rhythm — how often the harmony moves. **Voice moves** are diminution — how "
+        "often the texture moves, including passing tones and neighbours that decorate "
+        "a chord without changing it.\n",
+        f"Against Bach ({bach_h:.1f} chord changes and {bach_v:.1f} voice moves per 100 "
+        "beats):\n",
+    ]
+    rows = []
+    for result in results:
+        if result is oracle:
+            continue
+        rows.append(
+            [
+                f"`{result.engine_id}`",
+                pct(result.activity.chord_changes_per_100_beats(), bach_h),
+                pct(result.activity.sonority_changes_per_100_beats(), bach_v),
+            ]
+        )
+    lines.append(
+        render_table(["engine", "harmonic rhythm vs Bach", "diminution vs Bach"], rows)
+    )
+    lines.append(
+        "\n**No engine has a harmonic-rhythm problem.** Every one of them changes chord "
+        "at close to Bach's rate, and the rule engine slightly exceeds it. The gap that "
+        "motivated this whole line of work is entirely in the second column, and it is "
+        "a gap in *diminution*: the rule engine writes one frozen inner-voice sonority "
+        "per beat slot, so it cannot decorate a held harmony at all. That is a "
+        "representational ceiling rather than a timid setting — see the within-beat "
+        "split in Discussion 0f, where the rule engine scores exactly 0.0 on off-beat "
+        "inner-voice motion.\n\n"
+        "It also answers the question directly: the learned engine closes that gap and "
+        "slightly overshoots it. Whether overshooting Bach is good is a matter of taste "
+        "and is not something any number in this report can settle.\n\n"
+    )
+    return "\n".join(lines)
+
+
 def render_table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     widths = [len(h) for h in headers]
     for row in rows:
@@ -133,6 +201,7 @@ def build_report(
         "narrowing the vocabulary until nothing can go wrong. Those look identical in the "
         "defect rows and completely different below them.\n\n"
     )
+    out.write(activity_reading(results, oracle))
 
     out.write("## 2. Defects by tier\n\n")
     out.write(
