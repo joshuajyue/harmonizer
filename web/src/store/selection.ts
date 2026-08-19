@@ -56,11 +56,9 @@ export function isEditableSelection(
 }
 
 function selectionRange(selection: SelectedNote) {
-  return VOICE_RANGES[
-    selection.source === "melody"
-      ? "melody"
-      : (selection.voice as VoiceName)
-  ];
+  return selection.source === "melody"
+    ? { min: 0, max: 127 }
+    : VOICE_RANGES[selection.voice as VoiceName];
 }
 
 export function buildSelectionTransform(

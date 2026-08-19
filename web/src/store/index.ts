@@ -19,4 +19,5 @@ export type {
   InputTab,
   SelectedNote,
   SelectionOrigin,
+  TranscriptionRegister,
 } from "./types";

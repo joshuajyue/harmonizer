@@ -91,6 +91,48 @@
   background: rgb(255 255 255 / 8%);
 }
 
+.melody-octave-control {
+  display: inline-flex;
+  height: 27px;
+  align-items: center;
+  gap: 3px;
+  padding: 0 3px 0 7px;
+  border: 1px solid rgb(255 126 182 / 28%);
+  border-radius: 6px;
+  color: #ffafd1;
+  background: rgb(255 126 182 / 6%);
+}
+
+.melody-octave-control > span {
+  min-width: 42px;
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.melody-octave-control button {
+  display: inline-flex;
+  height: 20px;
+  align-items: center;
+  gap: 3px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--muted);
+  background: var(--surface-3);
+  font: 8px "DM Mono", monospace;
+  cursor: pointer;
+}
+
+.melody-octave-control button:hover:not(:disabled) {
+  color: #11151a;
+  background: #ffafd1;
+}
+
+.melody-octave-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
 .edit-layer-toggle {
   padding: 2px;
   border: 1px solid var(--line);

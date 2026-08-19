@@ -10,6 +10,7 @@ import {
 import { useHarmonize } from "../../hooks/useHarmonize";
 import { useStudioStore } from "../../store";
 import { voiceLabel } from "../../utils/music";
+import { MelodyOctaveControl } from "./MelodyOctaveControl";
 import { SelectedNoteInspector } from "./SelectedNoteInspector";
 
 export function EditorToolbar() {
@@ -74,6 +75,7 @@ export function EditorToolbar() {
             </button>
           </div>
         )}
+        <MelodyOctaveControl />
         <div className="roll-tool-group">
           <label className="snap-control">
             <SlidersHorizontal size={13} />

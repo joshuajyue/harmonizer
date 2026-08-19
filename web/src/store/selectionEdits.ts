@@ -19,15 +19,18 @@ export function buildSelectionDelete(
       selection.source === "melody" && selected.has(selectionKey(selection)),
   );
   const activeResult = state.slots[state.activeSlot].result;
+  const melodyNotes = melodyChanged
+    ? state.melody.notes.filter(
+        (_note, index) =>
+          !selected.has(selectionKey({ source: "melody", index })),
+      )
+    : state.melody.notes;
 
   return {
     melody: melodyChanged
       ? {
           ...state.melody,
-          notes: state.melody.notes.filter(
-            (_note, index) =>
-              !selected.has(selectionKey({ source: "melody", index })),
-          ),
+          notes: melodyNotes,
         }
       : state.melody,
     melodyRevision: melodyChanged
@@ -58,6 +61,10 @@ export function buildSelectionDelete(
           },
         }
       : state.slots,
+    transcriptionRegister:
+      melodyChanged && melodyNotes.length === 0
+        ? undefined
+        : state.transcriptionRegister,
     selectedNotes: [],
   };
 }

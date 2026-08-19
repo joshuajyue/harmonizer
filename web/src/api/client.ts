@@ -51,6 +51,17 @@ export interface MidiImportResult {
   notice?: string;
 }
 
+export interface TranscriptionResult {
+  melody: Melody;
+  octaveShift: number;
+  detectedMedianPitch?: number;
+}
+
+export interface TranscriptionOptions {
+  normalizeOctave?: boolean;
+  octaveShift?: number;
+}
+
 const MOCK_SYNTHS: SynthInfo[] = [
   {
     id: "sf2",
@@ -130,6 +141,25 @@ function completeMelody(
     timeSignature: { ...timeSignature },
     notes: normalizeNotes(melody.notes),
   };
+}
+
+function shiftMelodyOctaves(melody: Melody, octaves: number): Melody {
+  return {
+    ...melody,
+    notes: melody.notes.map((note) => ({
+      ...note,
+      pitch: note.pitch + octaves * 12,
+    })),
+  };
+}
+
+function medianPitch(melody: Melody) {
+  const pitches = melody.notes.map((note) => note.pitch).sort((a, b) => a - b);
+  if (pitches.length === 0) return undefined;
+  const middle = Math.floor(pitches.length / 2);
+  return pitches.length % 2 === 0
+    ? (pitches[middle - 1] + pitches[middle]) / 2
+    : pitches[middle];
 }
 
 export const apiClient = {
@@ -217,7 +247,8 @@ export const apiClient = {
   async transcribe(
     audio: Blob,
     timing: { tempo: number; timeSignature: TimeSignature },
-  ): Promise<Melody> {
+    options: TranscriptionOptions = {},
+  ): Promise<TranscriptionResult> {
     const validatedTiming = completeMelody({
       notes: [],
       tempo: timing.tempo,
@@ -225,11 +256,22 @@ export const apiClient = {
     });
     if (mockEnabled) {
       await wait(950);
-      return completeMelody({
+      const fixture = completeMelody({
         ...(await loadCanonicalRequest()).melody,
         tempo: validatedTiming.tempo,
         timeSignature: validatedTiming.timeSignature,
       });
+      const sungRegister = shiftMelodyOctaves(fixture, -1);
+      const octaveShift =
+        options.octaveShift ??
+        (options.normalizeOctave === false ? 0 : 1);
+      return {
+        melody: completeMelody(
+          shiftMelodyOctaves(sungRegister, octaveShift),
+        ),
+        octaveShift,
+        detectedMedianPitch: medianPitch(sungRegister),
+      };
     }
 
     const form = new FormData();
@@ -239,7 +281,11 @@ export const apiClient = {
       tempo: String(validatedTiming.tempo),
       numerator: String(validatedTiming.timeSignature.numerator),
       denominator: String(validatedTiming.timeSignature.denominator),
+      normalizeOctave: String(options.normalizeOctave ?? true),
     });
+    if (options.octaveShift !== undefined) {
+      params.set("octaveShift", String(Math.trunc(options.octaveShift)));
+    }
     const response = await fetch(`/api/v1/transcribe?${params}`, {
       method: "POST",
       body: form,
@@ -248,7 +294,18 @@ export const apiClient = {
       throw new ApiError(await response.text(), response.status);
     }
     const payload = (await response.json()) as Melody | { melody: Melody };
-    return completeMelody("melody" in payload ? payload.melody : payload);
+    const rawShift = Number.parseInt(
+      response.headers.get("X-HarmonAIzer-Octave-Shift") ?? "0",
+      10,
+    );
+    const rawMedian = Number.parseFloat(
+      response.headers.get("X-HarmonAIzer-Detected-Median-Pitch") ?? "",
+    );
+    return {
+      melody: completeMelody("melody" in payload ? payload.melody : payload),
+      octaveShift: Number.isFinite(rawShift) ? rawShift : 0,
+      detectedMedianPitch: Number.isFinite(rawMedian) ? rawMedian : undefined,
+    };
   },
 
   async exportMidi(

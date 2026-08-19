@@ -23,6 +23,7 @@ export const MIN_FOCUS_ROLL_HEIGHT = 320;
 
 export interface RollLayout {
   focusedLane?: FocusedLane;
+  focusedPitchRange?: { min: number; max: number };
   lanes: LaneName[];
   laneHeight: number;
   noteAreaBottom: number;
@@ -39,6 +40,7 @@ export interface Rect {
 export function createRollLayout(
   focusedLane?: FocusedLane,
   availableHeight = ROLL_HEIGHT,
+  focusedPitchRange?: { min: number; max: number },
 ): RollLayout {
   if (!focusedLane) {
     return {
@@ -52,11 +54,18 @@ export function createRollLayout(
   const laneHeight = rollHeight - RULER_HEIGHT - CHORD_HEIGHT;
   return {
     focusedLane,
+    focusedPitchRange,
     lanes: [focusedLane],
     laneHeight,
     noteAreaBottom: RULER_HEIGHT + laneHeight,
     rollHeight,
   };
+}
+
+export function pitchRange(lane: LaneName, layout: RollLayout) {
+  return layout.focusedLane === lane && layout.focusedPitchRange
+    ? layout.focusedPitchRange
+    : VOICE_RANGES[lane];
 }
 
 export function laneTop(lane: LaneName, layout: RollLayout) {
@@ -75,7 +84,7 @@ export function laneAtY(y: number, layout: RollLayout): LaneName | undefined {
 }
 
 export function pitchStep(lane: LaneName, layout: RollLayout) {
-  const range = VOICE_RANGES[lane];
+  const range = pitchRange(lane, layout);
   return (layout.laneHeight - 16) / (range.max - range.min);
 }
 
@@ -84,7 +93,7 @@ export function pitchToY(
   pitch: number,
   layout: RollLayout,
 ) {
-  const range = VOICE_RANGES[lane];
+  const range = pitchRange(lane, layout);
   const innerHeight = layout.laneHeight - 16;
   const ratio = (range.max - pitch) / (range.max - range.min);
   return laneTop(lane, layout) + 8 + clamp(ratio, 0, 1) * innerHeight;
@@ -95,7 +104,7 @@ export function pitchRowRect(
   pitch: number,
   layout: RollLayout,
 ): Rect {
-  const range = VOICE_RANGES[lane];
+  const range = pitchRange(lane, layout);
   const step = pitchStep(lane, layout);
   const center = pitchToY(lane, pitch, layout);
   const top =
@@ -112,7 +121,7 @@ export function yToPitch(
   y: number,
   layout: RollLayout,
 ) {
-  const range = VOICE_RANGES[lane];
+  const range = pitchRange(lane, layout);
   const innerHeight = layout.laneHeight - 16;
   const ratio = clamp(
     (y - laneTop(lane, layout) - 8) / innerHeight,

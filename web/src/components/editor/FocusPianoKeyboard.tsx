@@ -1,7 +1,8 @@
 import { audioScheduler } from "../../audio/AudioScheduler";
 import type { FocusedLane } from "../../store";
-import { midiToName, VOICE_RANGES } from "../../utils/music";
+import { midiToName } from "../../utils/music";
 import {
+  pitchRange,
   pitchRowRect,
   RULER_HEIGHT,
   type RollLayout,
@@ -16,7 +17,7 @@ export function FocusPianoKeyboard({
   lane: FocusedLane;
   layout: RollLayout;
 }) {
-  const range = VOICE_RANGES[lane];
+  const range = pitchRange(lane, layout);
   const pitches = Array.from(
     { length: range.max - range.min + 1 },
     (_value, index) => range.max - index,

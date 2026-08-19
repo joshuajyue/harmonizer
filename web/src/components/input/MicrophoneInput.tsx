@@ -1,20 +1,42 @@
-import { LoaderCircle, Mic, Square } from "lucide-react";
+import { Mic } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { apiClient } from "../../api/client";
+import type { TimeSignature } from "../../../../contracts/types";
+import {
+  apiClient,
+  type TranscriptionOptions,
+  type TranscriptionResult,
+} from "../../api/client";
 import { transcodeRecordingToWav } from "../../audio/encodeWav";
 import { useStudioStore } from "../../store";
+import { midiToName } from "../../utils/music";
+import {
+  MicrophoneActions,
+  type MicrophoneStatus,
+} from "./MicrophoneActions";
+
+interface RecordedTake {
+  audio: Blob;
+  tempo: number;
+  timeSignature: TimeSignature;
+}
 
 export function MicrophoneInput() {
   const recorderRef = useRef<MediaRecorder | undefined>(undefined);
   const streamRef = useRef<MediaStream | undefined>(undefined);
   const chunksRef = useRef<Blob[]>([]);
   const startedRef = useRef(0);
-  const [status, setStatus] = useState<
-    "idle" | "recording" | "transcribing" | "error"
-  >("idle");
+  const lastTakeRef = useRef<RecordedTake | undefined>(undefined);
+  const [status, setStatus] = useState<MicrophoneStatus>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string>();
-  const replaceMelody = useStudioStore((state) => state.replaceMelody);
+  const [notice, setNotice] = useState<string>();
+  const [registerMode, setRegisterMode] = useState<"auto" | "sung">("auto");
+  const replaceTranscribedMelody = useStudioStore(
+    (state) => state.replaceTranscribedMelody,
+  );
+  const transcriptionRegister = useStudioStore(
+    (state) => state.transcriptionRegister,
+  );
   const tempo = useStudioStore((state) => state.melody.tempo);
   const storedTimeSignature = useStudioStore(
     (state) => state.melody.timeSignature,
@@ -42,6 +64,7 @@ export function MicrophoneInput() {
 
   async function start() {
     setError(undefined);
+    setNotice(undefined);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -80,18 +103,58 @@ export function MicrophoneInput() {
       const recording = await transcodeRecordingToWav(
         new Blob(chunksRef.current, { type }),
       );
-      const melody = await apiClient.transcribe(
-        recording,
-        {
-          tempo: currentMelody.tempo,
-          timeSignature: currentMelody.timeSignature ?? {
-            numerator: 4,
-            denominator: 4,
-          },
+      const take = {
+        audio: recording,
+        tempo: currentMelody.tempo,
+        timeSignature: currentMelody.timeSignature ?? {
+          numerator: 4,
+          denominator: 4,
         },
+      };
+      lastTakeRef.current = take;
+      await submitTake(take, {
+        normalizeOctave: registerMode === "auto",
+      });
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Transcription failed.",
       );
-      replaceMelody(melody, "Microphone take");
-      setStatus("idle");
+      setStatus("error");
+    }
+  }
+
+  async function submitTake(
+    take: RecordedTake,
+    options: TranscriptionOptions,
+  ) {
+    const result = await apiClient.transcribe(
+      take.audio,
+      {
+        tempo: take.tempo,
+        timeSignature: take.timeSignature,
+      },
+      options,
+    );
+    replaceTranscribedMelody(
+      result.melody,
+      {
+        detectedOctaveShift: result.octaveShift,
+        detectedMedianPitch: result.detectedMedianPitch,
+      },
+      "Microphone take",
+    );
+    setNotice(describeOctaveDecision(result));
+    setStatus("idle");
+  }
+
+  async function restoreSungRegister() {
+    const take = lastTakeRef.current;
+    if (!take) return;
+    setStatus("transcribing");
+    setError(undefined);
+    try {
+      await submitTake(take, { normalizeOctave: false });
+      setRegisterMode("sung");
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Transcription failed.",
@@ -119,26 +182,34 @@ export function MicrophoneInput() {
           <code>POST /api/v1/transcribe</code>.
         </span>
         {error && <small>{error}</small>}
+        {notice && <small className="octave-decision">{notice}</small>}
       </div>
-      {status === "recording" ? (
-        <button type="button" className="record-stop" onClick={stop}>
-          <Square size={12} fill="currentColor" />
-          Stop & transcribe
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => void start()}
-          disabled={status === "transcribing"}
-        >
-          {status === "transcribing" ? (
-            <LoaderCircle size={13} className="spin" />
-          ) : (
-            <Mic size={13} />
-          )}
-          {status === "transcribing" ? "Transcribing" : "Start recording"}
-        </button>
-      )}
+      <MicrophoneActions
+        status={status}
+        registerMode={registerMode}
+        canRestoreSungRegister={Boolean(
+          transcriptionRegister &&
+            transcriptionRegister.detectedOctaveShift !== 0 &&
+            lastTakeRef.current,
+        )}
+        onRegisterMode={setRegisterMode}
+        onStart={() => void start()}
+        onStop={stop}
+        onRestoreSungRegister={() => void restoreSungRegister()}
+      />
     </div>
   );
+}
+
+function describeOctaveDecision(result: TranscriptionResult) {
+  const detected =
+    result.detectedMedianPitch === undefined
+      ? "your sung register"
+      : `around ${midiToName(Math.round(result.detectedMedianPitch))}`;
+  if (result.octaveShift === 0) {
+    return `Kept ${detected}; no octave shift was applied.`;
+  }
+  const direction = result.octaveShift > 0 ? "up" : "down";
+  const amount = Math.abs(result.octaveShift);
+  return `Detected ${detected}; transposed ${direction} ${amount} octave${amount === 1 ? "" : "s"} into the melody range.`;
 }

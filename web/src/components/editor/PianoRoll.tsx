@@ -1,6 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useStudioStore } from "../../store";
-import { pieceLength } from "../../utils/music";
+import { pieceLength, VOICE_RANGES } from "../../utils/music";
 import { EditorToolbar } from "./EditorToolbar";
 import { LaneSidebar } from "./LaneSidebar";
 import { PianoRollCanvas } from "./PianoRollCanvas";
@@ -13,6 +19,10 @@ import {
 export function PianoRoll() {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [availableHeight, setAvailableHeight] = useState(ROLL_HEIGHT);
+  const [availableWidth, setAvailableWidth] = useState(0);
+  const [melodyFocusRange, setMelodyFocusRange] = useState<
+    { min: number; max: number } | undefined
+  >();
   const melody = useStudioStore((state) => state.melody);
   const slots = useStudioStore((state) => state.slots);
   const pxPerBeat = useStudioStore((state) => state.pxPerBeat);
@@ -23,18 +33,51 @@ export function PianoRoll() {
     () => pieceLength(melody, [slots.A.result, slots.B.result]),
     [melody, slots.A.result, slots.B.result],
   );
-  const canvasWidth = Math.max(780, duration * pxPerBeat);
-  const layout = useMemo(
-    () => createRollLayout(focusedLane, availableHeight),
-    [availableHeight, focusedLane],
+  const canvasWidth = Math.max(
+    780,
+    availableWidth - SIDEBAR_WIDTH,
+    duration * pxPerBeat,
   );
+  const editorDuration = canvasWidth / pxPerBeat;
+  const layout = useMemo(
+    () =>
+      createRollLayout(
+        focusedLane,
+        availableHeight,
+        focusedLane === "melody" ? melodyFocusRange : undefined,
+      ),
+    [availableHeight, focusedLane, melodyFocusRange],
+  );
+
+  useLayoutEffect(() => {
+    if (focusedLane !== "melody" || melody.notes.length === 0) {
+      setMelodyFocusRange(undefined);
+      return;
+    }
+    const pitches = melody.notes.map((note) => note.pitch);
+    const minimum = Math.min(...pitches);
+    const maximum = Math.max(...pitches);
+    setMelodyFocusRange((current) => {
+      if (
+        current &&
+        minimum >= current.min &&
+        maximum <= current.max
+      ) {
+        return current;
+      }
+      return melodyPitchWindow(minimum, maximum);
+    });
+  }, [focusedLane, melody.notes]);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
-    const updateHeight = () => setAvailableHeight(scroller.clientHeight);
-    updateHeight();
-    const observer = new ResizeObserver(updateHeight);
+    const updateSize = () => {
+      setAvailableHeight(scroller.clientHeight);
+      setAvailableWidth(scroller.clientWidth);
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
     observer.observe(scroller);
     return () => observer.disconnect();
   }, []);
@@ -82,7 +125,7 @@ export function PianoRoll() {
           >
             <PianoRollCanvas
               width={canvasWidth}
-              duration={duration}
+              duration={editorDuration}
               layout={layout}
             />
           </div>
@@ -90,4 +133,21 @@ export function PianoRoll() {
       </div>
     </section>
   );
+}
+
+function melodyPitchWindow(minimum: number, maximum: number) {
+  if (
+    minimum >= VOICE_RANGES.melody.min &&
+    maximum <= VOICE_RANGES.melody.max
+  ) {
+    return undefined;
+  }
+  let min = Math.max(0, Math.floor(minimum / 12) * 12);
+  let max = min + 24;
+  while (max < maximum) max += 12;
+  if (max > 127) {
+    min = Math.max(0, min - (max - 127));
+    max = 127;
+  }
+  return { min, max };
 }

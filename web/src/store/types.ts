@@ -34,15 +34,29 @@ export interface SelectionOrigin {
   note: Note;
 }
 
+export interface TranscriptionRegister {
+  detectedOctaveShift: number;
+  currentOctaveShift: number;
+  detectedMedianPitch?: number;
+}
+
 export interface ProjectSlice {
   projectName: string;
   melody: Melody;
   melodyRevision: number;
+  transcriptionRegister?: TranscriptionRegister;
   setProjectName: (name: string) => void;
   setTempo: (tempo: number) => void;
   setTimeSignature: (signature: TimeSignature) => void;
   setKey: (key?: KeySignature) => void;
   replaceMelody: (melody: Melody, projectName?: string) => void;
+  replaceTranscribedMelody: (
+    melody: Melody,
+    register: Omit<TranscriptionRegister, "currentOctaveShift">,
+    projectName?: string,
+  ) => void;
+  shiftMelodyOctave: (octaves: number) => void;
+  restoreSungRegister: () => void;
   addMelodyNote: (note: Note) => number;
   updateMelodyNote: (index: number, patch: Partial<Note>) => void;
   deleteMelodyNote: (index: number) => void;

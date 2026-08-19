@@ -9,6 +9,37 @@ const initialMelody: Melody = {
   timeSignature: { numerator: 4, denominator: 4 },
 };
 
+function copyMelody(melody: Melody): Melody {
+  return {
+    ...melody,
+    timeSignature: {
+      ...(melody.timeSignature ?? { numerator: 4, denominator: 4 }),
+    },
+    key: melody.key ? { ...melody.key } : undefined,
+    notes: melody.notes.map((note) => ({ ...note })),
+  };
+}
+
+function shiftedMelody(melody: Melody, octaves: number) {
+  const wholeOctaves = Math.trunc(octaves);
+  const semitones = wholeOctaves * 12;
+  if (
+    wholeOctaves === 0 ||
+    melody.notes.some(
+      (note) => note.pitch + semitones < 0 || note.pitch + semitones > 127,
+    )
+  ) {
+    return undefined;
+  }
+  return {
+    ...melody,
+    notes: melody.notes.map((note) => ({
+      ...note,
+      pitch: note.pitch + semitones,
+    })),
+  };
+}
+
 export const createProjectSlice: StateCreator<
   StudioStore,
   [],
@@ -18,6 +49,7 @@ export const createProjectSlice: StateCreator<
   projectName: "Untitled melody",
   melody: initialMelody,
   melodyRevision: 0,
+  transcriptionRegister: undefined,
 
   setProjectName: (projectName) => set({ projectName }),
   setTempo: (tempo) =>
@@ -44,21 +76,63 @@ export const createProjectSlice: StateCreator<
     })),
   replaceMelody: (melody, projectName) =>
     set((state) => ({
-      melody: {
-        ...melody,
-        timeSignature: {
-          ...(melody.timeSignature ?? { numerator: 4, denominator: 4 }),
-        },
-        key: melody.key ? { ...melody.key } : undefined,
-        notes: melody.notes.map((note) => ({ ...note })),
-      },
+      melody: copyMelody(melody),
       projectName: projectName ?? state.projectName,
       melodyRevision: state.melodyRevision + 1,
+      transcriptionRegister: undefined,
       currentBeat: 0,
       isPlaying: false,
       selectedNotes: [],
       loopRangeCustomized: false,
     })),
+  replaceTranscribedMelody: (melody, register, projectName) =>
+    set((state) => ({
+      melody: copyMelody(melody),
+      projectName: projectName ?? state.projectName,
+      melodyRevision: state.melodyRevision + 1,
+      transcriptionRegister: {
+        ...register,
+        currentOctaveShift: register.detectedOctaveShift,
+      },
+      currentBeat: 0,
+      isPlaying: false,
+      selectedNotes: [],
+      loopRangeCustomized: false,
+    })),
+  shiftMelodyOctave: (octaves) =>
+    set((state) => {
+      const melody = shiftedMelody(state.melody, octaves);
+      if (!melody) return state;
+      return {
+        melody,
+        melodyRevision: state.melodyRevision + 1,
+        transcriptionRegister: state.transcriptionRegister
+          ? {
+              ...state.transcriptionRegister,
+              currentOctaveShift:
+                state.transcriptionRegister.currentOctaveShift +
+                Math.trunc(octaves),
+            }
+          : undefined,
+        selectedNotes: [],
+      };
+    }),
+  restoreSungRegister: () =>
+    set((state) => {
+      const currentShift =
+        state.transcriptionRegister?.currentOctaveShift ?? 0;
+      const melody = shiftedMelody(state.melody, -currentShift);
+      if (!melody || !state.transcriptionRegister) return state;
+      return {
+        melody,
+        melodyRevision: state.melodyRevision + 1,
+        transcriptionRegister: {
+          ...state.transcriptionRegister,
+          currentOctaveShift: 0,
+        },
+        selectedNotes: [],
+      };
+    }),
   addMelodyNote: (note) => {
     let index = 0;
     set((state) => {
@@ -93,6 +167,10 @@ export const createProjectSlice: StateCreator<
       },
       melodyRevision: state.melodyRevision + 1,
       selectedNotes: [],
+      transcriptionRegister:
+        state.melody.notes.length === 1
+          ? undefined
+          : state.transcriptionRegister,
     })),
   clearMelody: () =>
     set((state) => ({
@@ -102,5 +180,6 @@ export const createProjectSlice: StateCreator<
       isPlaying: false,
       selectedNotes: [],
       loopRangeCustomized: false,
+      transcriptionRegister: undefined,
     })),
 });

@@ -250,6 +250,53 @@
   font-size: 8px;
 }
 
+.microphone-copy .octave-decision {
+  color: #c7f29a;
+  line-height: 1.35;
+}
+
+.microphone-actions {
+  display: grid;
+  min-width: 142px;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.register-mode-select {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.register-mode-select > span {
+  color: var(--dim);
+  font: 7px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.register-mode-select select {
+  min-width: 0;
+  height: 25px;
+  padding: 0 5px;
+  border: 1px solid #414b5b;
+  border-radius: 5px;
+  color: var(--text);
+  background: #1d232d;
+  font-size: 8px;
+}
+
+.microphone-actions > button {
+  width: 100%;
+  justify-content: center;
+}
+
+.microphone-input .sung-register-button {
+  border-color: rgb(255 126 182 / 32%);
+  color: #ffafd1;
+  background: rgb(255 126 182 / 8%);
+}
+
 .microphone-input .record-stop {
   border-color: rgb(255 94 114 / 42%);
   color: #fff;

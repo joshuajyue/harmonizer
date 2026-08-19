@@ -1,6 +1,6 @@
-import { VOICE_RANGES } from "../../utils/music";
 import {
   laneTop,
+  pitchRange,
   pitchRowRect,
   pitchToY,
   RULER_HEIGHT,
@@ -35,7 +35,7 @@ export function drawGrid(
       model.duration * model.pxPerBeat,
       model.layout.laneHeight,
     );
-    const range = VOICE_RANGES[lane];
+    const range = pitchRange(lane, model.layout);
     for (let pitch = range.min; pitch <= range.max; pitch += 1) {
       if (model.layout.focusedLane) {
         const row = pitchRowRect(lane, pitch, model.layout);
