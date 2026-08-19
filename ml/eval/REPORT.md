@@ -54,9 +54,10 @@ row rather than against zero:
 
 ## Known broken / unfinished
 
-* **Key detection is the weakest link in production**: 83.6% exact on held-out
-  melodies, and a wrong key means a wrong harmonization for every engine. Highest
-  priority.
+* **Key detection is still the weakest link in production**: 88.5% exact on
+  held-out melodies, and a wrong key means a wrong harmonization for every
+  engine. Improved from 83.6% by rescoring candidates on how well the melody
+  harmonizes in each (see Discussion 0h), but ~1 melody in 9 is still wrong.
 * **Wide-range melodies degrade every engine** — hard defects of 5.9 to 32.0
   against ~0.1 on chorale sopranos, because the soprano is the user's and cannot
   be re-voiced. Pinned in `tests/test_out_of_domain.py`.
@@ -106,7 +107,7 @@ surface other workstreams depend on.
 <!-- GENERATED -->
 # HarmonAIzer v2 — engine evaluation
 
-Generated 2026-08-19 11:28 UTC.
+Generated 2026-08-19 11:59 UTC.
 
 Bach chorale corpus, piece-level split by hash of the piece id: 263 train / 44 val / 61 test. Every engine sees the same held-out sopranos and nothing else.
 
@@ -227,7 +228,7 @@ This is the metric v1 optimised. It is included for continuity and because watch
 |-----------------|--------------|-------|--------|---------------|-----------|-------------|
 | pieces scored   | 61           | 61    | 61     | 61            | 61        | 61          |
 | failures        | 0            | 0     | 0      | 0             | 0         | 0           |
-| seconds / piece | 0.018        | 0.190 | 1.734  | 0.880         | 0.881     | 0.000       |
+| seconds / piece | 0.019        | 0.189 | 0.779  | 0.532         | 0.432     | 0.000       |
 
 ## 7. Melody-only key detection
 
@@ -235,17 +236,17 @@ The tables above supply the ground-truth key so the comparison isolates the harm
 
 | metric                   | value |
 |--------------------------|-------|
-| exact key (tonic + mode) | 83.6% |
-| correct tonic            | 83.6% |
-| relative-key confusion   | 0.0%  |
+| exact key (tonic + mode) | 88.5% |
+| correct tonic            | 88.5% |
+| relative-key confusion   | 1.6%  |
 
 ### Same engines, key detected instead of supplied
 
 | metric                  | fixed_thirds | rules | neural | neural_refine | neural_vl |
 |-------------------------|--------------|-------|--------|---------------|-----------|
-| HARD TOTAL / 100 chords | 151.41       | 0.03  | 10.72  | 0.04          | 0.22      |
-| chord_bigram_js         | 0.405        | 0.187 | 0.077  | 0.119         | 0.088     |
-| chord agreement         | 0.5%         | 26.5% | 37.3%  | 32.4%         | 37.3%     |
+| HARD TOTAL / 100 chords | 153.57       | 0.03  | 10.74  | 0.04          | 0.12      |
+| chord_bigram_js         | 0.405        | 0.184 | 0.068  | 0.107         | 0.078     |
+| chord agreement         | 0.5%         | 27.3% | 38.9%  | 33.4%         | 39.5%     |
 
 ## 8. Representation ablation — what the v1 handicap actually cost
 
@@ -700,6 +701,53 @@ at all. A zero in that decomposition is a ceiling. Anything else is a tuning
 problem. The two call for completely different work, and they are trivial to
 confuse from the aggregate number alone.
 
+## 0h. Key detection: diagnose first, and the obvious fix was not the fix
+
+Key detection was the highest-value open item — a wrong key is a wrong
+harmonization for every engine — and it sat at 83.6% on held-out melodies.
+
+**55% of all errors were one failure: confusing a key with its dominant.** 31 of
+67 were a minor-key piece read a fifth too high, plus 6 in major. The cause is
+structural rather than a tuning miss: a D minor melody dwells on D, F and A, and
+A minor's Krumhansl profile rewards exactly those as its own tonic, fourth and
+sixth. The distinguishing evidence is not in the pitch-class histogram at all, so
+no reweighting of the profile can recover it.
+
+**The obvious fix did not work.** The soprano's final note is the tonic 83.7% of
+the time and the dominant 8.7%, so cadential evidence is clearly the right
+signal, and the existing code used it only as a +0.08 nudge to a correlation —
+too weak to overturn a profile difference and on an unrelated scale. Replacing
+that with per-mode log-probabilities measured from the training split is more
+principled and **did not improve accuracy**: 83.6% before, 83.6% after, with
+every weight setting in the plausible range landing within one piece. Profile
+alone is 73.8%, so the ad-hoc bonus had already captured essentially all of the
+available cadential signal. Kept anyway — two magic numbers replaced by measured
+distributions — but reported as the null result it is.
+
+**What worked was asking a different question: how well does this melody
+harmonize in each candidate key?** The rules engine's chord search is run under
+each of the top few candidates and its best achievable path score is added to the
+profile score. A melody in the wrong key has to be explained by a worse
+progression, and that is exactly the evidence a histogram cannot contain.
+
+| | train | val | **test** |
+|---|---|---|---|
+| profile only | 66.5% | 75.0% | 73.8% |
+| + cadential evidence | 87.1% | 86.4% | 83.6% |
+| + harmonic rescoring | **89.0%** | **90.9%** | **88.5%** |
+
+The weight and candidate count were chosen on train+val and the test split was
+evaluated once. Rescoring only the top 3 candidates gives *bit-identical* results
+to rescoring all 24, so the cost is 44 ms rather than 377 ms.
+
+Two things generalise. First, the diagnosis mattered more than the fix: an
+aggregate accuracy figure gave no purchase, and one histogram of *which* keys
+were being confused pointed straight at the mechanism. Second, when a signal is
+absent from a representation, the answer is a different question rather than a
+better weighting of the same one — the cadential rewrite was better engineering
+and bought nothing, while a genuinely different source of evidence bought five
+points.
+
 ## 1. The v1 post-mortem, verified — and one correction
 
 v1 no longer exists on this branch; it survives only in git history on `main`.
@@ -1033,10 +1081,11 @@ went into representation, evaluation and decoding instead.
    at or below Bach's rate rather than rewarding zero — should widen it
    substantially at no cost, since section 0 shows the variety is reachable with
    defects still at 0.00.
-2. **Better key detection, and key changes within a piece.** 83.6% is the binding
-   constraint on real input, and Krumhansl-Schmuckler on a whole melody cannot
-   represent a piece that modulates. A small learned key-tracker over the melody,
-   or joint inference of key and harmony, is the obvious move.
+2. **Key CHANGES within a piece.** Global key detection is now 88.5% (section
+   0h), but a single key per piece cannot represent one that modulates, and the
+   residual errors are concentrated there. Joint inference of a key *sequence*
+   and the harmony is the obvious move, and the harmonic-fit machinery from 0h
+   already does the per-key scoring it would need.
 3. **Phrase-cadence awareness.** Every engine is 2-4x Bach on
    `implausible_phrase_cadence` while matching him on piece endings. The rule
    engine's cadence bonuses fire on inferred phrase ends but only bias the chord
