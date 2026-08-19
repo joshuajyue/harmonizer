@@ -66,7 +66,7 @@ models/samples. MIDI export also takes tempo as a query parameter because
 `HarmonizeResponse` does not carry tempo.
 
 Dependency resolution was checked against PyPI: `fastapi==0.141.1` and
-`music21==10.5.0` exist, while the old `torch==2.13.0` pin does not resolve.
+`music21==10.5.0` exist, while `torch==2.13.0` does not resolve.
 This service no longer imports music21 or torch, so neither heavy package is in
 the base image; ML/neural adapters own their hardware-specific dependencies.
 
