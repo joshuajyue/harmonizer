@@ -92,7 +92,7 @@ class FixedIntervalEngine(HarmonyEngine):
 
         selected, names = select_voices(lines, voice_count)
         chords = self._chords(selected, key, grid.steps_per_beat)
-        violations = self._violations(selected, key, grid.steps_per_beat)
+        violations = self._violations(selected, key, grid.steps_per_beat, grid.phrase_end)
         return Harmonization(
             key=KeySignature(tonic=key.tonic, mode=key.mode, confidence=confidence),
             voices=grid_to_voices(selected, names=names),
@@ -128,19 +128,10 @@ class FixedIntervalEngine(HarmonyEngine):
             ))
         return out
 
-    def _violations(self, lines, key: Key, steps_per_beat: int) -> list[Violation]:
-        from ..eval.metrics import step_chords
+    def _violations(self, lines, key: Key, steps_per_beat: int, phrase_ends=None) -> list[Violation]:
+        from ._violations import build_violations
 
-        texture = texture_from_voices([[None if p == REST else p for p in line] for line in lines], step=STEP)
-        chords = step_chords(lines, key, steps_per_beat=steps_per_beat)
-        return [
-            Violation(
-                kind=defect.kind, severity=defect.severity, start=defect.offset,
-                voices=[VOICE_NAMES[v] for v in defect.voices if v < 4], message=defect.message,
-            )
-            for defect in analyze_texture(texture, key, chords)
-            if defect.severity != "info"
-        ]
+        return build_violations(lines, key, steps_per_beat=steps_per_beat, phrase_ends=phrase_ends)
 
 
 register(FixedIntervalEngine())

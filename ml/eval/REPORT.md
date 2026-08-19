@@ -1,6 +1,6 @@
 # HarmonAIzer v2 — engine evaluation
 
-Generated 2026-08-19 10:16 UTC.
+Generated 2026-08-19 10:45 UTC.
 
 Bach chorale corpus, piece-level split by hash of the piece id: 263 train / 44 val / 61 test. Every engine sees the same held-out sopranos and nothing else.
 
@@ -8,42 +8,52 @@ Bach chorale corpus, piece-level split by hash of the piece id: 263 train / 44 v
 
 **The headline is distance from Bach, not a defect leaderboard.** Voice-leading defects are a guardrail that stops an engine degenerating into parallel thirds; they are not the objective. Bach himself breaks these rules, and an engine that never does is not better than Bach — it is stiffer than Bach. Every column below is therefore read against the `bach_oracle` row, and *under*-shooting is as much a miss as overshooting.
 
-| metric                    | fixed_thirds | rules | neural | neural_refine | neural_vl | bach_oracle |
-|---------------------------|--------------|-------|--------|---------------|-----------|-------------|
-| hard defects /100 chords  | 159.84       | 0.03  | 10.47  | 0.04          | 0.12      | 3.73        |
-| chord-bigram JS from Bach | 0.421        | 0.202 | 0.060  | 0.116         | 0.071     | 0.056       |
-| cadence JS from Bach      | 0.372        | 0.069 | 0.004  | 0.047         | 0.003     | 0.004       |
-| distinct chords / piece   | 6.7          | 9.4   | 12.6   | 10.6          | 11.7      | 14.5        |
-| share of beats on I or V  | 36.2         | 68.6  | 52.9   | 64.5          | 53.2      | 48.6        |
-| chord changes /100 beats  | 69.5         | 82.4  | 75.9   | 79.1          | 76.2      | 78.2        |
-| voice moves /100 beats    | 80.8         | 97.1  | 122.1  | 152.1         | 157.7     | 149.3       |
+| metric                     | fixed_thirds | rules | neural | neural_refine | neural_vl | bach_oracle |
+|----------------------------|--------------|-------|--------|---------------|-----------|-------------|
+| STRUCTURAL defects / piece | 0.443        | 0.115 | 0.164  | 0.246         | 0.131     | 0.066       |
+| HARD defects /100 chords   | 159.84       | 0.03  | 10.37  | 0.04          | 0.12      | 0.40        |
+| SOFT defects /100 chords   | 38.7         | 2.7   | 11.0   | 4.7           | 5.0       | 21.0        |
+| chord-bigram JS from Bach  | 0.421        | 0.202 | 0.060  | 0.116         | 0.071     | 0.056       |
+| cadence JS from Bach       | 0.372        | 0.069 | 0.004  | 0.047         | 0.003     | 0.004       |
+| distinct chords / piece    | 6.7          | 9.4   | 12.6   | 10.6          | 11.7      | 14.5        |
+| share of beats on I or V   | 36.2         | 68.6  | 52.9   | 64.5          | 53.2      | 48.6        |
+| chord changes /100 beats   | 69.5         | 82.4  | 75.9   | 79.1          | 76.2      | 78.2        |
+| voice moves /100 beats     | 80.8         | 97.1  | 122.1  | 152.1         | 157.7     | 149.3       |
 
-The last four rows are the ones a defect count cannot see. An engine reaches zero defects either by realising a full harmonic vocabulary carefully, or by narrowing the vocabulary until nothing can go wrong. Those look identical in the first row and completely different in rows 4-7.
+The three defect rows are tiered by **audibility**, not by textbook tradition, and are never summed. STRUCTURAL is the category a listener notices instantly — a piece that never resolves, a phrase closing somewhere impossible — and it must stay near Bach's own ~0.02 whatever else an engine is doing. HARD is the classic audible errors. SOFT is real to a theorist and largely invisible to a listener; Bach breaks all of them, so drifting upward there in exchange for more interesting harmony is a fair trade.
 
-## 2. Voice-leading defects per 100 chord changes
+The bottom four rows are what a defect count cannot see at all. An engine reaches zero defects either by realising a full harmonic vocabulary carefully, or by narrowing the vocabulary until nothing can go wrong. Those look identical in the defect rows and completely different below them.
+
+## 2. Defects by tier
 
 Objective and engine-agnostic: counted by the same detectors for every row, including Bach's. Read as a guardrail — the question is whether an engine is *materially worse* than the oracle, not whether it is lowest.
 
-| defect / 100 chords      | fixed_thirds | rules | neural | neural_refine | neural_vl | bach_oracle |
-|--------------------------|--------------|-------|--------|---------------|-----------|-------------|
-| parallel_fifths          | 72.61        | 0.00  | 4.95   | 0.00          | 0.00      | 0.21        |
-| parallel_octaves         | 87.19        | 0.00  | 5.18   | 0.00          | 0.00      | 0.06        |
-| contrary_fifths          | 2.82         | 0.07  | 0.34   | 0.00          | 0.02      | 0.23        |
-| contrary_octaves         | 3.49         | 0.00  | 0.29   | 0.00          | 0.06      | 0.08        |
-| direct_fifths            | 0.00         | 0.03  | 0.86   | 0.29          | 0.54      | 0.34        |
-| direct_octaves           | 0.04         | 0.10  | 0.13   | 0.33          | 0.22      | 0.06        |
-| voice_crossing           | 0.00         | 0.00  | 0.10   | 0.00          | 0.00      | 3.33        |
-| voice_overlap            | 20.96        | 0.23  | 2.98   | 0.92          | 1.32      | 9.41        |
-| spacing                  | 2.63         | 0.07  | 0.78   | 0.06          | 0.08      | 2.23        |
-| range                    | 0.04         | 0.03  | 0.23   | 0.04          | 0.12      | 0.13        |
-| unresolved_leading_tone  | 0.67         | 0.10  | 0.83   | 0.37          | 0.38      | 0.40        |
-| unresolved_seventh       | 0.16         | 1.60  | 1.68   | 1.10          | 0.46      | 1.89        |
-| doubled_leading_tone     | 0.00         | 0.07  | 0.44   | 0.69          | 0.48      | 0.72        |
-| awkward_melodic_interval | 6.66         | 0.00  | 1.53   | 0.00          | 0.28      | 1.29        |
-| large_leap               | 1.29         | 0.46  | 1.01   | 0.94          | 1.14      | 1.02        |
-| **HARD TOTAL**           | 159.84       | 0.03  | 10.47  | 0.04          | 0.12      | 3.73        |
+Structural defects are per PIECE; everything else is per 100 chord changes. The two units are never added together. `half_cadence_ending` is reported and not scored: Bach ends 9.2% of his chorales on a root-position V, so it is idiomatic — but an engine doing it half the time is broken, and this is the only way to see that.
 
-HARD TOTAL sums the unambiguous errors: parallel fifths, parallel octaves, voice crossing and range violations.
+| defect                             | unit        | fixed_thirds | rules | neural | neural_refine | neural_vl | bach_oracle |
+|------------------------------------|-------------|--------------|-------|--------|---------------|-----------|-------------|
+| no_tonal_closure                   | % of pieces | 37.7%        | 0.0%  | 1.6%   | 3.3%          | 1.6%      | 1.6%        |
+| implausible_phrase_cadence         | % of pieces | 3.3%         | 9.8%  | 14.8%  | 19.7%         | 11.5%     | 4.9%        |
+| key_not_established                | % of pieces | 3.3%         | 1.6%  | 0.0%   | 1.6%          | 0.0%      | 0.0%        |
+| **STRUCTURAL / piece**             | per piece   | 0.443        | 0.115 | 0.164  | 0.246         | 0.131     | 0.066       |
+| half_cadence_ending (not a defect) | % of pieces | 0.0%         | 0.0%  | 9.8%   | 1.6%          | 6.6%      | 11.5%       |
+| parallel_fifths                    | /100 chords | 72.61        | 0.00  | 4.95   | 0.00          | 0.00      | 0.21        |
+| parallel_octaves                   | /100 chords | 87.19        | 0.00  | 5.18   | 0.00          | 0.00      | 0.06        |
+| range                              | /100 chords | 0.04         | 0.03  | 0.23   | 0.04          | 0.12      | 0.13        |
+| **HARD TOTAL**                     | /100 chords | 159.84       | 0.03  | 10.37  | 0.04          | 0.12      | 0.40        |
+| voice_crossing                     | /100 chords | 0.00         | 0.00  | 0.10   | 0.00          | 0.00      | 3.33        |
+| voice_overlap                      | /100 chords | 20.96        | 0.23  | 2.98   | 0.92          | 1.32      | 9.41        |
+| spacing                            | /100 chords | 2.63         | 0.07  | 0.78   | 0.06          | 0.08      | 2.23        |
+| direct_fifths                      | /100 chords | 0.00         | 0.03  | 0.86   | 0.29          | 0.54      | 0.34        |
+| direct_octaves                     | /100 chords | 0.04         | 0.10  | 0.13   | 0.33          | 0.22      | 0.06        |
+| contrary_fifths                    | /100 chords | 2.82         | 0.07  | 0.34   | 0.00          | 0.02      | 0.23        |
+| contrary_octaves                   | /100 chords | 3.49         | 0.00  | 0.29   | 0.00          | 0.06      | 0.08        |
+| unresolved_leading_tone            | /100 chords | 0.67         | 0.10  | 0.83   | 0.37          | 0.38      | 0.40        |
+| unresolved_seventh                 | /100 chords | 0.16         | 1.60  | 1.68   | 1.10          | 0.46      | 1.89        |
+| doubled_leading_tone               | /100 chords | 0.00         | 0.07  | 0.44   | 0.69          | 0.48      | 0.72        |
+| awkward_melodic_interval           | /100 chords | 6.66         | 0.00  | 1.53   | 0.00          | 0.28      | 1.29        |
+| large_leap                         | /100 chords | 1.29         | 0.46  | 1.01   | 0.94          | 1.14      | 1.02        |
+| **SOFT TOTAL**                     | /100 chords | 38.71        | 2.71  | 10.96  | 4.70          | 5.00      | 21.00       |
 
 ## 3. Style distance from the Bach corpus
 
@@ -111,7 +121,7 @@ This is the metric v1 optimised. It is included for continuity and because watch
 |-----------------|--------------|-------|--------|---------------|-----------|-------------|
 | pieces scored   | 61           | 61    | 61     | 61            | 61        | 61          |
 | failures        | 0            | 0     | 0      | 0             | 0         | 0           |
-| seconds / piece | 0.019        | 0.189 | 2.696  | 1.078         | 1.204     | 0.000       |
+| seconds / piece | 0.018        | 0.189 | 1.788  | 0.872         | 0.881     | 0.000       |
 
 ## 7. Melody-only key detection
 
@@ -127,7 +137,7 @@ The tables above supply the ground-truth key so the comparison isolates the harm
 
 | metric                  | fixed_thirds | rules | neural | neural_refine | neural_vl |
 |-------------------------|--------------|-------|--------|---------------|-----------|
-| HARD TOTAL / 100 chords | 151.41       | 0.03  | 10.90  | 0.04          | 0.22      |
+| HARD TOTAL / 100 chords | 151.41       | 0.03  | 10.72  | 0.04          | 0.22      |
 | chord_bigram_js         | 0.405        | 0.187 | 0.077  | 0.119         | 0.088     |
 | chord agreement         | 0.5%         | 26.5% | 37.3%  | 32.4%         | 37.3%     |
 
@@ -167,14 +177,15 @@ stylistic fidelity and harmonic interest, measured against the oracle.
 
 Read section 1 that way and the ranking inverts against the obvious one:
 
-| | defects vs Bach | style vs Bach | vocabulary vs Bach | verdict |
-|---|---|---|---|---|
-| `rules` | **0.03** (Bach 3.73) | 0.202 (floor 0.056) | 9.4 chords/piece (Bach 14.5) | undershoots — safe and narrow |
-| `neural` | 10.47 | **0.060** | 12.6 | closest to Bach's harmony, but writes real parallels |
-| `neural_vl` | 0.12 | 0.071 | 11.7 | clean *and* wide — the one to ship |
-| `fixed_thirds` | 159.84 | 0.421 | 6.7 | the commodity floor |
+| | structural /piece | hard /100 | style vs Bach | vocabulary | verdict |
+|---|---|---|---|---|---|
+| `rules` | 0.115 | **0.03** | 0.202 (floor 0.056) | 9.4 (Bach 14.5) | undershoots — safe and narrow |
+| `neural` | 0.164 | 10.37 | **0.060** | 12.6 | closest to Bach's harmony, but writes real parallels |
+| `neural_vl` | 0.131 | 0.12 | 0.071 | 11.7 | clean *and* wide — **the one to ship** |
+| `fixed_thirds` | 0.443 | 159.84 | 0.421 | 6.7 | the commodity floor |
+| *Bach* | *0.066* | *0.40* | *0.056* | *14.5* | *the calibration* |
 
-**The rule engine's 0.03 is not a win, it is a diagnosis.** It reaches near-zero
+**The rule engine's 0.03 HARD is not a win, it is a diagnosis.** It reaches near-zero
 by narrowing what it is willing to play: 9.4 distinct chords per piece against
 Bach's 14.5, and 68.6% of its beats sitting on I or V against Bach's 48.6%. Its
 harmony is *safe*, and the defect column cannot see that. Rows 4-7 of section 1
@@ -196,7 +207,72 @@ what a commercial harmonizer does — scores 159.84 defects per 100 chords, a st
 divergence of 0.421, and 6.7 distinct chords per piece. The gap between it and
 anything else here is the entire value of the project.
 
-## 0. What changed when the objective was reframed
+## 0a. The defect taxonomy had a hole big enough to drive a piece through
+
+Every detector in `voicing.py` compares two sonorities: parallels, crossings,
+spacing, tendency tones, melodic intervals. That is the whole of classical
+voice-leading pedagogy, and it means **a harmonization that ends on the dominant
+scored zero defects**. It breaks no voice-leading rule. It is also audibly wrong
+in a way that no parallel fifth ever is.
+
+`ml/theory/structure.py` adds the missing category, reasoning over the chord
+sequence and phrase structure rather than over adjacent chords:
+`no_tonal_closure`, `implausible_phrase_cadence`, `key_not_established`.
+
+**The obvious version of this rule is wrong, and the oracle caught it.** Written
+from theory — "a piece must end on the tonic" — it flags **15% of Bach** as
+catastrophically broken. He closes ~8% of chorales on a root-position V, rising
+to 12.8% in minor keys. Checking the pitch content of all 22 such pieces, only
+one has a mistaken key label: the rest are Phrygian half cadences, and they are
+idiomatic. So the plausible-ending tables are *measured* from the training split
+and split by mode (`ml/training/calibrate_cadences.py`), and ending on V is
+reported as `half_cadence_ending` at info severity — visible, with Bach's own
+9.2% beside it as the yardstick — rather than scored as an error. The same
+calibration turned up a smaller surprise: Bach closes phrases on viio often
+enough that flagging *that* would also have been inventing an error.
+
+Calibrated this way Bach scores **0.066 structural defects per piece**, and the
+first thing the new tier found was this:
+
+| | `no_tonal_closure` | verdict |
+|---|---|---|
+| `fixed_thirds` | **37.7% of pieces** | fails to resolve on more than a third of everything it writes |
+| `neural_refine` | 3.3% | |
+| `neural`, `neural_vl`, *Bach* | 1.6% | |
+| `rules` | 0.0% | |
+
+The commodity baseline does not close 37.7% of its harmonizations, and under the
+old taxonomy that was **completely invisible** — it scored 159.84 on defects for
+entirely unrelated reasons. A catastrophic, listener-obvious error was being
+missed by a metric suite of fifteen detectors.
+
+## 0b. Severity re-tiered by audibility, not by tradition
+
+The old single "hard" bucket summed parallel fifths with voice crossings. A
+listener notices a parallel octave immediately and essentially never notices that
+the tenor briefly sat above the alto — and Bach crosses voices 3.33 times per 100
+chords, which was **89% of his entire old "hard" score of 3.73**. The headline
+number was mostly measuring the least audible thing in it.
+
+Three tiers now, reported separately and never summed:
+
+* **STRUCTURAL** (per piece) — wrong at the level of the whole piece. Must stay
+  near Bach's 0.066 whatever else an engine does.
+* **HARD** (/100 chords) — parallels and range. Bach: 0.40, not 3.73.
+* **SOFT** (/100 chords) — crossing, overlap, spacing, direct perfects, tendency
+  tones. Bach: **21.0**.
+
+That last number is the argument for the whole re-tiering. *Every* engine here
+scores far below Bach on SOFT — `rules` 2.7, `neural_vl` 5.0, `neural` 11.0
+against his 21.0. They are all substantially more "correct" than Bach precisely
+where correctness is inaudible. Under a single summed score that looked like
+quality; tiered, it reads as what it is.
+
+Severity maps onto the contract's three levels so the UI can rank them:
+structural and hard are `error`, soft is `warning` or `info`, and
+`half_cadence_ending` is `info` but always surfaced.
+
+## 0c. What changed when the objective was reframed
 
 This report originally led with a defect-rate leaderboard, on which the rule
 engine won. That framing was wrong, and correcting it changed three things.
@@ -548,6 +624,13 @@ went into representation, evaluation and decoding instead.
   per 100 chords, against Bach's 1.89). Note Bach's own rate is the highest of
   any row, which suggests the detector is somewhat stricter than practice rather
   than that every engine is failing.
+* **Phrase cadences are the one structural axis every engine is worse at than
+  Bach.** `implausible_phrase_cadence` fires on 4.9% of his pieces and on
+  9.8-19.7% of the engines'. Piece endings and key establishment are essentially
+  solved (0-3.3%); closing *internal* phrases somewhere Bach would is not. It is
+  the clearest remaining structural target and it is invisible in any
+  chord-distribution metric, because a wrong chord at a fermata is one beat in
+  fifty.
 * **`neural_refine` is not transposition-stable.** Measured on one tune across
   six transpositions, chord-root agreement with the untransposed answer is
   0.35-0.80, against 0.50-0.85 for the rule draft it is seeded from and 1.00 for
@@ -570,22 +653,29 @@ went into representation, evaluation and decoding instead.
    constraint on real input, and Krumhansl-Schmuckler on a whole melody cannot
    represent a piece that modulates. A small learned key-tracker over the melody,
    or joint inference of key and harmony, is the obvious move.
-3. **Constrained decoding during Gibbs rather than only after it.** The polish
+3. **Phrase-cadence awareness.** Every engine is 2-4x Bach on
+   `implausible_phrase_cadence` while matching him on piece endings. The rule
+   engine's cadence bonuses fire on inferred phrase ends but only bias the chord
+   choice; the learned model gets a phrase-end feature but nothing that
+   *constrains* what may close a phrase. A hard restriction to the measured
+   plausible set at phrase-final beats would likely close this at no cost, in the
+   same way the voice-leading veto did.
+4. **Constrained decoding during Gibbs rather than only after it.** The polish
    currently runs as a post-pass. Folding the veto into the sampling sweeps —
    masking illegal pitches per site given the current context — would let the
    model explore *within* the legal set instead of being pulled back into it, and
    would let it explore within the legal set rather than be pulled back into it. The polish currently costs only 0.060 -> 0.071 in divergence, so the headroom is small — but section 0 suggests it may be negative, i.e. free.
-4. **Model onsets.** A hold token in the DeepBach manner, plus an articulation
+5. **Model onsets.** A hold token in the DeepBach manner, plus an articulation
    metric in the harness so the improvement is measurable rather than asserted.
-5. **A phrase-level metric.** Everything distributional here is first-order.
+6. **A phrase-level metric.** Everything distributional here is first-order.
    Cadence *placement* and phrase *length* relative to the melody's own phrasing
    would catch failures the current metrics cannot see.
-6. **Learn the voicing cost instead of writing it.** The polish weights are
+7. **Learn the voicing cost instead of writing it.** The polish weights are
    hand-set. They could be fit to Bach directly — the harness is already the
    objective function, and this is the same move that took the rule engine's
    guessed priors (V7 at 19% of all chords, against Bach's 2%) and replaced them
    with measured ones.
-7. **Listening tests.** Every number here is a proxy. They are good proxies, and
+8. **Listening tests.** Every number here is a proxy. They are good proxies, and
    they are calibrated against Bach, but the project is about how something
    sounds and nothing above hears anything.
 
@@ -593,6 +683,7 @@ went into representation, evaluation and decoding instead.
 
 ```bash
 python -m ml.training.calibrate_rules     # chord priors from the training split
+python -m ml.training.calibrate_cadences  # structural cadence tables
 python -m ml.training.tune_rules          # rule weights, tuned against the harness
 python -m ml.training.train_neural        # the shipped checkpoint (~30 min, CPU)
 python -m ml.training.train_neural --ablation   # section 7

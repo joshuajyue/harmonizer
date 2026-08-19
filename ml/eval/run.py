@@ -108,7 +108,9 @@ def build_report(
         "a miss as overshooting.\n\n"
     )
     headline = [
-        ("hard defects /100 chords", lambda r: r.defects.hard_error_rate(), 2),
+        ("STRUCTURAL defects / piece", lambda r: r.defects.structural_rate(), 3),
+        ("HARD defects /100 chords", lambda r: r.defects.hard_error_rate(), 2),
+        ("SOFT defects /100 chords", lambda r: r.defects.soft_error_rate(), 1),
         ("chord-bigram JS from Bach", lambda r: r.divergences(reference)["chord_bigram_js"], 3),
         ("cadence JS from Bach", lambda r: r.divergences(reference)["cadence_js"], 3),
         ("distinct chords / piece", lambda r: r.activity.mean_classes_per_piece(), 1),
@@ -119,25 +121,39 @@ def build_report(
     rows = [[label] + [_fmt(fn(r), places) for r in results] for label, fn, places in headline]
     out.write(render_table(["metric"] + names, rows))
     out.write(
-        "\nThe last four rows are the ones a defect count cannot see. An engine reaches "
+        "\nThe three defect rows are tiered by **audibility**, not by textbook tradition, "
+        "and are never summed. STRUCTURAL is the category a listener notices instantly — a "
+        "piece that never resolves, a phrase closing somewhere impossible — and it must "
+        "stay near Bach's own ~0.02 whatever else an engine is doing. HARD is the classic "
+        "audible errors. SOFT is real to a theorist and largely invisible to a listener; "
+        "Bach breaks all of them, so drifting upward there in exchange for more interesting "
+        "harmony is a fair trade.\n\n"
+        "The bottom four rows are what a defect count cannot see at all. An engine reaches "
         "zero defects either by realising a full harmonic vocabulary carefully, or by "
         "narrowing the vocabulary until nothing can go wrong. Those look identical in the "
-        "first row and completely different in rows 4-7.\n\n"
+        "defect rows and completely different below them.\n\n"
     )
 
-    out.write("## 2. Voice-leading defects per 100 chord changes\n\n")
+    out.write("## 2. Defects by tier\n\n")
     out.write(
         "Objective and engine-agnostic: counted by the same detectors for every row, "
         "including Bach's. Read as a guardrail — the question is whether an engine is "
         "*materially worse* than the oracle, not whether it is lowest.\n\n"
+        "Structural defects are per PIECE; everything else is per 100 chord changes. The "
+        "two units are never added together. `half_cadence_ending` is reported and not "
+        "scored: Bach ends 9.2% of his chorales on a root-position V, so it is idiomatic — "
+        "but an engine doing it half the time is broken, and this is the only way to see "
+        "that.\n\n"
     )
     rows = []
-    for kind, values in defect_table(results):
-        label = f"**{kind}**" if kind == "HARD TOTAL" else kind
-        rows.append([label] + [_fmt(v) for v in values])
-    out.write(render_table(["defect / 100 chords"] + names, rows))
-    out.write("\nHARD TOTAL sums the unambiguous errors: parallel fifths, parallel octaves, "
-              "voice crossing and range violations.\n\n")
+    for kind, values, unit in defect_table(results):
+        emphasise = kind in ("STRUCTURAL / piece", "HARD TOTAL", "SOFT TOTAL")
+        label = f"**{kind}**" if emphasise else kind
+        places = 3 if unit == "per piece" else (1 if unit == "% of pieces" else 2)
+        suffix = "%" if unit == "% of pieces" else ""
+        rows.append([label, unit] + [_fmt(v, places) + suffix for v in values])
+    out.write(render_table(["defect", "unit"] + names, rows))
+    out.write("\n")
 
     out.write("## 3. Style distance from the Bach corpus\n\n")
     out.write(

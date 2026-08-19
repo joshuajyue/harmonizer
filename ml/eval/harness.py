@@ -145,7 +145,7 @@ def reference_result(chorales: Sequence[Chorale], name: str = "bach_oracle") -> 
     result = EngineResult(engine_id=name, name="J. S. Bach (ground truth)", learned=False)
     for chorale in chorales:
         result.pieces += 1
-        result.defects.merge(collect_defects(chorale.voices, chorale.key))
+        result.defects.merge(collect_defects(chorale.voices, chorale.key, phrase_ends=chorale.fermatas))
         result.style.merge(collect_style(chorale.voices, chorale.key, phrase_ends=chorale.fermatas))
         result.activity.merge(collect_activity(chorale.voices, chorale.key))
         result.agreement.merge(collect_agreement(chorale.voices, chorale.voices, chorale.key))
@@ -189,7 +189,7 @@ def evaluate_engine(
 
         key = Key(harmonization.key.tonic, harmonization.key.mode) if supply_key else chorale.key
         result.pieces += 1
-        result.defects.merge(collect_defects(lines, key))
+        result.defects.merge(collect_defects(lines, key, phrase_ends=chorale.fermatas))
         result.style.merge(collect_style(lines, key, phrase_ends=chorale.fermatas))
         result.activity.merge(collect_activity(lines, key))
         result.agreement.merge(collect_agreement(lines, chorale.voices, chorale.key))
@@ -238,9 +238,27 @@ def key_detection_accuracy(chorales: Sequence[Chorale]) -> dict[str, float]:
     }
 
 
-def defect_table(results: Sequence[EngineResult]) -> list[tuple[str, list[float]]]:
-    rows: list[tuple[str, list[float]]] = []
-    for kind in DEFECT_KINDS:
-        rows.append((kind, [result.defects.per_hundred(kind) for result in results]))
-    rows.append(("HARD TOTAL", [result.defects.hard_error_rate() for result in results]))
+def defect_table(results: Sequence[EngineResult]) -> list[tuple[str, list[float], str]]:
+    """Rows of (label, values, unit), grouped by tier.
+
+    Structural defects are counted per PIECE and everything else per 100 chord
+    changes, because a piece either closes properly or it does not and dividing
+    that by its length would make long pieces look better at it. The two units
+    are never summed.
+    """
+    from .metrics import DESCRIPTIVE_KINDS, SOFT_DEFECTS, STRUCTURAL_DEFECTS
+
+    rows: list[tuple[str, list[float], str]] = []
+    for kind in STRUCTURAL_DEFECTS:
+        rows.append((kind, [100 * r.defects.per_piece(kind) for r in results], "% of pieces"))
+    rows.append(("STRUCTURAL / piece", [r.defects.structural_rate() for r in results], "per piece"))
+    for kind in DESCRIPTIVE_KINDS:
+        rows.append((f"{kind} (not a defect)",
+                     [100 * r.defects.per_piece(kind) for r in results], "% of pieces"))
+    for kind in HARD_DEFECTS:
+        rows.append((kind, [r.defects.per_hundred(kind) for r in results], "/100 chords"))
+    rows.append(("HARD TOTAL", [r.defects.hard_error_rate() for r in results], "/100 chords"))
+    for kind in SOFT_DEFECTS:
+        rows.append((kind, [r.defects.per_hundred(kind) for r in results], "/100 chords"))
+    rows.append(("SOFT TOTAL", [r.defects.soft_error_rate() for r in results], "/100 chords"))
     return rows

@@ -8,8 +8,8 @@ is not.
 
 ```
 theory/      music-theory primitives: key normalization, chord vocabulary,
-             voice-leading detectors. Heavily unit-tested; everything else
-             depends on them being right.
+             voice-leading detectors, and structural (whole-piece) defects.
+             Heavily unit-tested; everything else depends on them being right.
 data/        Bach chorale corpus loading, quantization, splits; and the
              Melody <-> grid conversions the engines share.
 engines/     HarmonyEngine implementations. Importing a module registers it.
@@ -37,13 +37,13 @@ tests/       Unit tests, an engine contract suite every registered engine must
 
 Results on the 61 held-out chorales (full detail in `eval/REPORT.md`):
 
-|                | defects /100 | style JS from Bach | chords/piece | beats on I or V |
-|----------------|--------------|--------------------|--------------|-----------------|
-| `fixed_thirds` | 159.84       | 0.421              | 6.7          | 36.2%           |
-| `rules`        | 0.03         | 0.202              | 9.4          | 68.6%           |
-| `neural`       | 10.47        | **0.060**          | 12.6         | 52.9%           |
-| `neural_vl`    | 0.12         | 0.071              | 11.7         | 53.2%           |
-| **Bach**       | **3.73**     | **0.056**          | **14.5**     | **48.6%**       |
+|                | structural /piece | hard /100 | style JS from Bach | chords/piece | beats on I or V |
+|----------------|-------------------|-----------|--------------------|--------------|-----------------|
+| `fixed_thirds` | 0.443             | 159.84    | 0.421              | 6.7          | 36.2%           |
+| `rules`        | 0.115             | 0.03      | 0.202              | 9.4          | 68.6%           |
+| `neural`       | 0.164             | 10.37     | **0.060**          | 12.6         | 52.9%           |
+| `neural_vl`    | 0.131             | 0.12      | 0.071              | 11.7         | 53.2%           |
+| **Bach**       | **0.066**         | **0.40**  | **0.056**          | **14.5**     | **48.6%**       |
 
 **Read every column against the Bach row, and do not read the first column as a
 leaderboard.** Bach breaks his own voice-leading rules 3.73 times per 100 chords;
@@ -99,6 +99,13 @@ any number in it:
 * **Neither is the defect rate.** It is a guardrail against degenerating into
   parallel thirds. An engine below Bach's rate is not winning; check what it gave
   up to get there.
+* **Defects are tiered by audibility and never summed.** STRUCTURAL (per piece:
+  the piece never resolves, a phrase closes somewhere impossible) must stay near
+  Bach's 0.066 — those are not stylistic risk, they are just wrong. HARD
+  (parallels, range) is the classic audible errors. SOFT (crossing, overlap,
+  spacing, tendency tones) is real to a theorist and largely inaudible; Bach
+  scores 21.0 there and every engine here is far *below* him, which is stiffness,
+  not quality.
 
 ## The shared contract
 

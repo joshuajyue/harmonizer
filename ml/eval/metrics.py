@@ -40,6 +40,10 @@ from ..theory.voicing import (
 
 #: Defects counted in the headline voice-leading table, in reporting order.
 DEFECT_KINDS = (
+    "no_tonal_closure",
+    "implausible_phrase_cadence",
+    "key_not_established",
+    "half_cadence_ending",
     "parallel_fifths",
     "parallel_octaves",
     "contrary_fifths",
@@ -57,8 +61,52 @@ DEFECT_KINDS = (
     "large_leap",
 )
 
-#: Defects that are unambiguously errors rather than stylistic preferences.
-HARD_DEFECTS = ("parallel_fifths", "parallel_octaves", "voice_crossing", "range")
+# ---------------------------------------------------------------------------
+# Severity tiers, ordered by AUDIBILITY rather than by textbook tradition.
+#
+# The previous single "hard" bucket mixed parallel fifths in with voice
+# crossings. A listener notices a parallel octave immediately and essentially
+# never notices that the tenor briefly sat above the alto — Bach crosses voices
+# 3.3 times per 100 chords and nobody has ever complained. Summing the two into
+# one headline number made it less meaningful than either half.
+#
+# The tiers are reported separately, and they are not interchangeable. STRUCTURAL
+# defects should stay at essentially zero whatever else an engine is doing: they
+# are not stylistic risk, they are just wrong. SOFT defects drifting upward in
+# exchange for more interesting harmony is a fair trade and often a good one.
+# ---------------------------------------------------------------------------
+
+#: Wrong at the level of the whole piece. A listener notices instantly.
+STRUCTURAL_DEFECTS = ("no_tonal_closure", "implausible_phrase_cadence", "key_not_established")
+
+#: The classic errors: audible, and wrong in any style that has these rules.
+HARD_DEFECTS = ("parallel_fifths", "parallel_octaves", "range")
+
+#: Real to a theorist, largely invisible to a listener. Bach breaks all of these.
+SOFT_DEFECTS = (
+    "voice_crossing",
+    "voice_overlap",
+    "spacing",
+    "direct_fifths",
+    "direct_octaves",
+    "contrary_fifths",
+    "contrary_octaves",
+    "unresolved_leading_tone",
+    "unresolved_seventh",
+    "doubled_leading_tone",
+    "awkward_melodic_interval",
+    "large_leap",
+)
+
+#: Reported, never scored: things Bach does that an engine may also do.
+DESCRIPTIVE_KINDS = ("half_cadence_ending",)
+
+DEFECT_TIERS = {
+    **{kind: "structural" for kind in STRUCTURAL_DEFECTS},
+    **{kind: "hard" for kind in HARD_DEFECTS},
+    **{kind: "soft" for kind in SOFT_DEFECTS},
+    **{kind: "descriptive" for kind in DESCRIPTIVE_KINDS},
+}
 
 
 def to_texture(lines: Sequence[Sequence[int]], step: float = 0.25) -> VoicedTexture:
@@ -369,26 +417,68 @@ def collect_activity(
 class DefectCounts:
     counts: Counter = field(default_factory=Counter)
     chord_changes: int = 0
+    #: Structural defects are per-PIECE events, not per-chord ones: a piece
+    #: either closes properly or it does not, and dividing that by its length
+    #: would make long pieces look better at it.
+    pieces: int = 0
 
     def merge(self, other: "DefectCounts") -> None:
         self.counts.update(other.counts)
         self.chord_changes += other.chord_changes
+        self.pieces += other.pieces
 
     def per_hundred(self, kind: str) -> float:
         if self.chord_changes == 0:
             return 0.0
         return 100.0 * self.counts.get(kind, 0) / self.chord_changes
 
+    def per_piece(self, kind: str) -> float:
+        if self.pieces == 0:
+            return 0.0
+        return self.counts.get(kind, 0) / self.pieces
+
+    def structural_rate(self) -> float:
+        """Structural defects per piece. Must stay near zero; Bach is ~0.02."""
+        return sum(self.per_piece(kind) for kind in STRUCTURAL_DEFECTS)
+
     def hard_error_rate(self) -> float:
+        """Parallels and range violations per 100 chord changes.
+
+        Voice crossing was removed from this in favour of the tiering above; it
+        dominated the figure for Bach (3.33 of his 3.73) while being the least
+        audible thing in it.
+        """
         return sum(self.per_hundred(kind) for kind in HARD_DEFECTS)
 
+    def soft_error_rate(self) -> float:
+        return sum(self.per_hundred(kind) for kind in SOFT_DEFECTS)
 
-def collect_defects(lines: Sequence[Sequence[int]], key: Key, *, steps_per_beat: int = STEPS_PER_QUARTER) -> DefectCounts:
+
+def collect_defects(
+    lines: Sequence[Sequence[int]],
+    key: Key,
+    *,
+    steps_per_beat: int = STEPS_PER_QUARTER,
+    phrase_ends: Sequence[bool] | None = None,
+) -> DefectCounts:
+    """Local voice-leading defects, plus structural ones when phrasing is known.
+
+    `phrase_ends` is a per-grid-step mask. Without it the phrase-cadence check is
+    skipped; the ending and key-establishment checks still run, since they need
+    no phrase information.
+    """
+    from ..theory.structure import find_structural_defects, phrase_end_beats
+
     texture = to_texture(lines)
     chords = step_chords(lines, key, steps_per_beat=steps_per_beat)
     defects = analyze_texture(texture, key, chords)
+
+    per_beat = beat_chords(lines, key, steps_per_beat=steps_per_beat)
+    beats = phrase_end_beats(phrase_ends, steps_per_beat) if phrase_ends is not None else None
+    defects = defects + find_structural_defects(per_beat, key, phrase_ends=beats)
+
     counts = Counter(defect.kind for defect in defects)
-    return DefectCounts(counts=counts, chord_changes=count_chord_changes(texture))
+    return DefectCounts(counts=counts, chord_changes=count_chord_changes(texture), pieces=1)
 
 
 # ---------------------------------------------------------------------------

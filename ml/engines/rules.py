@@ -964,25 +964,11 @@ class RuleHarmonyEngine(HarmonyEngine):
         grid: MelodyGrid,
         key: Key,
     ) -> list[Violation]:
-        vocab, _ = self._vocabulary(key.mode)
-        texture = texture_from_voices([[None if p == REST else p for p in line] for line in lines], step=STEP)
-        per_step: list[ChordLabel | None] = [None] * grid.length
-        for state, slot in zip(plan, slots):
-            if state is None:
-                continue
-            for t in range(slot.start, slot.stop):
-                per_step[t] = vocab[state.chord_index]
-        return [
-            Violation(
-                kind=defect.kind,
-                severity=defect.severity,
-                start=defect.offset,
-                voices=[VOICE_NAMES[v] for v in defect.voices if v < 4],
-                message=defect.message,
-            )
-            for defect in analyze_texture(texture, key, per_step)
-            if defect.severity != "info"
-        ]
+        from ._violations import build_violations
+
+        return build_violations(
+            lines, key, steps_per_beat=grid.steps_per_beat, phrase_ends=grid.phrase_end,
+        )
 
     def _extra_voices(self, lines: Sequence[Sequence[int]], count: int):
         """Octave doublings for voice counts above four."""
