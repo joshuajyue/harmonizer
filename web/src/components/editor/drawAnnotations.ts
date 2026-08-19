@@ -34,7 +34,14 @@ export function drawChords(
     context.fill();
     context.fillStyle = "#dfffa3";
     context.font = '500 12px "DM Mono", monospace';
-    context.fillText(chord.roman, x + 9, top + 37);
+    context.textAlign = "center";
+    context.fillText(
+      chord.roman,
+      x + width / 2,
+      top + 37,
+      Math.max(6, width - 10),
+    );
+    context.textAlign = "start";
   }
 }
 

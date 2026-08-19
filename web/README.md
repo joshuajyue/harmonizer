@@ -15,7 +15,7 @@ editable voices, chords, violations, transcription, and rendered audio work
 without a backend. It reads the schema-validated request and response directly
 from `contracts/examples/` through Vite middleware. Set
 `VITE_USE_MOCK_API=false` to use the Vite `/api/*` proxy to
-`http://localhost:8000`.
+`http://127.0.0.1:8000`.
 
 ```bash
 npm run lint

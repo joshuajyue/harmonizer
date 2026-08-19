@@ -21,11 +21,19 @@ export const createComparisonSlice: StateCreator<
   setEngines: (engines) =>
     set((state) => {
       const available = engines.filter((engine) => engine.available);
-      const rule = available.find((engine) => !engine.learned) ?? available[0];
-      const learned =
-        available.find((engine) => engine.learned && engine.id !== rule?.id) ??
-        available[1] ??
-        rule;
+      const primary =
+        available.find((engine) => engine.id === "rules") ??
+        available.find(
+          (engine) => !engine.learned && engine.id !== "dev-stub",
+        ) ??
+        available[0];
+      const comparison =
+        available.find((engine) => engine.id === "fixed_thirds") ??
+        available.find(
+          (engine) => engine.learned && engine.id !== primary?.id,
+        ) ??
+        available.find((engine) => engine.id !== primary?.id) ??
+        primary;
       return {
         engines,
         enginesStatus: "ready",
@@ -33,11 +41,11 @@ export const createComparisonSlice: StateCreator<
         slots: {
           A: {
             ...state.slots.A,
-            engineId: state.slots.A.engineId || rule?.id || "",
+            engineId: state.slots.A.engineId || primary?.id || "",
           },
           B: {
             ...state.slots.B,
-            engineId: state.slots.B.engineId || learned?.id || "",
+            engineId: state.slots.B.engineId || comparison?.id || "",
           },
         },
       };

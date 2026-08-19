@@ -1,6 +1,7 @@
 import { LoaderCircle, Mic, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { apiClient } from "../../api/client";
+import { transcodeRecordingToWav } from "../../audio/encodeWav";
 import { useStudioStore } from "../../store";
 
 export function MicrophoneInput() {
@@ -76,8 +77,11 @@ export function MicrophoneInput() {
     for (const track of streamRef.current?.getTracks() ?? []) track.stop();
     try {
       const currentMelody = useStudioStore.getState().melody;
-      const melody = await apiClient.transcribe(
+      const recording = await transcodeRecordingToWav(
         new Blob(chunksRef.current, { type }),
+      );
+      const melody = await apiClient.transcribe(
+        recording,
         {
           tempo: currentMelody.tempo,
           timeSignature: currentMelody.timeSignature ?? {

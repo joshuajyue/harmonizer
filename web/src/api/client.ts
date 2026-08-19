@@ -13,7 +13,7 @@ import {
 } from "../fixtures/canonical";
 import { normalizeNotes } from "../utils/music";
 import { createMockWav } from "./mockAudio";
-import { createMockMidi } from "./mockMidi";
+import { createMockMidi, parseMockMidi } from "./mockMidi";
 
 const mockEnabled =
   import.meta.env.VITE_USE_MOCK_API === "true" ||
@@ -44,6 +44,11 @@ export interface RenderResult {
   used: string;
   renderer: string;
   fallback: string | null;
+}
+
+export interface MidiImportResult {
+  melody: Melody;
+  notice?: string;
 }
 
 const MOCK_SYNTHS: SynthInfo[] = [
@@ -228,7 +233,8 @@ export const apiClient = {
     }
 
     const form = new FormData();
-    form.append("audio", audio, "recording.webm");
+    const extension = audio.type.includes("wav") ? "wav" : "webm";
+    form.append("audio", audio, `recording.${extension}`);
     const params = new URLSearchParams({
       tempo: String(validatedTiming.tempo),
       numerator: String(validatedTiming.timeSignature.numerator),
@@ -263,6 +269,29 @@ export const apiClient = {
       throw new ApiError(await response.text(), response.status);
     }
     return response.blob();
+  },
+
+  async importMidi(
+    file: File,
+    currentTempo: number,
+  ): Promise<MidiImportResult> {
+    if (mockEnabled) {
+      const imported = await parseMockMidi(file, currentTempo);
+      return {
+        ...imported,
+        melody: completeMelody(imported.melody),
+      };
+    }
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const response = await fetch("/api/v1/midi/import", {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok) {
+      throw new ApiError(await response.text(), response.status);
+    }
+    return { melody: completeMelody((await response.json()) as Melody) };
   },
 
   async getExampleMelody(): Promise<Melody> {
