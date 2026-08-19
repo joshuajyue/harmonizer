@@ -72,6 +72,14 @@ def create_app(
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=[
+                "X-HarmonAIzer-Synth-Requested",
+                "X-HarmonAIzer-Synth-Used",
+                "X-HarmonAIzer-Renderer",
+                "X-HarmonAIzer-Fallback",
+                "X-HarmonAIzer-Octave-Shift",
+                "X-HarmonAIzer-Detected-Median-Pitch",
+            ],
         )
 
     prefix = "/api/v1"

@@ -3,7 +3,10 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
+from dataclasses import dataclass
 from io import BytesIO
+from math import ceil, floor
+from statistics import median
 
 import numpy as np
 import soundfile as sf
@@ -12,6 +15,9 @@ from contracts.schema import Melody, Note, TimeSignature
 
 logger = logging.getLogger(__name__)
 
+MELODY_PITCH_MIN = 60
+MELODY_PITCH_MAX = 79
+
 
 class AudioDecodeError(ValueError):
     pass
@@ -19,6 +25,20 @@ class AudioDecodeError(ValueError):
 
 class TranscriptionError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class OctaveNormalization:
+    notes: list[Note]
+    octave_shift: int
+    detected_median_pitch: float
+
+
+@dataclass(frozen=True)
+class TranscriptionResult:
+    melody: Melody
+    octave_shift: int
+    detected_median_pitch: float
 
 
 class TranscriptionService:
@@ -39,16 +59,27 @@ class TranscriptionService:
         *,
         tempo: float | None,
         time_signature: TimeSignature,
-    ) -> Melody:
+        normalize_octave: bool = True,
+        octave_shift: int | None = None,
+    ) -> TranscriptionResult:
         samples = self._decode(data)
         resolved_tempo = tempo if tempo is not None else self._detect_tempo(samples)
         notes = self._track_pitch(samples, resolved_tempo)
         if not notes:
             raise TranscriptionError("No stable monophonic pitch was detected.")
-        return Melody(
-            notes=notes,
-            tempo=resolved_tempo,
-            timeSignature=time_signature,
+        normalization = normalize_melody_octaves(
+            notes,
+            enabled=normalize_octave,
+            forced_octave_shift=octave_shift,
+        )
+        return TranscriptionResult(
+            melody=Melody(
+                notes=normalization.notes,
+                tempo=resolved_tempo,
+                timeSignature=time_signature,
+            ),
+            octave_shift=normalization.octave_shift,
+            detected_median_pitch=normalization.detected_median_pitch,
         )
 
     def _detect_tempo(self, samples: np.ndarray) -> float:
@@ -202,6 +233,66 @@ class TranscriptionService:
             hop_length=hop_length,
             tempo=tempo,
         )
+
+
+def normalize_melody_octaves(
+    notes: list[Note],
+    *,
+    enabled: bool = True,
+    forced_octave_shift: int | None = None,
+) -> OctaveNormalization:
+    if not notes:
+        raise TranscriptionError("No stable monophonic pitch was detected.")
+
+    pitches = [note.pitch for note in notes]
+    detected_median = float(median(pitches))
+    minimum_shift = ceil(-min(pitches) / 12)
+    maximum_shift = floor((127 - max(pitches)) / 12)
+
+    if forced_octave_shift is not None:
+        shift = forced_octave_shift
+    elif not enabled or all(
+        MELODY_PITCH_MIN <= pitch <= MELODY_PITCH_MAX for pitch in pitches
+    ):
+        shift = 0
+    else:
+        target_center = (MELODY_PITCH_MIN + MELODY_PITCH_MAX) / 2
+
+        def score(candidate: int) -> tuple[int, int, float, int]:
+            shifted = [pitch + 12 * candidate for pitch in pitches]
+            outside_count = sum(
+                pitch < MELODY_PITCH_MIN or pitch > MELODY_PITCH_MAX
+                for pitch in shifted
+            )
+            outside_distance = sum(
+                max(MELODY_PITCH_MIN - pitch, 0, pitch - MELODY_PITCH_MAX)
+                for pitch in shifted
+            )
+            return (
+                outside_count,
+                outside_distance,
+                abs(detected_median + 12 * candidate - target_center),
+                abs(candidate),
+            )
+
+        shift = min(range(minimum_shift, maximum_shift + 1), key=score)
+
+    if not minimum_shift <= shift <= maximum_shift:
+        raise TranscriptionError(
+            f"octaveShift={shift} would place a detected pitch outside MIDI range "
+            f"0-127; choose a shift from {minimum_shift} to {maximum_shift}."
+        )
+
+    semitone_shift = 12 * shift
+    shifted_notes = [
+        note.model_copy(update={"pitch": note.pitch + semitone_shift})
+        for note in notes
+    ]
+    return OctaveNormalization(
+        notes=shifted_notes,
+        octave_shift=shift,
+        detected_median_pitch=detected_median,
+    )
 
 
 def _frames_to_notes(

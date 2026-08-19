@@ -8,8 +8,13 @@ from fastapi.testclient import TestClient
 from imageio_ffmpeg import get_ffmpeg_exe
 
 import backend.app.services.transcription as transcription_module
-from backend.app.services.transcription import AudioDecodeError, TranscriptionService
-from contracts.schema import Melody, TimeSignature
+from backend.app.services.transcription import (
+    AudioDecodeError,
+    TranscriptionResult,
+    TranscriptionService,
+    normalize_melody_octaves,
+)
+from contracts.schema import Melody, Note, TimeSignature
 
 
 class FakeTranscriptionService:
@@ -22,16 +27,35 @@ class FakeTranscriptionService:
         *,
         tempo: float | None,
         time_signature: TimeSignature,
-    ) -> Melody:
+        normalize_octave: bool = True,
+        octave_shift: int | None = None,
+    ) -> TranscriptionResult:
         assert data == b"audio"
         assert tempo is not None
-        return self._melody.model_copy(
-            update={
-                "tempo": tempo,
-                "timeSignature": time_signature,
-            },
-            deep=True,
+        normalization = normalize_melody_octaves(
+            self._melody.notes,
+            enabled=normalize_octave,
+            forced_octave_shift=octave_shift,
         )
+        return TranscriptionResult(
+            melody=self._melody.model_copy(
+                update={
+                    "notes": normalization.notes,
+                    "tempo": tempo,
+                    "timeSignature": time_signature,
+                },
+                deep=True,
+            ),
+            octave_shift=normalization.octave_shift,
+            detected_median_pitch=normalization.detected_median_pitch,
+        )
+
+
+def notes_at(pitches: list[int]) -> list[Note]:
+    return [
+        Note(pitch=pitch, start=float(index), duration=1.0, velocity=80)
+        for index, pitch in enumerate(pitches)
+    ]
 
 
 def test_transcribe_upload_uses_contract_response(
@@ -54,6 +78,103 @@ def test_transcribe_upload_uses_contract_response(
     assert response.json()["timeSignature"] == canonical_request_payload["melody"][
         "timeSignature"
     ]
+    assert response.headers["x-harmonaizer-octave-shift"] == "0"
+    assert float(
+        response.headers["x-harmonaizer-detected-median-pitch"]
+    ) == pytest.approx(
+        np.median([note.pitch for note in fixture_melody.notes])
+    )
+
+
+def test_bass_register_is_shifted_up_by_whole_octaves() -> None:
+    original = notes_at([43, 45, 47, 50])
+
+    normalized = normalize_melody_octaves(original)
+
+    assert normalized.octave_shift == 2
+    assert normalized.detected_median_pitch == 46
+    assert [note.pitch for note in normalized.notes] == [67, 69, 71, 74]
+
+
+def test_melody_already_in_working_range_is_not_shifted() -> None:
+    original = notes_at([60, 62, 64, 67])
+
+    normalized = normalize_melody_octaves(original)
+
+    assert normalized.octave_shift == 0
+    assert [note.pitch for note in normalized.notes] == [60, 62, 64, 67]
+
+
+def test_wide_range_is_shifted_globally_without_clamping() -> None:
+    original_pitches = [43, 55, 67, 79]
+
+    normalized = normalize_melody_octaves(notes_at(original_pitches))
+    normalized_pitches = [note.pitch for note in normalized.notes]
+
+    assert normalized.octave_shift == 1
+    assert normalized_pitches == [55, 67, 79, 91]
+    assert [
+        right - left for left, right in zip(normalized_pitches, normalized_pitches[1:])
+    ] == [
+        right - left for left, right in zip(original_pitches, original_pitches[1:])
+    ]
+    assert [pitch % 12 for pitch in normalized_pitches] == [
+        pitch % 12 for pitch in original_pitches
+    ]
+
+
+def test_transcribe_can_disable_octave_normalization(
+    client: TestClient,
+    canonical_request_payload: dict,
+) -> None:
+    fixture = Melody.model_validate(canonical_request_payload["melody"]).model_copy(
+        update={"notes": notes_at([43, 45, 47, 50])},
+        deep=True,
+    )
+    client.app.state.transcription_service = FakeTranscriptionService(fixture)
+
+    response = client.post(
+        f"/api/v1/transcribe?tempo={fixture.tempo}"
+        "&normalizeOctave=false",
+        files={"audio": ("voice.wav", b"audio", "audio/wav")},
+    )
+
+    assert response.status_code == 200
+    assert [note["pitch"] for note in response.json()["notes"]] == [43, 45, 47, 50]
+    assert response.headers["x-harmonaizer-octave-shift"] == "0"
+    assert response.headers["x-harmonaizer-detected-median-pitch"] == "46"
+
+
+def test_transcribe_can_force_octave_shift(
+    client: TestClient,
+    canonical_request_payload: dict,
+) -> None:
+    fixture = Melody.model_validate(canonical_request_payload["melody"]).model_copy(
+        update={"notes": notes_at([43, 45, 47, 50])},
+        deep=True,
+    )
+    client.app.state.transcription_service = FakeTranscriptionService(fixture)
+
+    response = client.post(
+        f"/api/v1/transcribe?tempo={fixture.tempo}"
+        "&normalizeOctave=false&octaveShift=1",
+        files={"audio": ("voice.wav", b"audio", "audio/wav")},
+    )
+
+    assert response.status_code == 200
+    assert [note["pitch"] for note in response.json()["notes"]] == [55, 57, 59, 62]
+    assert response.headers["x-harmonaizer-octave-shift"] == "+1"
+
+
+def test_forced_octave_shift_rejects_midi_overflow() -> None:
+    with pytest.raises(
+        transcription_module.TranscriptionError,
+        match="outside MIDI range",
+    ):
+        normalize_melody_octaves(
+            notes_at([120, 124]),
+            forced_octave_shift=1,
+        )
 
 
 def test_transcribe_rejects_partial_time_signature(
@@ -111,14 +232,16 @@ def test_pyin_tracks_a_clean_monophonic_tone(
         max_upload_bytes=1_000_000,
         max_audio_seconds=5,
     )
-    melody = service.transcribe(
+    result = service.transcribe(
         output.getvalue(),
         tempo=fixture_melody.tempo,
         time_signature=fixture_melody.timeSignature,
     )
 
-    assert melody.notes
-    assert any(abs(note.pitch - fixture_note.pitch) <= 1 for note in melody.notes)
+    assert result.melody.notes
+    assert any(
+        abs(note.pitch - fixture_note.pitch) <= 1 for note in result.melody.notes
+    )
 
 
 def test_webm_upload_uses_bundled_ffmpeg(
@@ -231,11 +354,11 @@ def test_transcribe_detects_tempo_from_note_onsets(
         max_upload_bytes=1_000_000,
         max_audio_seconds=10,
     )
-    melody = service.transcribe(
+    result = service.transcribe(
         output.getvalue(),
         tempo=None,
         time_signature=fixture_melody.timeSignature,
     )
 
-    assert abs(melody.tempo - fixture_melody.tempo) <= 5
-    assert len(melody.notes) >= 4
+    assert abs(result.melody.tempo - fixture_melody.tempo) <= 5
+    assert len(result.melody.notes) >= 4

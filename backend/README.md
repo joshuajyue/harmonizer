@@ -19,7 +19,13 @@ exists for realistic service smoke tests; all musical decisions belong in `ml/`.
 - `POST /api/v1/harmonize` and `GET /api/v1/engines`
 - `POST /api/v1/render` and `GET /api/v1/synths`
 - `POST /api/v1/transcribe` (`audio` multipart field; `file` is also accepted).
-  Supply tempo explicitly or it is estimated from note-onset intervals.
+  Supply tempo explicitly or it is estimated from note-onset intervals. By
+  default, the complete melody is shifted by whole octaves to best fit the
+  soprano/melody working range, MIDI 60-79. Use `normalizeOctave=false` to keep
+  the sung register or `octaveShift=<signed octaves>` to force a global shift;
+  the manual shift takes precedence. Responses report
+  `X-HarmonAIzer-Octave-Shift` and the pre-shift MIDI median in
+  `X-HarmonAIzer-Detected-Median-Pitch`.
 - `POST /api/v1/midi/import`
 - `POST /api/v1/midi/export?tempo=<bpm>` (tempo is required)
 - `GET /api/v1/health`
