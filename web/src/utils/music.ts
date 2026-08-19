@@ -85,7 +85,8 @@ export function pieceLength(
     );
   }
   const raw = Math.max(4, ...ends);
-  const bar = melody.timeSignature.numerator * (4 / melody.timeSignature.denominator);
+  const signature = melody.timeSignature ?? { numerator: 4, denominator: 4 };
+  const bar = signature.numerator * (4 / signature.denominator);
   return Math.ceil(raw / bar) * bar;
 }
 
