@@ -20,7 +20,8 @@ training/    Scripts that produce checked-in artefacts (priors, tuned weights,
 experiments/ One-off measurements that produce numbers for the report. Imported
              by nothing; safe to delete once the report is read.
 eval/        The evaluation harness and REPORT.md.
-tests/       Unit tests, plus a contract suite every registered engine must pass.
+tests/       Unit tests, an engine contract suite every registered engine must
+             pass, and conformance tests against the shared API contract.
 ```
 
 ## Engines
@@ -60,7 +61,8 @@ structurally impossible.
 ```bash
 python -m ml.eval.run                    # score every engine, write eval/REPORT.md
 python -m ml.eval.run --detect-key       # also run the realistic melody-only-key setting
-python -m pytest ml/tests -q             # unit + engine contract tests
+python -m pytest ml/tests -q             # unit, engine contract, API conformance
+python3 contracts/test_contract_sync.py  # the lead's TS/Pydantic drift guard
 
 python -m ml.training.calibrate_rules    # refit chord priors from the training split
 python -m ml.training.tune_rules         # tune rule weights against the harness
@@ -84,6 +86,33 @@ any number in it:
 * **Chord agreement with Bach is not the headline.** It is reported because it
   is the number v1 optimised, and because watching it move independently of the
   quality metrics is the argument against it.
+
+## The shared contract
+
+`contracts/` is owned by the lead and is **read-only here**. Two guards keep the
+two sides honest, and they check different things:
+
+* `contracts/test_contract_sync.py` (the lead's) proves `types.ts` and
+  `schema.py` mirror each other.
+* `ml/tests/test_contract_conformance.py` (mine) proves the engines actually
+  satisfy the Pydantic side.
+
+The one worth knowing about: `Chord.quality` is a bare `str` in the schema, so
+Pydantic will accept `"min11"` and the UI will render something unrecognisable.
+The conformance suite parses the quality strings the contract's field
+description enumerates and asserts the whole chord vocabulary in
+`theory/chords.py` is a subset — currently 10 of the 14 documented values, with
+`maj6`, `min6`, `sus2` and `sus4` unused by these engines. Adding a quality here
+without the contract knowing about it fails the build rather than shipping a
+blank chord symbol.
+
+Response-side fields are populated explicitly rather than left to their
+defaults. The contract guarantees the frontend never has to null-check
+`chord.extensions` or `response.violations`; a default that happens to produce
+the right value is not the same as populating it, and stops being right the
+moment the default changes. These engines write common-practice chorale
+harmony, so `extensions` is always `[]` and the substitution-provenance fields
+are always `None` — `ml/reharm/` is the engine that fills them in.
 
 ## Why it is built this way
 
