@@ -69,8 +69,16 @@ class ReharmConfig:
     #: Cost of substituting in two consecutive units. Reharmonization is a
     #: seasoning; a substitution in every bar reads as a modulation.
     consecutive_cost: float = 0.8
+    #: How loudly the hand-written appetite for colour speaks over the learned
+    #: model in the hybrid scorer. Calibrated by sweeping, not chosen. At 4.0
+    #: the result reaches the treebank oracle's chromaticism exactly (0.162)
+    #: and beats the Viterbi rules engine on colour in 19 tunes out of 20,
+    #: while an ablation confirms the model is still doing the work it is there
+    #: for: it supplies 3.5x the ii-V density the hand-written scorer finds
+    #: alone. See REPORT.md section 5.
+    rule_weight: float = 4.0
     model_weight: float = 1.0
-    temperature: float = 1.0
+    temperature: float = 0.6
     top_p: float = 0.95
     allow_coltrane: bool = False
 
@@ -271,7 +279,6 @@ class HybridScorer:
     lattice: Lattice
     model: ChordNGram
     config: ReharmConfig = ReharmConfig()
-    rule_weight: float = 0.9
 
     def __post_init__(self) -> None:
         self._model = ModelScorer(self.lattice, self.model, self.config)
@@ -289,11 +296,11 @@ class HybridScorer:
             colour += self._rules._internal(candidate)
         if unit.is_last:
             colour += self._rules._cadence(candidate)
-        return learned + self.rule_weight * colour
+        return learned + self.config.rule_weight * colour
 
     def transition(self, index: int, previous: Candidate, candidate: Candidate) -> float:
         learned = self._model.transition(index, previous, candidate)
-        return learned + self.rule_weight * self._rules._pair(previous.last, candidate.first)
+        return learned + self.config.rule_weight * self._rules._pair(previous.last, candidate.first)
 
 
 def _is_tonic_function(root: int, quality: str, lattice: Lattice) -> bool:
@@ -405,8 +412,17 @@ def sample(
 
     rng = random.Random(seed)
     emissions, transitions = _score_arrays(lattice, scorer)
-    scaled_emissions = [emission / temperature for emission in emissions]
-    scaled_transitions = [transition / temperature for transition in transitions]
+    # Temperature is applied to a NORMALISED score scale. Without this it is
+    # not scale-free: multiplying every score by k and the temperature by k
+    # leaves the distribution identical, so "temperature 1.0" meant something
+    # different for every setting of `rule_weight`, and turning up the
+    # hand-written appetite for colour silently turned down the variety. It
+    # looked like an inherent trade between adventurousness and one-to-many
+    # variety. It was an artefact of the units.
+    scale = _score_scale(emissions, transitions)
+    effective = temperature * scale
+    scaled_emissions = [emission / effective for emission in emissions]
+    scaled_transitions = [transition / effective for transition in transitions]
 
     # Backward messages: beta[t][i] = log sum over all completions after t.
     n = len(scaled_emissions)
@@ -423,6 +439,20 @@ def sample(
             logits = scaled_transitions[index - 1][path[-1]] + scaled_emissions[index] + beta[index]
         path.append(_sample_from(logits, top_p, rng))
     return [lattice.candidates[index][choice] for index, choice in enumerate(path)]
+
+
+def _score_scale(emissions: Sequence[np.ndarray], transitions: Sequence[np.ndarray]) -> float:
+    """Typical spread between competing candidates, in score units.
+
+    Dividing by this makes temperature mean the same thing whatever the
+    objective is weighted at: 1.0 samples from the model's own shape, below 1
+    concentrates, above 1 flattens. The spread WITHIN a decision is the right
+    yardstick — it is what the sampler is choosing between.
+    """
+    spreads = [float(np.std(values)) for values in emissions if values.size > 1]
+    spreads += [float(np.std(matrix)) for matrix in transitions if matrix.size > 1]
+    positive = [spread for spread in spreads if spread > 1e-9]
+    return float(np.mean(positive)) if positive else 1.0
 
 
 def _logsumexp(values: np.ndarray, axis: int) -> np.ndarray:

@@ -67,13 +67,21 @@ also the least interesting setting; **1.0 is the recommended default**, and
 Two, and both were calibrated by measurement rather than taste (numbers from a
 20-tune jazz set, `--sweep`):
 
-| dial | 0.0 | 1.0+ | what it moves |
+| dial | low | high | what it moves |
 | --- | --- | --- | --- |
-| `adventure` | roots changed 0.10 | roots changed 0.43 | how far the harmony travels from the tune. Scales the substitution cost and the anchor. |
-| `temperature` | diversity 0.001 | diversity 0.374 | how different two runs are. Barely touches quality (headline 0.609 → 0.627). |
+| `temperature` | 0.1 → diversity 0.05 | 1.5 → diversity 0.55 | how different two runs are. Quality is flat from 0.1 to 0.7. |
+| `rule_weight` | 0.0 → chromatic 0.094 | 4.0 → chromatic 0.163 | how colourful the harmony is. Diversity stays flat across the range. |
+| `adventure` | 0.0 → roots changed 0.10 | 1.0 → roots changed 0.43 | how far the harmony travels from the tune. |
 
-`adventure` is a `ReharmConfig` field; `temperature` is the contract's own
-option, so the UI already has it.
+They are orthogonal only because temperature is applied to a **normalised**
+score scale. Multiplying every score by *k* and the temperature by *k* leaves
+the distribution identical, so before that fix turning `rule_weight` up silently
+turned variety down — and that artefact was enough to produce a wrong conclusion
+in an earlier version of `REPORT.md`. Anyone adding a term to this objective
+should know it.
+
+`temperature` is the contract's own option so the UI already has it; the other
+two are `ReharmConfig` fields.
 
 ## Architecture
 

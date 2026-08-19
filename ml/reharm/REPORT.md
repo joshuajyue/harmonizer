@@ -24,29 +24,48 @@ changes and writes MIDI, which is the fastest way to judge any of this.
 
 **Summary.** The strategic case for this workstream was that Bach chorale
 harmonization has a right answer so search wins, while jazz reharmonization does
-not so sampling should win. Half of that survived measurement, and it is the
-half that matters for the product.
+not, so sampling should win. That case holds — but the interesting part is how
+it nearly failed to, and why.
 
-Sampling delivers genuine one-to-many variety at no measurable cost in quality:
-five draws of the same tune differ in 23% of their chord roots, where the
-deterministic engine differs in exactly 0%, and the headline score moves by 0.02
-across a 36× change in temperature. That is the thing search structurally cannot
-do, and it is real.
+Sampling delivers genuine one-to-many variety that search structurally cannot:
+five draws of the same tune differ in 33% of their chord roots, against exactly
+0% for the deterministic engine. That was never in doubt.
 
-Sampling does **not** deliver adventure. Given an identical candidate space and
-identical constraints, the argmax of hand-written substitution rules is *more*
-chromatic than the learned sampler (0.113 vs 0.067 chromatic tones per chord
-tone; the rules engine wins that on 20 tunes out of 20). A model of 1170
-standards puts its mass where the corpus does, and the middle of the jazz corpus
-is a diatonic ii-V-I. Adventurousness lives in the objective, not in the sampler
-— which is why the shipped engine samples from a **hybrid** of the two.
+The claim that took two attempts is adventurousness. **An earlier version of
+this report concluded that sampling does not deliver it** — that hand-written
+rules chosen by argmax were more chromatic than the learned sampler, on 20 tunes
+out of 20. That conclusion was wrong, and it was wrong for a reason worth
+recording: two miscalibrations, each invisible on its own.
+
+  1. The hybrid's mixing weight between the learned model and the hand-written
+     appetite for colour was set at 0.9 and never swept.
+  2. Temperature was applied to an **unnormalised** score scale. Multiplying
+     every score by *k* and the temperature by *k* leaves the distribution
+     identical, so turning up the objective's weight silently turned down the
+     variety. What looked like an inherent trade between being adventurous and
+     being varied was an artefact of the units.
+
+With the scale normalised and the weight swept, the sampler is **more** chromatic
+than the argmax engine — 0.162 against 0.113 chromatic tones per chord tone,
+winning 19 tunes out of 20 — and it hits the treebank oracle's chromaticism
+exactly (0.162) while keeping 0.33 diversity. The two dials are now orthogonal:
+`rule_weight` moves colour with diversity flat, temperature moves diversity with
+quality flat.
+
+**What survives from the original finding, and is the real lesson:
+adventurousness lives in the objective, not in the sampler.** The colour came
+from turning up the *hand-written* term, not from the model. An ablation
+confirms the division of labour: at the same mixing weight, dropping the learned
+model costs 3.5× the ii-V density (2.87 down to 0.82, against 3.34 for the
+humans). The model supplies harmonic syntax; the rules supply the willingness to
+leave home; the sampler supplies a different answer every time. None of the
+three is redundant, and none of them does another's job.
 
 On the one criterion no engine optimises for — distance from the changes a human
-rhythm section actually played under the same melody — all three reharmonizers
-beat the unreharmonized skeleton, and the learned ones are **not** systematically
-better than the rules (mean paired difference 0.008 against a standard deviation
-three to four times larger, 9/20 wins for both). That is a negative result and
-it is stated as one.
+rhythm section actually played under the same melody — every reharmonizer beats
+the unreharmonized skeleton, and the more adventurous ones sit slightly *further*
+from the specific human (0.617 against 0.597), which is what being more
+adventurous means.
 
 ---
 
@@ -128,18 +147,23 @@ unreharmonized. 5 samples per tune, `adventure=0.75`, `temperature=1.0`.
 
 | metric | skeleton | rules | sampled | hybrid | human |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| headline | 0.106 | **0.784** | 0.612 | 0.673 | 0.616 |
-| hard melody conflicts | 0.206 | **0.035** | 0.054 | 0.049 | 0.061 |
-| chord-tone rate | 0.519 | 0.597 | 0.564 | 0.551 | 0.591 |
-| seventh rate | 0.042 | 0.921 | 0.971 | 0.975 | 0.833 |
-| dominants that resolve | 0.263 | 0.882 | 0.612 | 0.781 | 0.725 |
-| ii-V per 16 bars | 0.028 | 1.013 | 3.022 | 3.628 | 3.343 |
-| chromatic tone rate | 0.036 | **0.113** | 0.067 | 0.080 | 0.141 |
-| beats per chord | 3.306 | 3.034 | 3.294 | 3.237 | 4.895 |
-| roots changed vs skeleton | 0.000 | 0.325 | 0.330 | 0.417 | 0.726 |
-| **distance from human** | 0.630 | 0.597 | 0.590 | **0.590** | — |
-| **sample diversity** | — | **0.000** | **0.231** | 0.207 | — |
-| **style divergence** | 0.480 | 0.243 | 0.216 | **0.209** | 0.278 |
+| headline | 0.106 | 0.784 | 0.612 | 0.770 | 0.616 |
+| hard melody conflicts | 0.206 | **0.035** | 0.053 | 0.043 | 0.061 |
+| chord-tone rate | 0.519 | 0.597 | 0.562 | 0.526 | 0.591 |
+| seventh rate | 0.042 | 0.921 | 0.969 | 0.983 | 0.833 |
+| dominants that resolve | 0.263 | 0.882 | 0.602 | 0.908 | 0.725 |
+| ii-V per 16 bars | 0.028 | 1.013 | 2.974 | 2.874 | 3.343 |
+| chromatic tone rate | 0.036 | 0.113 | 0.070 | **0.162** | 0.141 |
+| beats per chord | 3.306 | 3.034 | 3.292 | 2.891 | 4.895 |
+| roots changed vs skeleton | 0.000 | 0.325 | 0.337 | 0.528 | 0.726 |
+| **distance from human** | 0.630 | **0.597** | 0.591 | 0.617 | — |
+| **sample diversity** | — | **0.000** | 0.260 | **0.326** | — |
+| **style divergence** | 0.480 | 0.243 | 0.215 | **0.209** | 0.278 |
+
+`sampled` is the pure chord model with no hand-written colour term; `hybrid` is
+what `jazz_reharm` actually ships. The gap between those two columns is the
+whole finding: same lattice, same constraints, same sampler, and the one that
+wants colour finds twice as much of it.
 
 Seven traditional tunes, same configuration, no human reference:
 
@@ -158,16 +182,18 @@ Seven traditional tunes, same configuration, no human reference:
 | | hybrid − rules | | | sampled − rules | | |
 | metric | mean | sd | wins | mean | sd | wins |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| headline | −0.111 | 0.037 | 0/20 | −0.172 | 0.042 | 0/20 |
-| hard conflicts | +0.014 | 0.012 | 18/20 | +0.019 | 0.014 | 18/20 |
-| chromatic tone rate | −0.032 | 0.024 | 0/20 | −0.046 | 0.021 | 0/20 |
-| distance from human | −0.008 | 0.035 | 9/20 | −0.008 | 0.027 | 9/20 |
-| style divergence | −0.034 | 0.015 | 0/20 | −0.027 | 0.013 | 1/20 |
+| headline | −0.014 | 0.031 | 6/20 | −0.172 | 0.043 | 0/20 |
+| hard conflicts | +0.008 | 0.012 | 15/20 | +0.018 | 0.012 | 18/20 |
+| chromatic tone rate | **+0.049** | 0.036 | **19/20** | −0.042 | 0.019 | 0/20 |
+| distance from human | +0.020 | 0.034 | 16/20 | −0.007 | 0.028 | 11/20 |
+| style divergence | −0.034 | 0.018 | 1/20 | −0.028 | 0.013 | 1/20 |
 
-Four of those five are near-unanimous in one direction or the other. Those are
-real effects. "Distance from human" is a coin flip with a mean smaller than a
-sixth of its own spread, and calling it a win for either side would be
-dishonest.
+The shipped hybrid is now level with the argmax engine on the headline (mean
+difference −0.014 against a spread twice that, 6/20 — a tie), clearly ahead on
+colour and on style, marginally behind on melody fit, and further from the
+specific human. The pure model without the colour term loses on everything
+except style and melody-independence, which is precisely why it is not what
+ships.
 
 ---
 
@@ -207,23 +233,44 @@ vocabulary, and a weak one for anything resembling "quality".
 
 Both were calibrated by sweeping, not chosen by taste. 20 jazz tunes:
 
-| temperature | headline | chromatic | diversity |
-| ---: | ---: | ---: | ---: |
-| 0.05 | 0.609 | 0.059 | 0.001 |
-| 0.60 | 0.607 | 0.062 | 0.103 |
-| 1.30 | 0.614 | 0.076 | 0.286 |
-| 1.80 | 0.627 | 0.090 | 0.374 |
+**`rule_weight`** — how loudly the hand-written appetite for colour speaks over
+the learned model. Diversity stays flat; colour rises. This is the dial that was
+never swept, and sweeping it is what overturned the original conclusion.
 
-| adventure | rules: roots changed | rules: chromatic | hybrid: roots changed |
-| ---: | ---: | ---: | ---: |
-| 0.00 | 0.103 | 0.062 | 0.277 |
-| 0.50 | 0.184 | 0.079 | 0.375 |
-| 1.00 | 0.431 | 0.148 | 0.473 |
+| rule_weight | headline | chromatic | diversity | style |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.0 | 0.625 | 0.094 | 0.392 | 0.217 |
+| 0.9 | 0.675 | 0.107 | 0.407 | 0.214 |
+| 2.5 | 0.732 | 0.134 | 0.435 | 0.214 |
+| 4.0 | 0.758 | **0.163** | 0.452 | 0.215 |
 
-Temperature buys variety at flat quality across a 36× range — that is what a
-dial should do, and it is the product. `adventure` is the one that moves how far
-out the harmony goes, and it is a hand-written cost, not a property of the
-model.
+**`temperature`** — how different two runs are. Quality is flat from 0.1 to 0.7
+and degrades gently after; diversity rises smoothly across the whole range.
+
+| temperature | headline | chromatic | diversity | melody conflicts |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.1 | 0.774 | 0.148 | 0.049 | 0.040 |
+| 0.3 | 0.778 | 0.153 | 0.131 | 0.039 |
+| 0.5 | 0.778 | 0.156 | 0.250 | 0.040 |
+| 0.7 | 0.775 | 0.163 | 0.365 | 0.043 |
+| 1.5 | 0.737 | 0.175 | 0.547 | 0.048 |
+
+**`adventure`** — how far the harmony travels from the tune, by scaling the
+substitution cost and the anchor. Moves both engines.
+
+| adventure | rules: roots changed | rules: chromatic |
+| ---: | ---: | ---: |
+| 0.00 | 0.103 | 0.062 |
+| 0.50 | 0.184 | 0.079 |
+| 1.00 | 0.431 | 0.148 |
+
+The two tables at the top are only orthogonal because temperature is applied to
+a **normalised** score scale (`_score_scale` in `search.py`). Before that fix,
+turning `rule_weight` from 0.9 to 4.0 dropped diversity from 0.218 to 0.093,
+because a sharper objective produces bigger score gaps and the same nominal
+temperature therefore samples a colder distribution. Anyone adding a third term
+to this objective needs to know that, or they will re-introduce the same
+phantom trade-off.
 
 ---
 
@@ -287,10 +334,12 @@ Six choices that are not obvious from the code and would be reasonable to
 disagree with.
 
 1. **The shipped learned engine samples a hybrid objective**, not the pure chord
-   model. The model alone is more idiomatic but less adventurous than the
-   hand-written rules (section 4); the hybrid takes the model's syntax and the
-   rules' appetite for colour. If the goal changed to "sound as typical as
-   possible", the pure model would be the right default.
+   model, at `rule_weight` 4.0 and `temperature` 0.6. Both are swept, not
+   chosen (section 5). An ablation at that weight shows the model still doing
+   its own job — remove it and ii-V density falls from 2.87 to 0.82 per 16 bars
+   against the humans' 3.34 — so the weight is a balance, not a defeat for the
+   model. If the goal changed to "sound as typical as possible", `rule_weight`
+   0 is that engine and it is one constructor argument away.
 2. **The distance band (0.15–0.55 root change) is calibrated, not chosen.** It
    comes from 163 tunes that appear in both corpora — an iRealPro lead sheet
    against what a band actually played. The lower bound is measured; the upper

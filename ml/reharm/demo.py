@@ -155,8 +155,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Show and hear a reharmonization.")
     parser.add_argument("--tune", default="twinkle", help=f"one of {sorted(TRADITIONAL)} or jazz:<n>")
     parser.add_argument("--seeds", type=int, default=3)
-    parser.add_argument("--temperature", type=float, default=1.0)
-    parser.add_argument("--adventure", type=float, default=0.75)
+    # One source of truth for the defaults: the engine's own config, so the demo
+    # cannot drift into demonstrating a setting nobody ships.
+    parser.add_argument("--temperature", type=float, default=ReharmConfig().temperature)
+    parser.add_argument("--adventure", type=float, default=ReharmConfig().adventure)
     parser.add_argument("--midi", type=str, default=None, help="write MIDI files to this path")
     args = parser.parse_args()
 

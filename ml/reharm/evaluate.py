@@ -308,7 +308,9 @@ def main() -> None:
     parser.add_argument("--samples", type=int, default=5)
     parser.add_argument("--temperature", type=float, default=None)
     parser.add_argument("--adventure", type=float, default=None)
-    parser.add_argument("--sweep", choices=("adventure", "temperature", "top_p"), default=None)
+    parser.add_argument(
+        "--sweep", choices=("adventure", "temperature", "top_p", "rule_weight"), default=None
+    )
     parser.add_argument("--offline", action="store_true", help="use the cache, never download")
     parser.add_argument("--json", type=str, default=None, help="write the summary to a JSON file")
     args = parser.parse_args()
@@ -331,6 +333,7 @@ def main() -> None:
             "adventure": (0.0, 0.25, 0.5, 0.75, 1.0),
             "temperature": (0.05, 0.3, 0.6, 0.9, 1.3, 1.8),
             "top_p": (0.5, 0.75, 0.9, 0.98, 1.0),
+            "rule_weight": (0.0, 0.5, 0.9, 1.5, 2.5, 4.0),
         }[args.sweep]
         sweep(tunes, model, parameter=args.sweep, values=values, samples=args.samples, download=download)
         return
