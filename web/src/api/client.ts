@@ -4,6 +4,7 @@ import type {
   HarmonizeResponse,
   Melody,
   RenderRequest,
+  TimeSignature,
 } from "../../../contracts/types";
 import {
   createMockResponse,
@@ -14,6 +15,10 @@ import { normalizeNotes } from "../utils/music";
 import { createMockWav } from "./mockAudio";
 
 const mockEnabled = import.meta.env.VITE_USE_MOCK_API !== "false";
+const DEFAULT_TIME_SIGNATURE: TimeSignature = {
+  numerator: 4,
+  denominator: 4,
+};
 
 export class ApiError extends Error {
   constructor(
@@ -44,6 +49,29 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+function completeMelody(melody: Melody): Melody {
+  if (!Number.isFinite(melody.tempo) || melody.tempo <= 0) {
+    throw new ApiError("Melody tempo must be an explicit positive number.");
+  }
+  const timeSignature = melody.timeSignature ?? DEFAULT_TIME_SIGNATURE;
+  if (
+    !Number.isFinite(timeSignature.numerator) ||
+    timeSignature.numerator <= 0 ||
+    !Number.isFinite(timeSignature.denominator) ||
+    timeSignature.denominator <= 0
+  ) {
+    throw new ApiError(
+      "Time signature numerator and denominator must both be positive.",
+    );
+  }
+  return {
+    ...melody,
+    tempo: melody.tempo,
+    timeSignature: { ...timeSignature },
+    notes: normalizeNotes(melody.notes),
+  };
+}
+
 export const apiClient = {
   isMock: mockEnabled,
 
@@ -58,10 +86,7 @@ export const apiClient = {
   async harmonize(request: HarmonizeRequest): Promise<HarmonizeResponse> {
     const normalizedRequest = {
       ...request,
-      melody: {
-        ...request.melody,
-        notes: normalizeNotes(request.melody.notes),
-      },
+      melody: completeMelody(request.melody),
     };
     if (mockEnabled) {
       await wait(request.engine === "rules-v2" ? 460 : 780);
@@ -74,14 +99,22 @@ export const apiClient = {
   },
 
   async render(request: RenderRequest): Promise<Blob> {
+    if (!Number.isFinite(request.tempo) || request.tempo <= 0) {
+      throw new ApiError("Render tempo must be an explicit positive number.");
+    }
+    const normalizedRequest: RenderRequest = {
+      ...request,
+      tempo: request.tempo,
+      synth: request.synth ?? "sf2",
+    };
     if (mockEnabled) {
       await wait(620);
-      return createMockWav(request);
+      return createMockWav(normalizedRequest);
     }
     const response = await fetch("/api/v1/render", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
+      body: JSON.stringify(normalizedRequest),
     });
     if (!response.ok) {
       throw new ApiError(await response.text(), response.status);
@@ -92,10 +125,10 @@ export const apiClient = {
   async transcribe(audio: Blob): Promise<Melody> {
     if (mockEnabled) {
       await wait(950);
-      return {
+      return completeMelody({
         ...DEMO_MELODY,
         notes: DEMO_MELODY.notes.map((note) => ({ ...note })),
-      };
+      });
     }
 
     const form = new FormData();
@@ -108,6 +141,6 @@ export const apiClient = {
       throw new ApiError(await response.text(), response.status);
     }
     const payload = (await response.json()) as Melody | { melody: Melody };
-    return "melody" in payload ? payload.melody : payload;
+    return completeMelody("melody" in payload ? payload.melody : payload);
   },
 };

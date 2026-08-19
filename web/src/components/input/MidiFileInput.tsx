@@ -22,9 +22,8 @@ export function MidiFileInput() {
       if (!track || track.notes.length === 0) {
         throw new Error("No note track found in this MIDI file.");
       }
-      const tempo = Math.round(
-        midi.header.tempos[0]?.bpm ?? currentMelody.tempo,
-      );
+      const headerTempo = midi.header.tempos[0]?.bpm;
+      const tempo = Math.round(headerTempo ?? currentMelody.tempo);
       const timeSignature =
         midi.header.timeSignatures[0]?.timeSignature ?? [4, 4];
       const melody: Melody = {
@@ -41,7 +40,13 @@ export function MidiFileInput() {
         })),
       };
       replaceMelody(melody, file.name.replace(/\.(mid|midi)$/i, ""));
-      setMessage(`${file.name} · ${melody.notes.length} melody notes`);
+      setMessage(
+        `${file.name} · ${melody.notes.length} melody notes${
+          headerTempo
+            ? ""
+            : ` · no tempo event, using ${currentMelody.tempo} BPM`
+        }`,
+      );
       setStatus("idle");
     } catch (error) {
       setMessage(
