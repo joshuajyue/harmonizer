@@ -59,6 +59,30 @@ four parts scored by our own detectors. It is what revealed that `rules` scoring
 0.00 was *undershooting* — Bach scores 4.13, and a system cleaner than Bach is
 rigid, not good.
 
+### Did the learned model become more musically active?
+
+Yes, and it overshoots. Reported as a percentage of Bach, separating the two
+things that were previously conflated — *harmonic rhythm* (how often the chord
+changes) from *diminution* (inner-voice motion within a held harmony):
+
+| engine | harmonic rhythm | diminution |
+| --- | --- | --- |
+| `fixed_thirds` | 89% | 54% |
+| `rules` | **105%** | 65% |
+| `neural` | 97% | 82% |
+| `neural_refine` | 101% | 102% |
+| `neural_vl` | 97% | **106%** |
+
+**No engine has a harmonic-rhythm problem** — the rule engine slightly exceeds
+Bach. The entire gap that motivated the "creativity, not rule-compliance"
+reframe is diminution, and for the rule engine it is a representational ceiling
+rather than conservatism: it freezes one inner-voice sonority per beat slot and
+scores exactly 0.0 on off-beat inner-voice motion. It cannot decorate a held
+harmony at any setting.
+
+`neural_vl` closes that gap and overshoots to 106%. Whether overshooting Bach is
+good is a matter of taste, and nothing in this harness can settle it.
+
 Jazz reharm (`ml/reharm/REPORT.md`) reached a comparable nuance: sampling gives
 genuine one-to-many variety (five draws differ in 22% of chord roots; the
 deterministic engine differs in 0%), but sampling does **not** give adventure —
