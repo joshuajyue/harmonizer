@@ -16,11 +16,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 from contracts.schema import Chord, KeySignature, Melody, Violation, Voice
 
 

@@ -21,7 +21,8 @@ experiments/ One-off measurements that produce numbers for the report. Imported
              by nothing; safe to delete once the report is read.
 eval/        The evaluation harness and REPORT.md.
 tests/       Unit tests, an engine contract suite every registered engine must
-             pass, and conformance tests against the shared API contract.
+             pass, conformance tests against the shared API contract, and the
+             detector checks against the lead's shared fixtures.
 ```
 
 ## Engines
@@ -96,6 +97,16 @@ two sides honest, and they check different things:
   `schema.py` mirror each other.
 * `ml/tests/test_contract_conformance.py` (mine) proves the engines actually
   satisfy the Pydantic side.
+
+`contracts/examples/` carries a canonical melody and a harmonization with three
+deliberate, independently verified voice-leading defects. Those are the most
+valuable tests here, because they are the only ones whose expected answer was
+written by someone else: every other check of the detectors was written by the
+same person who wrote the detectors, so a shared misconception would pass
+silently. `tests/test_shared_fixtures.py` asserts the detectors find exactly
+those three — right beats, right voice pairs — invent no others, and it
+re-derives each defect from raw pitch arithmetic on the fixture's own notes, so
+it still fails if the detector and the fixture happen to share a mistake.
 
 The one worth knowing about: `Chord.quality` is a bare `str` in the schema, so
 Pydantic will accept `"min11"` and the UI will render something unrecognisable.
