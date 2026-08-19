@@ -10,9 +10,11 @@ npm install
 npm run dev
 ```
 
-Mock mode is enabled by default, so both comparison engines, editable voices,
-chords, violations, transcription, and rendered audio work without a backend.
-Set `VITE_USE_MOCK_API=false` to use the Vite `/api/*` proxy to
+Development mock mode is enabled by default, so both comparison engines,
+editable voices, chords, violations, transcription, and rendered audio work
+without a backend. It reads the schema-validated request and response directly
+from `contracts/examples/` through Vite middleware. Set
+`VITE_USE_MOCK_API=false` to use the Vite `/api/*` proxy to
 `http://localhost:8000`.
 
 ```bash

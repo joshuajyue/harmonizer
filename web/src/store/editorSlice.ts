@@ -22,7 +22,7 @@ export const createEditorSlice: StateCreator<
   [],
   EditorSlice
 > = (set) => ({
-  pxPerBeat: 64,
+  pxPerBeat: 32,
   snap: 0.25,
   voiceVisibility: { ...allEnabled },
   voiceMute: { ...allDisabled },

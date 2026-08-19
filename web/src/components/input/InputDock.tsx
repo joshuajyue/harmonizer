@@ -8,7 +8,8 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
-import { DEMO_MELODY } from "../../fixtures/chorale";
+import { useState } from "react";
+import { apiClient } from "../../api/client";
 import {
   useStudioStore,
   type InputTab,
@@ -30,6 +31,8 @@ const tabs: Array<{
 ];
 
 export function InputDock() {
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState(false);
   const tab = useStudioStore((state) => state.inputTab);
   const open = useStudioStore((state) => state.inputDockOpen);
   const notes = useStudioStore((state) => state.melody.notes.length);
@@ -37,6 +40,21 @@ export function InputDock() {
   const setOpen = useStudioStore((state) => state.setInputDockOpen);
   const clearMelody = useStudioStore((state) => state.clearMelody);
   const replaceMelody = useStudioStore((state) => state.replaceMelody);
+
+  async function restoreExample() {
+    setRestoring(true);
+    setRestoreError(false);
+    try {
+      replaceMelody(
+        await apiClient.getExampleMelody(),
+        "Canonical eight-bar study",
+      );
+    } catch {
+      setRestoreError(true);
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   return (
     <section className={`input-dock ${open ? "open" : "closed"}`}>
@@ -61,14 +79,19 @@ export function InputDock() {
         </div>
         <div className="melody-summary">
           <span>{notes} source notes</span>
-          {notes === 0 ? (
+          {notes === 0 && apiClient.isMock ? (
             <button
               type="button"
-              onClick={() => replaceMelody(DEMO_MELODY, "Chorale study in C")}
-              title="Restore demo melody"
+              onClick={() => void restoreExample()}
+              disabled={restoring}
+              title={
+                restoreError
+                  ? "Could not load the canonical example"
+                  : "Restore canonical example"
+              }
             >
               <RotateCcw size={12} />
-              Demo
+              {restoring ? "Loading" : "Example"}
             </button>
           ) : (
             <button

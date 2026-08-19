@@ -7,14 +7,16 @@ import type {
   TimeSignature,
 } from "../../../contracts/types";
 import {
-  createMockResponse,
-  DEMO_MELODY,
+  loadCanonicalRequest,
+  loadCanonicalResponse,
   MOCK_ENGINES,
-} from "../fixtures/chorale";
+} from "../fixtures/canonical";
 import { normalizeNotes } from "../utils/music";
 import { createMockWav } from "./mockAudio";
 
-const mockEnabled = import.meta.env.VITE_USE_MOCK_API !== "false";
+const mockEnabled =
+  import.meta.env.VITE_USE_MOCK_API === "true" ||
+  (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== "false");
 const DEFAULT_TIME_SIGNATURE: TimeSignature = {
   numerator: 4,
   denominator: 4,
@@ -89,8 +91,9 @@ export const apiClient = {
       melody: completeMelody(request.melody),
     };
     if (mockEnabled) {
-      await wait(request.engine === "rules-v2" ? 460 : 780);
-      return createMockResponse(request.engine, normalizedRequest.melody);
+      await wait(request.engine === "rules" ? 460 : 780);
+      const response = await loadCanonicalResponse();
+      return { ...response, engine: request.engine };
     }
     return requestJson<HarmonizeResponse>("/api/v1/harmonize", {
       method: "POST",
@@ -125,10 +128,7 @@ export const apiClient = {
   async transcribe(audio: Blob): Promise<Melody> {
     if (mockEnabled) {
       await wait(950);
-      return completeMelody({
-        ...DEMO_MELODY,
-        notes: DEMO_MELODY.notes.map((note) => ({ ...note })),
-      });
+      return completeMelody((await loadCanonicalRequest()).melody);
     }
 
     const form = new FormData();
@@ -142,5 +142,12 @@ export const apiClient = {
     }
     const payload = (await response.json()) as Melody | { melody: Melody };
     return completeMelody("melody" in payload ? payload.melody : payload);
+  },
+
+  async getExampleMelody(): Promise<Melody> {
+    if (!mockEnabled) {
+      throw new ApiError("Canonical examples are only available in mock mode.");
+    }
+    return completeMelody((await loadCanonicalRequest()).melody);
   },
 };

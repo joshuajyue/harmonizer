@@ -1,16 +1,12 @@
 import type { Melody } from "../../../contracts/types";
 import type { StateCreator } from "zustand";
-import { DEMO_MELODY } from "../fixtures/chorale";
 import { clamp } from "../utils/music";
 import type { ProjectSlice, StudioStore } from "./types";
 
 const initialMelody: Melody = {
-  ...DEMO_MELODY,
-  timeSignature: {
-    ...(DEMO_MELODY.timeSignature ?? { numerator: 4, denominator: 4 }),
-  },
-  key: DEMO_MELODY.key ? { ...DEMO_MELODY.key } : undefined,
-  notes: DEMO_MELODY.notes.map((note) => ({ ...note })),
+  notes: [],
+  tempo: 88,
+  timeSignature: { numerator: 4, denominator: 4 },
 };
 
 export const createProjectSlice: StateCreator<
@@ -19,7 +15,7 @@ export const createProjectSlice: StateCreator<
   [],
   ProjectSlice
 > = (set) => ({
-  projectName: "Chorale study in C",
+  projectName: "Untitled melody",
   melody: initialMelody,
   melodyRevision: 0,
 
