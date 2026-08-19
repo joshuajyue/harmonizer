@@ -367,9 +367,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             (len(train), len(val), len(test)), load_ablation(),
         )
         existing = REPORT_PATH.read_text() if REPORT_PATH.exists() else ""
-        marker = "\n<!-- NARRATIVE -->\n"
-        narrative = existing.split(marker, 1)[1] if marker in existing else ""
-        REPORT_PATH.write_text(report + marker + narrative)
+        # The file is part hand-written and part generated. Everything before
+        # GENERATED is a hand-written orientation for a reader with no context,
+        # and everything after NARRATIVE is the discussion; only the middle is
+        # rebuilt. Without this the status section would be destroyed by the
+        # next eval run, which is exactly when someone would be reading it.
+        preamble_marker = "<!-- GENERATED -->\n"
+        narrative_marker = "\n<!-- NARRATIVE -->\n"
+        preamble = existing.split(preamble_marker, 1)[0] if preamble_marker in existing else ""
+        narrative = existing.split(narrative_marker, 1)[1] if narrative_marker in existing else ""
+        REPORT_PATH.write_text(preamble + preamble_marker + report + narrative_marker + narrative)
         print(f"Wrote {REPORT_PATH}")
     return 0
 
