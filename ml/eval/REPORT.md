@@ -70,6 +70,37 @@ row rather than against zero:
 * **`neural_refine` is not transposition-stable** and is worse than `neural_vl`
   on every quality axis. Kept as a documented negative result, not a candidate.
 * Nothing here has ever been listened to. Every number is a proxy.
+* **This suite tests only the engines in `ml/engines/`.** It used to parametrise
+  over the global registry, which meant `ml/reharm/`'s engines were swept in by
+  import order and judged against chorale invariants they are designed to
+  violate — extensions, substitution provenance, common-practice closure. The
+  owned set is now explicit in `tests/_engines.py`, guarded by
+  `test_owned_set_is_current` so a new engine here cannot silently go untested.
+  Genuinely universal registry checks (unique ids, metadata present) still run
+  against every engine, since a cross-package id collision is worth failing on.
+
+## Cross-package note: alignment, and a bug that is not in this package
+
+Melodies that do not start at beat 0 were once harmonized from beat 0. **That is
+fixed here and verified**: `MelodyGrid` carries `origin`, and every engine in
+`ml/engines/` returns chords and all four voices at the melody's true offset.
+Checked at offsets 0, 4, 7 and 16 across all five engines, with soprano equal to
+the input melody exactly — pitch, start and duration. `tests/test_alignment.py`
+pins it.
+
+The same check shows **`ml/reharm/`'s two engines apply the offset twice**:
+a melody at beat 4 returns alto at 8, at beat 7 returns 14, at beat 16 returns
+32 — exactly 2x the origin, for the generated voices and the chords. Soprano is
+correct, because it is passed through from the input melody rather than
+converted out of the grid, which is very likely why the package believes itself
+clean: soprano is the one voice immune to the fault. The cause is that the
+shared conversion already re-applies `origin`, so a manual re-add on top of it
+doubles. Reported to the lead; the fix belongs to that package's owner, and its
+own `test_offset_melody_keeps_its_offset` fails on it.
+
+Recording it here only because the two packages share `ml/data/melody.py`, and
+the natural reading of "shared layer, one engine broken" is that the shared
+layer is at fault. It is not.
 
 ## Decisions someone should know about
 
