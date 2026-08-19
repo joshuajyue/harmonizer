@@ -84,6 +84,7 @@ class NeuralHarmonyEngine(HarmonyEngine):
         *,
         sweeps: int = DEFAULT_SWEEPS,
         mask_rate_start: float = MASK_RATE_START,
+        temperature_floor: float = 0.0,
         polish_rounds: int = 0,
         rule_weight: float = 1.0,
         engine_id: str | None = None,
@@ -92,6 +93,11 @@ class NeuralHarmonyEngine(HarmonyEngine):
         self.checkpoint = Path(checkpoint)
         self.sweeps = sweeps
         self.mask_rate_start = mask_rate_start
+        #: Lowest sampling temperature the anneal is allowed to reach. At 0 the
+        #: tail of the schedule is pure argmax, which is coordinate ascent on the
+        #: model's mode rather than sampling from it — maximisation decoding, with
+        #: the diversity collapse that implies (Holtzman et al. 2020).
+        self.temperature_floor = temperature_floor
         self.polish_rounds = polish_rounds
         self.rule_weight = rule_weight
         if engine_id:
@@ -273,7 +279,7 @@ class NeuralHarmonyEngine(HarmonyEngine):
                 # which is what makes temperature=0 a fixed point rather than a
                 # coin flip, while the early sampled sweeps avoid the degenerate
                 # mode that pure argmax from an empty texture falls into.
-                step_temperature = base_temperature * max(0.0, 1.0 - progress)
+                step_temperature = base_temperature * max(self.temperature_floor, 1.0 - progress)
                 for voice in FREE_VOICES:
                     rows = hidden[hidden[:, 0] == voice][:, 1]
                     if rows.size == 0:
@@ -607,11 +613,13 @@ class ConstrainedNeuralEngine(NeuralHarmonyEngine):
         sweeps: int = 24,
         polish_rounds: int = 2,
         rule_weight: float | None = None,
+        temperature_floor: float = 0.0,
     ) -> None:
         super().__init__(
             checkpoint,
             sweeps=sweeps,
             polish_rounds=polish_rounds,
+            temperature_floor=temperature_floor,
             rule_weight=self.DEFAULT_RULE_WEIGHT if rule_weight is None else rule_weight,
         )
 

@@ -421,6 +421,105 @@ where both too little and too much variety score badly. Section 7 lists that as
 the highest-value missing piece. Until it exists, every number in this report
 should be read as "how Bach-like", never as "how good".
 
+## 0f. The literature review, checked against this codebase
+
+A research agent reviewed the harmonization literature against this project. Its
+three testable claims were run rather than adopted. One is exactly right, one is
+wrong, and one is right about the mechanism but leads to a recommendation the
+measurements contradict.
+
+**CONFIRMED, and quantified better than I had it — the activity gap is
+diminution, and it is a structural ceiling.** Splitting every vertical by whether
+it falls on a beat boundary or inside a beat:
+
+| | on-beat / 100 beats | off-beat / 100 beats | of which inner voices |
+|---|---|---|---|
+| *Bach* | *90.2* | *59.2* | *56.2* |
+| `rules` | 87.3 | 9.7 | **0.0** |
+| `neural` | 85.2 | 36.9 | 31.9 |
+| `neural_vl` | 86.6 | 71.1 | **67.4** |
+| `neural_refine` | 87.5 | 64.6 | 61.1 |
+
+The rule engine matches Bach almost exactly on beat-boundary verticals (87.3 vs
+90.2) and emits **exactly zero** inner-voice motion inside a beat, against Bach's
+56.2. It writes one frozen ATB voicing per slot, so passing tones, neighbours and
+suspensions are not merely rare, they are *unrepresentable*. Its entire 9.7
+off-beat count is the melody moving above a stationary accompaniment. This is a
+ceiling, not conservatism, and it is the real content of "less active than Bach".
+
+**But the recommendation built on it does not apply here, and I have direct
+evidence against it.** The proposal — keep the rules engine's harmonic skeleton
+and beat-level voicing, ask the model only for off-beat elaboration — assumes the
+ceiling is general. It is not: `neural_vl` already produces 67.4 inner-voice
+off-beat verticals against Bach's 56.2. The learned engine has no ceiling and
+already *exceeds* Bach on diminution. Meanwhile freezing the rules engine's
+harmony is precisely what makes `neural_refine` the worst learned engine here
+(chord-bigram 0.116 against `neural_vl`'s 0.071, and 64.5% of beats on I or V
+against 53.2%). Seeding from the rules engine already demonstrably imports its
+harmonic narrowness; freezing it outright would import more. The proposal trades
+the axis the owner cares about — harmonic interest — to fix an axis that is
+already fixed.
+
+**REFUTED — the temperature anneal is real in the code but does not have the
+predicted effect.** `_decode` did anneal to zero at ~70% of sweeps, so the tail
+was argmax coordinate ascent; the description of the code was accurate. The
+predicted consequence, a Holtzman-style diversity collapse, does not appear.
+Sweeping a temperature floor:
+
+| floor | chord-bigram JS | chords/piece | I or V share | off-beat inner motion |
+|---|---|---|---|---|
+| 0.0 (shipped) | 0.108 | 14.50 | 48.0% | 29.2 |
+| 0.3 | 0.110 | 14.31 | 48.2% | 29.0 |
+| 0.5 | 0.108 | 13.94 | 48.3% | 31.8 |
+| 0.7 | 0.110 | 14.38 | 47.4% | 42.5 |
+| *Bach* | *0.122* | *16.12* | *47.9%* | *34.4* |
+
+Style divergence, chord variety and tonic/dominant share are **flat** across the
+whole range — there is no collapse to undo. `neural` already matches Bach's
+I-or-V share to within 0.1 points. The only quantity that moves is off-beat
+activity, and by floor 0.7 it overshoots Bach by 24%. On `neural_vl` the floor
+changes nothing at all (0.089 → 0.088), because the constrained Viterbi polish
+re-solves each line afterwards and washes the sampling temperature out.
+
+The mechanism is why: Holtzman's degeneration is a property of *sequential*
+maximization over a full autoregressive sequence. Blocked Gibbs with an annealed
+mask rate samples the harmonic content in its first ~45 sweeps and uses the tail
+only to settle; the mode being sought is a local refinement, not the whole piece.
+The knob is kept (`temperature_floor`, default 0) and documented, because the
+hypothesis was worth testing and the result is worth recording.
+
+**Also refuted: the "hold prior eats the model" prediction.** Coconet §6.1's
+concern is real for the raw model — unpolished `neural` produces 31.9 off-beat
+inner-voice verticals against Bach's 56.2 — but the shipped engine produces 67.4.
+The constrained polish, whose melodic-motion costs are per-step, adds motion
+rather than removing it. If anything `neural_vl` **over**-ornaments, and that is
+the honest reading of 67.4 against 56.2.
+
+**On the suggested closure rule.** The specification offered — final sonority is
+tonic, root position, soprano on scale degree 1 — flags **16.6% of Bach**
+(individually: 15.2% not tonic, 16.3% not soprano-on-1). That is the naive
+version already measured and rejected in section 0a; the calibrated version
+flags 1.09%. The blocking prerequisite the review identifies, decomposing the
+oracle's defect rate by kind, is already satisfied — that is section 2, and doing
+it is what showed 89% of the old aggregate was voice crossing.
+
+**Accepted without qualification: the sobering context.** That no published work
+has beaten a strong rule/search harmonizer in a controlled comparison, that
+DeepBach's baselines were weak, that Coconet's listening result is an
+underpowered null, and that "Bach or Mock?" is a negative result on a closely
+analogous setup — all of this is directly relevant and none of it is contradicted
+by anything here. It is also the correct frame for this report's own claim: the
+head-to-head in section 4 has exactly the weakness those papers have, no
+listening test, and section 0e says so. "The learned engine beats the rules
+engine" is a claim about eight distributional metrics, not about music.
+
+The review's bottom line — that if ornaments come out as noise, the answer is
+explicit contrapuntal figures inserted by search — is a good fallback, and the
+premise does not currently hold: the ornaments are not absent, there are 20% more
+of them than Bach writes. What I cannot show is whether they are *musical* rather
+than merely numerous, which is the same gap as section 0e and the same reason it
+is the top item in section 7.
+
 ## 1. The v1 post-mortem, verified — and one correction
 
 v1 no longer exists on this branch; it survives only in git history on `main`.
@@ -737,6 +836,10 @@ went into representation, evaluation and decoding instead.
 * **Every held-out melody is a Bach soprano**, so the harness cannot detect an
   engine that only works on Bach. Off-distribution probes are in
   `ml/tests/test_out_of_domain.py`, not in the headline numbers.
+* **`neural_vl` over-ornaments.** 67.4 off-beat inner-voice verticals per 100
+  beats against Bach's 56.2 — about 20% more diminution than he writes. The
+  constrained polish adds motion, and nothing here can tell whether the extra
+  motion is musical or merely busy.
 * **Wide-range melodies degrade every engine** — hard defects of 5.9 to 32.0
   against ~0.1 on chorale sopranos. Partly irreducible, since the soprano is the
   user's, but untested until section 0e.
