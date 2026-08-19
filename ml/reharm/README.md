@@ -159,7 +159,7 @@ chord model, so the engine works from a fresh clone with no corpus.
 ## Tests
 
 ```bash
-pytest ml/reharm            # 137 tests, ~12s
+pytest ml/reharm            # 212 tests, ~15s
 ```
 
 Corpus tests skip themselves when the cache is absent, so CI passes without a

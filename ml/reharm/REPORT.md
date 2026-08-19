@@ -1,5 +1,27 @@
 # Jazz reharmonization: what was built, what was measured, and where the argument breaks
 
+## Status
+
+**Built, working, shipped.** `ml/reharm/` takes a melody, harmonizes it with the
+existing functional rules engine to get a diatonic skeleton, reharmonizes that
+skeleton with the jazz substitution vocabulary, and voices the result with jazz
+voicings. Two engines are registered and both appear in `GET /api/v1/engines`
+and in the A/B comparison UI with no changes anywhere outside this package:
+
+| id | learned | how it chooses |
+| --- | --- | --- |
+| `jazz_reharm` | yes | learned chord model + substitution bonuses, **sampled** at a temperature — different every seed |
+| `jazz_reharm_rules` | no | the same vocabulary and constraints, **Viterbi argmax** — deterministic |
+
+212 tests (`pytest ml/reharm`, ~15 s), no known-broken behaviour, nothing
+half-finished or behind a flag. The corpora download to a gitignored cache on
+first use; the only committed artefact is the 272 KB trained chord model, so the
+engines work from a fresh clone with no network.
+
+`python -m ml.reharm.demo --tune shenandoah --seeds 3 --midi out.mid` prints the
+changes and writes MIDI, which is the fastest way to judge any of this.
+`ml/reharm/README.md` covers the architecture and how to run everything.
+
 **Summary.** The strategic case for this workstream was that Bach chorale
 harmonization has a right answer so search wins, while jazz reharmonization does
 not so sampling should win. Half of that survived measurement, and it is the
@@ -259,7 +281,57 @@ would otherwise have been set to a value stricter than real jazz.
 
 ---
 
-## 8. Limitations
+## 8. Decisions someone should know about
+
+Six choices that are not obvious from the code and would be reasonable to
+disagree with.
+
+1. **The shipped learned engine samples a hybrid objective**, not the pure chord
+   model. The model alone is more idiomatic but less adventurous than the
+   hand-written rules (section 4); the hybrid takes the model's syntax and the
+   rules' appetite for colour. If the goal changed to "sound as typical as
+   possible", the pure model would be the right default.
+2. **The distance band (0.15–0.55 root change) is calibrated, not chosen.** It
+   comes from 163 tunes that appear in both corpora — an iRealPro lead sheet
+   against what a band actually played. The lower bound is measured; the upper
+   bound is a judgement.
+3. **Melody conflicts are capped per chord at 30% of melodic weight, not at
+   zero**, because real jazz melodies sit on avoid notes 8% of the time. A
+   stricter engine would be more conservative than the music.
+4. **Chorale inversions are dropped from the skeleton.** The rules engine's
+   first- and second-inversion chords are voice-leading artefacts of a chorale
+   texture; a jazz bass plays roots unless the harmony says otherwise.
+5. **The related ii of an inserted secondary dominant is tagged
+   `secondary_dominant`** because `contracts.schema.Chord.substitutionKind` has
+   no `related_ii`. It reads slightly wrong in the UI. Adding one enum value
+   would fix it.
+6. **The melody is octave-normalized before the rules engine sees it.** That
+   engine voices real SATB parts and its ranges are absolute, so it returns
+   almost no harmony for a tune outside soprano range. Chords are pitch classes,
+   so the normalization is lossless for this purpose.
+
+## 9. What I would do next, in order
+
+1. **Replace the skeleton.** It is the weakest link by a distance: a chorale
+   engine harmonizing a bebop line starts at a 0.206 hard-conflict rate, worse
+   than anything downstream produces. A jazz-native skeleton — chord-tone
+   analysis of the melody against a jazz vocabulary, rather than Viterbi over a
+   functional grammar — would likely improve the final result more than any
+   further work on substitution.
+2. **A listening test.** Everything here is a proxy. Three or four people
+   ranking `skeleton` / `rules` / `hybrid` / `human` blind on ten tunes would
+   settle in an afternoon what these tables can only circle.
+3. **Harmonic rhythm from phrasing, not from bar lines.** The unit grid asks
+   where the melody articulates the middle of the bar. It should be asking
+   where the phrase wants a chord change.
+4. **Use the treebank's hierarchical analyses.** 150 tunes have full
+   constituent trees encoding prolongation and cadential structure; they are
+   loaded (`treebank_trees`) and currently unused. Knowing which chords are
+   *structural* would tell the reharmonizer what it must not touch, which is
+   currently approximated by a hand-written tonic-protection term.
+5. **An `related_ii` substitution kind** in the contract, per decision 5.
+
+## 10. Limitations
 
 * **The skeleton is the weakest link.** It comes from a chorale engine, and on
   bebop lines it starts at a 0.206 hard-conflict rate — worse than anything
@@ -281,6 +353,15 @@ would otherwise have been set to a value stricter than real jazz.
   workstream deliberately did not touch.
 * **No listening test.** Everything above is a proxy. The MIDI export exists so
   that the proxy can be checked against ears.
+* **The metrics here are blind to the voicing entirely.** Every number in the
+  tables above measures chord *labels*. Writing the voicing unit tests found
+  three defects that none of them could see: the default two-part texture was
+  voicing the third and fifth rather than the guide tones, so dominant sevenths
+  sounded as triads; pitch classes could not be re-stacked, so the third was
+  pinned below the seventh and a guide-tone line was impossible to write; and
+  the quartal generator put notes outside the chord. All three are fixed and
+  under test, but the lesson stands — a metric suite can be entirely silent
+  about the thing a listener would notice first.
 * **Register robustness came from an integration prompt, not from the metrics.**
   A melody two octaves below middle C used to produce one chord for thirteen
   bars, because the chorale voicer that supplies the skeleton has absolute SATB
