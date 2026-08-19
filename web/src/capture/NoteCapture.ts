@@ -1,5 +1,6 @@
 import { audioScheduler } from "../audio/AudioScheduler";
 import { useStudioStore } from "../store";
+import { quantize } from "../utils/music";
 
 const MIN_CAPTURE_BEATS = 1 / 64;
 
@@ -22,6 +23,9 @@ class NoteCapture {
       });
     }
     useStudioStore.subscribe((state, previous) => {
+      if (state.noteInputMode !== previous.noteInputMode) {
+        this.releaseAll();
+      }
       if (
         previous.recordingState === "recording" &&
         state.recordingState !== "recording" &&
@@ -49,6 +53,24 @@ class NoteCapture {
       this.closeNote(normalizedPitch, startBeat);
     }
     audioScheduler.previewNoteOn(normalizedPitch, normalizedVelocity);
+
+    if (state.noteInputMode === "step") {
+      if (state.isPlaying) {
+        audioScheduler.stop();
+        state.setPlaying(false);
+      }
+      const noteStart = Math.max(0, quantize(startBeat, state.snap));
+      const index = state.addMelodyNote({
+        pitch: normalizedPitch,
+        start: noteStart,
+        duration: 1,
+        velocity: normalizedVelocity,
+      });
+      const latest = useStudioStore.getState();
+      latest.setCurrentBeat(noteStart + 1);
+      latest.setSelectedNotes([{ source: "melody", index }]);
+      return;
+    }
 
     if (state.recordingState !== "recording") return;
     this.openNotes.set(normalizedPitch, {

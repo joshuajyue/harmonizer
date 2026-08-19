@@ -23,6 +23,7 @@
 }
 
 .input-tabs button,
+.note-input-mode button,
 .melody-summary button {
   display: inline-flex;
   height: 27px;
@@ -38,6 +39,7 @@
 }
 
 .input-tabs button:hover,
+.note-input-mode button:hover,
 .melody-summary button:hover {
   color: var(--text);
   background: var(--surface-2);
@@ -47,6 +49,40 @@
   border-color: #38404e;
   color: var(--accent);
   background: #202630;
+}
+
+.note-input-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 2px;
+  border: 1px solid #343c49;
+  border-radius: 6px;
+  background: #10141a;
+}
+
+.note-input-mode > span {
+  padding: 0 5px;
+  color: var(--dim);
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.note-input-mode button {
+  height: 23px;
+  padding: 0 6px;
+}
+
+.note-input-mode button.active {
+  border-color: rgb(199 255 94 / 30%);
+  color: #17200a;
+  background: var(--accent);
+}
+
+.note-input-mode button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .melody-summary {
@@ -121,6 +157,13 @@
   border-color: rgb(255 94 114 / 64%);
   box-shadow:
     0 0 0 2px rgb(255 94 114 / 9%),
+    0 8px 25px rgb(0 0 0 / 27%);
+}
+
+.virtual-keyboard.step-entry {
+  border-color: rgb(97 184 255 / 62%);
+  box-shadow:
+    0 0 0 2px rgb(97 184 255 / 8%),
     0 8px 25px rgb(0 0 0 / 27%);
 }
 

@@ -17,6 +17,7 @@ import {
 import { MidiDeviceInput } from "./MidiDeviceInput";
 import { MidiFileInput } from "./MidiFileInput";
 import { MicrophoneInput } from "./MicrophoneInput";
+import { NoteInputModeToggle } from "./NoteInputModeToggle";
 import { VirtualKeyboard } from "./VirtualKeyboard";
 
 const tabs: Array<{
@@ -77,6 +78,7 @@ export function InputDock() {
             </button>
           ))}
         </div>
+        <NoteInputModeToggle />
         <div className="melody-summary">
           <span>{notes} source notes</span>
           {notes === 0 && apiClient.isMock ? (

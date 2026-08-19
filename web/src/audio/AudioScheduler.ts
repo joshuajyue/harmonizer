@@ -1,5 +1,6 @@
 import { createSynthVoice } from "./synthVoice";
 import type { PlaybackNote, PlaybackOptions } from "./types";
+import type { TimeSignature } from "../../../contracts/types";
 
 export type { PlaybackNote } from "./types";
 
@@ -13,6 +14,7 @@ export class AudioScheduler {
   private originBeat = 0;
   private scheduledThrough = 0;
   private nodes = new Set<OscillatorNode>();
+  private clickNodes = new Set<OscillatorNode>();
   private generation = 0;
   private liveNotes = new Map<
     number,
@@ -53,6 +55,7 @@ export class AudioScheduler {
       }
     }
     this.nodes.clear();
+    this.clickNodes.clear();
     this.options = undefined;
   }
 
@@ -133,6 +136,78 @@ export class AudioScheduler {
     return this.displayBeat(rawBeat);
   }
 
+  setLoop({
+    enabled,
+    start,
+    end,
+  }: {
+    enabled: boolean;
+    start: number;
+    end: number;
+  }) {
+    const options = this.options;
+    if (!options) return;
+    const currentBeat = this.getCurrentBeat() ?? this.originBeat;
+    const loopStart = Math.max(0, start);
+    const loopEnd = Math.max(loopStart + 0.25, end);
+    const loopEnabled = enabled && currentBeat < loopEnd;
+    const activeStateChanged = options.loopEnabled !== loopEnabled;
+    const rangeChanged =
+      options.loopStart !== loopStart || options.loopEnd !== loopEnd;
+    if (!activeStateChanged && !rangeChanged) return;
+    options.loopStart = loopStart;
+    options.loopEnd = loopEnd;
+    options.loopEnabled = loopEnabled;
+    if (activeStateChanged || loopEnabled) {
+      this.rebaseTimeline(currentBeat);
+    }
+  }
+
+  setMetronomeEnabled(enabled: boolean) {
+    const options = this.options;
+    if (options && options.metronomeEnabled !== enabled) {
+      options.metronomeEnabled = enabled;
+      if (!enabled) {
+        for (const node of this.clickNodes) {
+          try {
+            node.stop();
+          } catch {
+            // A click may already have ended between frames.
+          }
+          this.nodes.delete(node);
+        }
+        this.clickNodes.clear();
+      }
+    }
+  }
+
+  setTempo(tempo: number) {
+    const options = this.options;
+    if (
+      !options ||
+      !Number.isFinite(tempo) ||
+      tempo <= 0 ||
+      options.tempo === tempo
+    ) {
+      return;
+    }
+    const currentBeat = this.getCurrentBeat() ?? this.originBeat;
+    options.tempo = tempo;
+    this.rebaseTimeline(currentBeat);
+  }
+
+  setTimeSignature(timeSignature: TimeSignature) {
+    const options = this.options;
+    if (!options) return;
+    const current = options.timeSignature;
+    if (
+      current.numerator !== timeSignature.numerator ||
+      current.denominator !== timeSignature.denominator
+    ) {
+      options.timeSignature = timeSignature;
+    }
+  }
+
   private getContext() {
     if (!this.context) {
       this.context = new AudioContext({ latencyHint: "interactive" });
@@ -164,6 +239,13 @@ export class AudioScheduler {
     if (!options) return;
     for (const note of options.notes) {
       if (options.loopEnabled) {
+        if (
+          fromBeat < options.loopStart &&
+          note.start >= fromBeat &&
+          note.start < Math.min(toBeat, options.loopStart)
+        ) {
+          this.scheduleNote(note, note.start, note.duration);
+        }
         if (note.start < options.loopStart || note.start >= options.loopEnd) {
           continue;
         }
@@ -235,6 +317,25 @@ export class AudioScheduler {
     this.nodes.add(oscillator);
   }
 
+  private rebaseTimeline(beat: number) {
+    const context = this.context;
+    if (!this.options || !context) return;
+    for (const node of this.nodes) {
+      try {
+        node.stop();
+      } catch {
+        // A node may already have ended between frames.
+      }
+    }
+    this.nodes.clear();
+    this.clickNodes.clear();
+    this.originBeat = beat;
+    this.originTime = context.currentTime + 0.01;
+    this.scheduledThrough = beat - 0.001;
+    this.scheduleOverlappingNotes(beat);
+    this.scheduleWindow();
+  }
+
   private scheduleClicks(fromBeat: number, toBeat: number) {
     const options = this.options;
     const context = this.context;
@@ -260,7 +361,11 @@ export class AudioScheduler {
       oscillator.start(time);
       oscillator.stop(time + 0.04);
       this.nodes.add(oscillator);
-      oscillator.onended = () => this.nodes.delete(oscillator);
+      this.clickNodes.add(oscillator);
+      oscillator.onended = () => {
+        this.nodes.delete(oscillator);
+        this.clickNodes.delete(oscillator);
+      };
     }
   }
 

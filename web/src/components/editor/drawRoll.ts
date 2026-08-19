@@ -34,41 +34,17 @@ export function drawRoll(
     drawMelodyNotes(context, model, noteHits, selectedKeys);
   }
 
-  if (model.viewMode === "overlay") {
-    drawVoiceNotes(
-      model.resultA,
-      "A",
-      model,
-      noteHits,
-      context,
-      model.activeSlot === "A" ? "solid" : "outline",
-      selectedKeys,
-    );
-    drawVoiceNotes(
-      model.resultB,
-      "B",
-      model,
-      noteHits,
-      context,
-      model.activeSlot === "B" ? "solid" : "outline",
-      selectedKeys,
-    );
-    drawViolations(context, model.resultA, "A", model, violationHits);
-    drawViolations(context, model.resultB, "B", model, violationHits);
-  } else {
-    const slot = model.viewMode;
-    const result = slot === "A" ? model.resultA : model.resultB;
-    drawVoiceNotes(
-      result,
-      slot,
-      model,
-      noteHits,
-      context,
-      "solid",
-      selectedKeys,
-    );
-    drawViolations(context, result, slot, model, violationHits);
-  }
+  const slot = model.viewMode;
+  const result = slot === "A" ? model.resultA : model.resultB;
+  drawVoiceNotes(
+    result,
+    slot,
+    model,
+    noteHits,
+    context,
+    selectedKeys,
+  );
+  drawViolations(context, result, slot, model, violationHits);
 
   const chordResult =
     model.activeSlot === "A" ? model.resultA : model.resultB;

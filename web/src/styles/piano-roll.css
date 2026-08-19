@@ -52,7 +52,6 @@
   font: 9px "DM Mono", monospace;
 }
 
-.edit-layer-toggle,
 .roll-tool-group {
   display: flex;
   align-items: center;
@@ -131,36 +130,6 @@
 .melody-octave-control button:disabled {
   cursor: not-allowed;
   opacity: 0.35;
-}
-
-.edit-layer-toggle {
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #10141a;
-}
-
-.edit-layer-toggle span {
-  padding: 0 5px;
-  color: var(--dim);
-  font: 9px "DM Mono", monospace;
-  text-transform: uppercase;
-}
-
-.edit-layer-toggle button {
-  width: 24px;
-  height: 22px;
-  border: 0;
-  border-radius: 4px;
-  color: var(--muted);
-  background: transparent;
-  font: 600 10px "DM Mono", monospace;
-  cursor: pointer;
-}
-
-.edit-layer-toggle button.active {
-  color: #11150a;
-  background: var(--accent);
 }
 
 .roll-tool-group {

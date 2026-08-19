@@ -18,11 +18,9 @@ export function EditorToolbar() {
   const setZoom = useStudioStore((state) => state.setZoom);
   const snap = useStudioStore((state) => state.snap);
   const setSnap = useStudioStore((state) => state.setSnap);
-  const viewMode = useStudioStore((state) => state.viewMode);
   const activeSlot = useStudioStore((state) => state.activeSlot);
   const focusedLane = useStudioStore((state) => state.focusedLane);
   const setFocusedLane = useStudioStore((state) => state.setFocusedLane);
-  const setActiveSlot = useStudioStore((state) => state.setActiveSlot);
   const slots = useStudioStore((state) => state.slots);
   const melodyRevision = useStudioStore((state) => state.melodyRevision);
   const { harmonizeSlot } = useHarmonize();
@@ -40,22 +38,6 @@ export function EditorToolbar() {
             <span>marquee select · ruler cycle · arrows nudge</span>
           </div>
         </div>
-        {viewMode === "overlay" && (
-          <div className="edit-layer-toggle" aria-label="Editable overlay">
-            <span>Edit</span>
-            {(["A", "B"] as const).map((value) => (
-              <button
-                type="button"
-                key={value}
-                className={activeSlot === value ? "active" : ""}
-                onClick={() => setActiveSlot(value)}
-                aria-pressed={activeSlot === value}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
-        )}
         {focusedLane && (
           <div className="focus-mode-pill">
             <Maximize2 size={12} />

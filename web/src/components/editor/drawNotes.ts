@@ -34,27 +34,19 @@ function drawNote(
   hit: NoteHit,
   color: string,
   model: DrawModel,
-  style: "solid" | "outline" | "melody",
+  style: "voice" | "melody",
   selectedKeys: Set<string>,
 ) {
   const { rect } = hit;
   roundedRect(context, rect.x, rect.y, rect.width, rect.height);
-  if (style === "outline") {
-    context.setLineDash([5, 3]);
-    context.strokeStyle = color;
-    context.lineWidth = 1.7;
-    context.stroke();
-    context.setLineDash([]);
-  } else {
-    context.fillStyle = style === "melody" ? "#e9edf5" : color;
-    context.globalAlpha = style === "melody" ? 0.92 : 0.78;
-    context.fill();
-    context.globalAlpha = 1;
-    context.strokeStyle =
-      style === "melody" ? "#ffffff" : "rgba(255,255,255,.28)";
-    context.lineWidth = 1;
-    context.stroke();
-  }
+  context.fillStyle = style === "melody" ? "#e9edf5" : color;
+  context.globalAlpha = style === "melody" ? 0.92 : 0.78;
+  context.fill();
+  context.globalAlpha = 1;
+  context.strokeStyle =
+    style === "melody" ? "#ffffff" : "rgba(255,255,255,.28)";
+  context.lineWidth = 1;
+  context.stroke();
   const selected = selectedKeys.has(hitKey(hit));
   if (selected) {
     if (model.selectedNotes.length > 1) {
@@ -82,7 +74,7 @@ function drawNote(
     context.lineWidth = 2;
     context.stroke();
   }
-  if (rect.width > 34 && style !== "outline") {
+  if (rect.width > 34) {
     context.fillStyle = style === "melody" ? "#151922" : "#11151b";
     context.font = '500 9px "DM Mono", monospace';
     context.fillText(
@@ -101,7 +93,6 @@ function noteRect(
   note: Note,
   lane: "melody" | VoiceName,
   model: DrawModel,
-  offset = false,
 ) {
   const height = model.layout.focusedLane
     ? Math.max(11, pitchStep(lane, model.layout) - 2)
@@ -109,11 +100,10 @@ function noteRect(
       ? 11
       : 10;
   return {
-    x: note.start * model.pxPerBeat + 2 + (offset ? 2 : 0),
+    x: note.start * model.pxPerBeat + 2,
     y:
       pitchToY(lane, note.pitch, model.layout) -
-      height / 2 +
-      (offset ? 2 : 0),
+      height / 2,
     width: Math.max(5, note.duration * model.pxPerBeat - 4),
     height,
   };
@@ -144,7 +134,6 @@ export function drawVoiceNotes(
   model: DrawModel,
   hits: NoteHit[],
   context: CanvasRenderingContext2D,
-  style: "solid" | "outline",
   selectedKeys: Set<string>,
 ) {
   if (!result) return;
@@ -158,14 +147,13 @@ export function drawVoiceNotes(
     }
     voice.notes.forEach((note, index) => {
       const hit: NoteHit = {
-        rect: noteRect(note, voice.name, model, style === "outline"),
+        rect: noteRect(note, voice.name, model),
         note,
         source: "voice",
         index,
         slot,
         voice: voice.name,
-        editable:
-          model.viewMode === "overlay" || slot === model.viewMode,
+        editable: slot === model.viewMode,
       };
       hits.push(hit);
       drawNote(
@@ -173,7 +161,7 @@ export function drawVoiceNotes(
         hit,
         VOICE_COLORS[voice.name],
         model,
-        style,
+        "voice",
         selectedKeys,
       );
     });

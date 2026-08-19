@@ -54,7 +54,7 @@ export function isEditableSelection(
     selection.source === "melody" ||
     (selection.slot !== undefined &&
       selection.voice !== undefined &&
-      (viewMode === "overlay" || selection.slot === viewMode))
+      selection.slot === viewMode)
   );
 }
 

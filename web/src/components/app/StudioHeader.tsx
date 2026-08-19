@@ -39,7 +39,10 @@ export function StudioHeader() {
         <Radio size={11} />
         {apiClient.isMock ? "Fixture session" : "Backend live"}
       </div>
-      <div className="shortcut-hint" title="Space play · R harmonize · L loop">
+      <div
+        className="shortcut-hint"
+        title="Space play · R record · Cmd/Ctrl+Enter harmonize · Shift+L loop"
+      >
         <Command size={12} />
         <span>Space</span>
       </div>

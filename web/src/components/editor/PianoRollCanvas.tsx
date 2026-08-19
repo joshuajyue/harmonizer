@@ -36,11 +36,8 @@ export function PianoRollCanvas({
   const loopEnd = useStudioStore((state) => state.loopEnd);
   const voiceVisibility = useStudioStore((state) => state.voiceVisibility);
   const interaction = useRollInteraction(drawResultRef, duration, layout);
-  const resultSlot = viewMode === "overlay" ? activeSlot : viewMode;
-  const visibleResult =
-    viewMode === "overlay"
-      ? slots.A.result ?? slots.B.result
-      : slots[viewMode].result;
+  const resultSlot = viewMode;
+  const visibleResult = slots[viewMode].result;
   const empty = melody.notes.length === 0 && visibleResult === undefined;
   const showPrimaryHint = empty && !interaction.marquee;
   const showMelodyHint =

@@ -4,6 +4,16 @@ import { noteCapture } from "../capture/NoteCapture";
 import { useStudioStore } from "../store";
 import { pieceLength, VOICE_ORDER } from "../utils/music";
 
+const DEFAULT_TIME_SIGNATURE = { numerator: 4, denominator: 4 } as const;
+
+function playbackLoopRange(start: number, end: number, duration: number) {
+  const boundedEnd = Math.max(0.25, Math.min(end, duration));
+  return {
+    start: Math.max(0, Math.min(start, boundedEnd - 0.25)),
+    end: boundedEnd,
+  };
+}
+
 export function usePlayback() {
   const melody = useStudioStore((state) => state.melody);
   const slots = useStudioStore((state) => state.slots);
@@ -26,14 +36,17 @@ export function usePlayback() {
   const setRecordingState = useStudioStore(
     (state) => state.setRecordingState,
   );
+  const setNoteInputMode = useStudioStore(
+    (state) => state.setNoteInputMode,
+  );
+  const timeSignature =
+    melody.timeSignature ?? DEFAULT_TIME_SIGNATURE;
 
   const duration = useMemo(
     () =>
       pieceLength(
         melody,
-        viewMode === "overlay"
-          ? [slots.A.result, slots.B.result]
-          : [slots[viewMode].result],
+        [slots[viewMode].result],
       ),
     [melody, slots, viewMode],
   );
@@ -79,9 +92,13 @@ export function usePlayback() {
 
   const play = useCallback(async () => {
     if (notes.length === 0) return;
+    const playbackLoop = playbackLoopRange(loopStart, loopEnd, duration);
     let startBeat = currentBeat >= duration ? 0 : currentBeat;
-    if (loopEnabled && (startBeat < loopStart || startBeat >= loopEnd)) {
-      startBeat = loopStart;
+    if (
+      loopEnabled &&
+      (startBeat < playbackLoop.start || startBeat >= playbackLoop.end)
+    ) {
+      startBeat = playbackLoop.start;
       setCurrentBeat(startBeat);
     }
     setPlaying(true);
@@ -92,13 +109,10 @@ export function usePlayback() {
         startBeat,
         endBeat: duration,
         loopEnabled,
-        loopStart,
-        loopEnd: Math.min(loopEnd, duration),
+        loopStart: playbackLoop.start,
+        loopEnd: playbackLoop.end,
         metronomeEnabled,
-        timeSignature: melody.timeSignature ?? {
-          numerator: 4,
-          denominator: 4,
-        },
+        timeSignature,
         onPosition: setCurrentBeat,
         onEnded: () => setPlaying(false),
       });
@@ -112,11 +126,11 @@ export function usePlayback() {
     loopEnd,
     loopStart,
     melody.tempo,
-    melody.timeSignature,
     metronomeEnabled,
     notes,
     setCurrentBeat,
     setPlaying,
+    timeSignature,
   ]);
 
   const toggle = useCallback(() => {
@@ -134,6 +148,7 @@ export function usePlayback() {
     if (useStudioStore.getState().recordingState === "recording") return;
     const startBeat = Math.max(0, useStudioStore.getState().currentBeat);
     audioScheduler.stop();
+    setNoteInputMode("record");
     noteCapture.beginTake();
     setLoopEnabled(false);
     setRecordingState("recording");
@@ -148,10 +163,7 @@ export function usePlayback() {
         loopStart: 0,
         loopEnd: 0,
         metronomeEnabled,
-        timeSignature: melody.timeSignature ?? {
-          numerator: 4,
-          denominator: 4,
-        },
+        timeSignature,
         onPosition: setCurrentBeat,
         onEnded: () => {
           noteCapture.finishTake(
@@ -169,13 +181,14 @@ export function usePlayback() {
   }, [
     duration,
     melody.tempo,
-    melody.timeSignature,
     metronomeEnabled,
     notes,
     setCurrentBeat,
     setLoopEnabled,
+    setNoteInputMode,
     setPlaying,
     setRecordingState,
+    timeSignature,
   ]);
 
   const toggleRecording = useCallback(() => {
@@ -185,6 +198,30 @@ export function usePlayback() {
       void startRecording();
     }
   }, [recordingState, startRecording, stop]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const playbackLoop = playbackLoopRange(loopStart, loopEnd, duration);
+    audioScheduler.setLoop({
+      enabled: loopEnabled,
+      start: playbackLoop.start,
+      end: playbackLoop.end,
+    });
+  }, [duration, isPlaying, loopEnabled, loopEnd, loopStart]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      audioScheduler.setMetronomeEnabled(metronomeEnabled);
+    }
+  }, [isPlaying, metronomeEnabled]);
+
+  useEffect(() => {
+    if (isPlaying) audioScheduler.setTempo(melody.tempo);
+  }, [isPlaying, melody.tempo]);
+
+  useEffect(() => {
+    if (isPlaying) audioScheduler.setTimeSignature(timeSignature);
+  }, [isPlaying, timeSignature]);
 
   useEffect(
     () => () => {

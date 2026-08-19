@@ -9,9 +9,10 @@ import type {
 } from "../../../contracts/types";
 
 export type ComparisonSlotId = "A" | "B";
-export type ComparisonView = ComparisonSlotId | "overlay";
+export type ComparisonView = ComparisonSlotId;
 export type AsyncStatus = "idle" | "loading" | "ready" | "error";
 export type InputTab = "piano" | "midi" | "file" | "microphone";
+export type NoteInputMode = "record" | "step";
 export type FocusedLane = "melody" | VoiceName;
 export type RecordingState = "idle" | "armed" | "recording";
 
@@ -124,6 +125,7 @@ export interface EditorSlice {
   selectedNotes: SelectedNote[];
   inputTab: InputTab;
   inputDockOpen: boolean;
+  noteInputMode: NoteInputMode;
   setZoom: (pxPerBeat: number) => void;
   setSnap: (snap: number) => void;
   toggleVoiceVisibility: (voice: VoiceName) => void;
@@ -143,6 +145,7 @@ export interface EditorSlice {
   setSelectedNotesDuration: (duration: number) => void;
   setInputTab: (tab: InputTab) => void;
   setInputDockOpen: (open: boolean) => void;
+  setNoteInputMode: (mode: NoteInputMode) => void;
 }
 
 export type StudioStore = ProjectSlice &

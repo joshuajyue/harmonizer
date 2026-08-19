@@ -35,9 +35,7 @@ export function PianoRoll() {
     () =>
       pieceLength(
         melody,
-        viewMode === "overlay"
-          ? [slots.A.result, slots.B.result]
-          : [slots[viewMode].result],
+        [slots[viewMode].result],
       ),
     [melody, slots, viewMode],
   );

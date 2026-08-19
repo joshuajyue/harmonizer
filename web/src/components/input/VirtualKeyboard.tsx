@@ -47,6 +47,7 @@ export function VirtualKeyboard() {
     () => new Set(),
   );
   const recordingState = useStudioStore((state) => state.recordingState);
+  const noteInputMode = useStudioStore((state) => state.noteInputMode);
 
   const setActive = useCallback((pitch: number, active: boolean) => {
     setActivePitches((current) => {
@@ -96,6 +97,7 @@ export function VirtualKeyboard() {
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
+        event.shiftKey ||
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLSelectElement ||
         event.target instanceof HTMLTextAreaElement ||
@@ -139,7 +141,9 @@ export function VirtualKeyboard() {
   const whiteWidth = 100 / whiteCount;
   const blackWidth = whiteWidth * 0.62;
   const statusCopy =
-    recordingState === "recording"
+    noteInputMode === "step"
+      ? "Step input · quarter note per press"
+      : recordingState === "recording"
       ? "Recording raw note-on / note-off timing"
       : recordingState === "armed"
         ? "Armed · preview only until recording starts"
@@ -152,7 +156,7 @@ export function VirtualKeyboard() {
         <span>{statusCopy} · keys A–;</span>
       </div>
       <div
-        className={`virtual-keyboard ${recordingState === "recording" ? "recording" : ""}`}
+        className={`virtual-keyboard ${recordingState === "recording" ? "recording" : ""} ${noteInputMode === "step" ? "step-entry" : ""}`}
         role="group"
         aria-label="Virtual piano keyboard"
       >

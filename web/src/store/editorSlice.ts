@@ -39,6 +39,7 @@ export const createEditorSlice: StateCreator<
   focusedLane: undefined,
   selectedNotes: [],
   inputTab: "piano",
+  noteInputMode: "record",
   inputDockOpen:
     typeof window === "undefined" ? true : window.innerHeight >= 800,
 
@@ -100,4 +101,5 @@ export const createEditorSlice: StateCreator<
     ),
   setInputTab: (inputTab) => set({ inputTab }),
   setInputDockOpen: (inputDockOpen) => set({ inputDockOpen }),
+  setNoteInputMode: (noteInputMode) => set({ noteInputMode }),
 });

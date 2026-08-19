@@ -1,9 +1,6 @@
-import { GitCompareArrows, Layers3, LoaderCircle } from "lucide-react";
+import { GitCompareArrows, LoaderCircle } from "lucide-react";
 import { useHarmonize } from "../../hooks/useHarmonize";
-import {
-  useStudioStore,
-  type ComparisonView,
-} from "../../store";
+import { useStudioStore } from "../../store";
 import { EngineSlot } from "./EngineSlot";
 import { ViolationScore } from "./ViolationScore";
 
@@ -36,21 +33,18 @@ export function ComparisonPanel() {
       </div>
 
       <div className="view-switcher" aria-label="Comparison view">
-        {(["A", "B", "overlay"] as ComparisonView[]).map((view) => (
+        {(["A", "B"] as const).map((view) => (
           <button
             type="button"
             key={view}
             className={viewMode === view ? "active" : ""}
             onClick={() => setViewMode(view)}
-            disabled={
-              view === "overlay"
-                ? !slots.A.result || !slots.B.result
-                : !slots[view].result
-            }
+            disabled={!slots[view].result}
             aria-pressed={viewMode === view}
+            title={`Show result ${view} (${view === "A" ? "1" : "2"})`}
           >
-            {view === "overlay" && <Layers3 size={11} />}
-            {view === "overlay" ? "Overlay" : `Result ${view}`}
+            Result {view}
+            <kbd>{view === "A" ? "1" : "2"}</kbd>
           </button>
         ))}
       </div>
@@ -73,15 +67,6 @@ export function ComparisonPanel() {
             }
           />
         ))}
-      </div>
-
-      <div className="overlay-legend">
-        <span>
-          <i className="solid-swatch" /> active / playback
-        </span>
-        <span title="Marquee and bulk edits affect both overlay results">
-          <i className="outline-swatch" /> comparison / grouped edits
-        </span>
       </div>
 
       <div className="engine-slots">

@@ -10,6 +10,7 @@ export function MidiDeviceInput() {
   const [status, setStatus] = useState<"idle" | "requesting" | "error">("idle");
   const [lastNote, setLastNote] = useState<number>();
   const recordingState = useStudioStore((state) => state.recordingState);
+  const noteInputMode = useStudioStore((state) => state.noteInputMode);
 
   async function requestAccess() {
     if (!navigator.requestMIDIAccess) {
@@ -74,7 +75,9 @@ export function MidiDeviceInput() {
         <strong>Web MIDI performance input</strong>
         <span>
           {inputs.length > 0
-            ? recordingState === "recording"
+            ? noteInputMode === "step"
+              ? "Step input · quarter note per note-on."
+              : recordingState === "recording"
               ? "Recording raw timing and MIDI velocity."
               : `${inputs.length} device${inputs.length === 1 ? "" : "s"} · preview only`
             : "Grant access, then play your connected keyboard."}

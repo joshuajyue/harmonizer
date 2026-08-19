@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useHarmonize } from "./useHarmonize";
 import { usePlayback } from "./usePlayback";
 import { useStudioStore } from "../store";
 
@@ -15,23 +16,34 @@ function isInteractiveTarget(target: EventTarget | null) {
 
 export function useKeyboardShortcuts() {
   const { toggle, stop, toggleRecording } = usePlayback();
+  const { harmonizeSlot } = useHarmonize();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.repeat ||
         isInteractiveTarget(event.target) ||
-        event.metaKey ||
-        event.ctrlKey ||
         event.altKey
       ) {
         return;
       }
       const state = useStudioStore.getState();
+      if (
+        event.key === "Enter" &&
+        (event.metaKey || event.ctrlKey)
+      ) {
+        event.preventDefault();
+        void harmonizeSlot(state.activeSlot);
+        return;
+      }
+      if (event.metaKey || event.ctrlKey) return;
       if (event.code === "Space") {
         event.preventDefault();
         toggle();
-      } else if (event.key.toLowerCase() === "l") {
+      } else if (
+        event.shiftKey &&
+        event.key.toLowerCase() === "l"
+      ) {
         state.setLoopEnabled(!state.loopEnabled);
       } else if (event.key.toLowerCase() === "m") {
         state.setMetronomeEnabled(!state.metronomeEnabled);
@@ -42,12 +54,6 @@ export function useKeyboardShortcuts() {
         state.setViewMode("A");
       } else if (event.key === "2" && state.slots.B.result) {
         state.setViewMode("B");
-      } else if (
-        event.key === "0" &&
-        state.slots.A.result &&
-        state.slots.B.result
-      ) {
-        state.setViewMode("overlay");
       } else if (event.key === "Home") {
         stop();
         state.setCurrentBeat(0);
@@ -90,5 +96,5 @@ export function useKeyboardShortcuts() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [stop, toggle, toggleRecording]);
+  }, [harmonizeSlot, stop, toggle, toggleRecording]);
 }

@@ -37,7 +37,7 @@
 
 .view-switcher {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.3fr;
+  grid-template-columns: 1fr 1fr;
   gap: 3px;
   margin: 13px 0 10px;
   padding: 3px;
@@ -69,6 +69,16 @@
 .view-switcher button:disabled {
   cursor: not-allowed;
   opacity: 0.35;
+}
+
+.view-switcher kbd {
+  min-width: 14px;
+  padding: 1px 3px;
+  border: 1px solid #424b59;
+  border-radius: 3px;
+  color: var(--muted);
+  background: #171c24;
+  font: 7px "DM Mono", monospace;
 }
 
 .panel-error,
@@ -183,34 +193,6 @@
 
 .severity-count.info {
   color: var(--info);
-}
-
-.overlay-legend {
-  display: flex;
-  gap: 12px;
-  margin: 7px 1px 11px;
-  color: var(--dim);
-  font: 7px "DM Mono", monospace;
-}
-
-.overlay-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.overlay-legend i {
-  width: 12px;
-  height: 5px;
-  border-radius: 2px;
-}
-
-.solid-swatch {
-  background: var(--alto);
-}
-
-.outline-swatch {
-  border: 1px dashed var(--alto);
 }
 
 .engine-slots {
