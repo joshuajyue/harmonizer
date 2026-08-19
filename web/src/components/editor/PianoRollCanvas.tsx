@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useStudioStore } from "../../store";
 import { drawRoll } from "./drawRoll";
-import type { RollLayout } from "./rollGeometry";
+import {
+  laneTop,
+  RULER_HEIGHT,
+  type RollLayout,
+} from "./rollGeometry";
 import type { DrawModel } from "./rollTypes";
 import { useRollInteraction } from "./useRollInteraction";
 
@@ -32,6 +36,24 @@ export function PianoRollCanvas({
   const loopEnd = useStudioStore((state) => state.loopEnd);
   const voiceVisibility = useStudioStore((state) => state.voiceVisibility);
   const interaction = useRollInteraction(drawResultRef, duration, layout);
+  const visibleResults =
+    viewMode === "overlay"
+      ? [slots.A.result, slots.B.result]
+      : [slots[viewMode].result];
+  const hasHarmonyNotes = visibleResults.some((result) =>
+    result?.voices.some((voice) => voice.notes.length > 0),
+  );
+  const showMelodyHint =
+    !interaction.marquee &&
+    layout.lanes.includes("melody") &&
+    melody.notes.length === 0;
+  const showHarmonyHint =
+    !interaction.marquee &&
+    layout.lanes.some((lane) => lane !== "melody") &&
+    !hasHarmonyNotes;
+  const harmonyTop = layout.focusedLane
+    ? RULER_HEIGHT
+    : laneTop("soprano", layout);
 
   const model = useMemo<DrawModel>(
     () => ({
@@ -102,6 +124,34 @@ export function PianoRollCanvas({
         onDoubleClick={interaction.onDoubleClick}
         onContextMenu={interaction.onContextMenu}
       />
+      {showMelodyHint && (
+        <div
+          className="roll-empty-hint"
+          style={{
+            top: laneTop("melody", layout),
+            height: layout.laneHeight,
+          }}
+        >
+          <span>
+            Double-click to add a melody note, or choose an input below
+          </span>
+        </div>
+      )}
+      {showHarmonyHint && (
+        <div
+          className="roll-empty-hint"
+          style={{
+            top: harmonyTop,
+            height: layout.noteAreaBottom - harmonyTop,
+          }}
+        >
+          <span>
+            Harmonize engine{" "}
+            {viewMode === "overlay" ? activeSlot : viewMode} to reveal
+            independent SATB parts
+          </span>
+        </div>
+      )}
       <div
         className="roll-playhead"
         aria-hidden="true"
