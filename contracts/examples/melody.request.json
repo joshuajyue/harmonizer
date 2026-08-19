@@ -1,0 +1,118 @@
+{
+  "melody": {
+    "notes": [
+      {
+        "pitch": 60,
+        "start": 0.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 64,
+        "start": 2.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 67,
+        "start": 4.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 64,
+        "start": 6.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 65,
+        "start": 8.0,
+        "duration": 1.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 64,
+        "start": 9.0,
+        "duration": 1.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 62,
+        "start": 10.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 60,
+        "start": 12.0,
+        "duration": 4.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 64,
+        "start": 16.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 67,
+        "start": 18.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 69,
+        "start": 20.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 67,
+        "start": 22.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 65,
+        "start": 24.0,
+        "duration": 1.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 64,
+        "start": 25.0,
+        "duration": 1.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 62,
+        "start": 26.0,
+        "duration": 2.0,
+        "velocity": 80
+      },
+      {
+        "pitch": 60,
+        "start": 28.0,
+        "duration": 4.0,
+        "velocity": 80
+      }
+    ],
+    "tempo": 88.0,
+    "timeSignature": {
+      "numerator": 4,
+      "denominator": 4
+    },
+    "key": {
+      "tonic": 0,
+      "mode": "major",
+      "confidence": 0.97
+    }
+  },
+  "engine": "rules",
+  "options": {
+    "voiceCount": 4,
+    "temperature": 0.0,
+    "seed": null
+  }
+}
