@@ -5,8 +5,8 @@ import { quantize } from "../../utils/music";
 import {
   contains,
   laneAtY,
-  NOTE_AREA_BOTTOM,
   RULER_HEIGHT,
+  type RollLayout,
   yToPitch,
 } from "./rollGeometry";
 import type {
@@ -32,12 +32,13 @@ function selectionFromHit(hit: NoteHit): SelectedNote {
 export function useRollInteraction(
   drawResultRef: React.RefObject<DrawResult | undefined>,
   duration: number,
+  layout: RollLayout,
 ) {
   const modeRef = useRef<InteractionMode | undefined>(undefined);
   const [hoveredViolation, setHoveredViolation] =
     useState<ViolationHit>();
-  const marquee = useMarqueeSelection(drawResultRef);
-  const noteDrag = useNoteDrag();
+  const marquee = useMarqueeSelection(drawResultRef, layout);
+  const noteDrag = useNoteDrag(layout);
   const ruler = useRulerRange(duration);
   const activeSlot = useStudioStore((state) => state.activeSlot);
   const pxPerBeat = useStudioStore((state) => state.pxPerBeat);
@@ -87,7 +88,7 @@ export function useRollInteraction(
       }
       return;
     }
-    if (point.y <= NOTE_AREA_BOTTOM) {
+    if (point.y <= layout.noteAreaBottom) {
       modeRef.current = "marquee";
       marquee.start(
         point,
@@ -151,9 +152,9 @@ export function useRollInteraction(
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    if (findNote(x, y) || laneAtY(y) !== "melody") return;
+    if (findNote(x, y) || laneAtY(y, layout) !== "melody") return;
     const index = addMelodyNote({
-      pitch: yToPitch("melody", y),
+      pitch: yToPitch("melody", y, layout),
       start: Math.max(0, quantize(x / pxPerBeat, snap)),
       duration: Math.max(0.5, snap),
       velocity: 88,

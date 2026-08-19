@@ -10,7 +10,7 @@ import {
   selectionKey,
 } from "../../store/selection";
 import { quantize } from "../../utils/music";
-import { yToPitch } from "./rollGeometry";
+import { yToPitch, type RollLayout } from "./rollGeometry";
 import type { NoteHit } from "./rollTypes";
 
 interface NoteDragState {
@@ -31,7 +31,7 @@ function selectionFromHit(hit: NoteHit): SelectedNote {
   };
 }
 
-export function useNoteDrag() {
+export function useNoteDrag(layout: RollLayout) {
   const dragRef = useRef<NoteDragState | undefined>(undefined);
   const activeSlot = useStudioStore((state) => state.activeSlot);
   const pxPerBeat = useStudioStore((state) => state.pxPerBeat);
@@ -123,7 +123,7 @@ export function useNoteDrag() {
     transformSelectedNotes(
       drag.origins,
       quantize((point.x - drag.startX) / pxPerBeat, snap),
-      yToPitch(lane, centerY) - drag.original.pitch,
+      yToPitch(lane, centerY, layout) - drag.original.pitch,
     );
   }
 

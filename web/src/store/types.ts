@@ -12,6 +12,7 @@ export type ComparisonSlotId = "A" | "B";
 export type ComparisonView = ComparisonSlotId | "overlay";
 export type AsyncStatus = "idle" | "loading" | "ready" | "error";
 export type InputTab = "piano" | "midi" | "file" | "microphone";
+export type FocusedLane = "melody" | VoiceName;
 
 export interface ComparisonSlot {
   engineId: string;
@@ -102,6 +103,7 @@ export interface EditorSlice {
   voiceVisibility: Record<VoiceName, boolean>;
   voiceMute: Record<VoiceName, boolean>;
   voiceSolo: Record<VoiceName, boolean>;
+  focusedLane?: FocusedLane;
   selectedNotes: SelectedNote[];
   inputTab: InputTab;
   inputDockOpen: boolean;
@@ -110,6 +112,7 @@ export interface EditorSlice {
   toggleVoiceVisibility: (voice: VoiceName) => void;
   toggleVoiceMute: (voice: VoiceName) => void;
   toggleVoiceSolo: (voice: VoiceName) => void;
+  setFocusedLane: (lane?: FocusedLane) => void;
   setSelectedNotes: (notes: SelectedNote[]) => void;
   clearSelection: () => void;
   deleteSelectedNotes: () => void;

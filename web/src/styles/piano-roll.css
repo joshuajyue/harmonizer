@@ -59,6 +59,38 @@
   gap: 3px;
 }
 
+.focus-mode-pill {
+  display: inline-flex;
+  height: 27px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 0 8px;
+  border: 1px solid rgb(97 184 255 / 38%);
+  border-radius: 6px;
+  color: #9fd5ff;
+  background: rgb(97 184 255 / 8%);
+  font: 9px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.focus-mode-pill button {
+  display: grid;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.focus-mode-pill button:hover {
+  color: var(--text);
+  background: rgb(255 255 255 / 8%);
+}
+
 .edit-layer-toggle {
   padding: 2px;
   border: 1px solid var(--line);
@@ -367,10 +399,20 @@
   font: 600 8px "DM Mono", monospace;
 }
 
+.melody-control > .melody-lane-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .lane-actions {
   display: grid;
   grid-template-columns: repeat(3, 20px);
   gap: 2px;
+}
+
+.lane-actions.four-actions {
+  grid-template-columns: repeat(4, 20px);
 }
 
 .lane-icon-button,
@@ -404,6 +446,102 @@
   border-color: rgb(199 255 94 / 32%);
   color: var(--accent);
   background: var(--accent-wash);
+}
+
+.focus-sidebar-ruler {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 5px;
+  border-bottom: 1px solid #394352;
+  background: #10151c;
+}
+
+.focus-sidebar-ruler .lane-color {
+  width: 3px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.focus-sidebar-ruler > strong {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-exit-button {
+  display: inline-flex;
+  height: 21px;
+  align-items: center;
+  gap: 3px;
+  padding: 0 5px;
+  border: 1px solid #3c4656;
+  border-radius: 4px;
+  color: var(--muted);
+  background: #171d26;
+  font: 8px "DM Mono", monospace;
+  cursor: pointer;
+}
+
+.focus-exit-button:hover {
+  border-color: rgb(97 184 255 / 48%);
+  color: #b7ddff;
+}
+
+.focus-audio-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 1px;
+}
+
+.focus-piano-keyboard {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid #303846;
+  background: #c9ced6;
+}
+
+.focus-piano-key {
+  position: absolute;
+  right: 0;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 6px;
+  border: 0;
+  border-top: 1px solid rgb(17 22 30 / 24%);
+  color: #29313d;
+  background:
+    linear-gradient(90deg, #f0f2f5 0%, #cdd2d9 88%, #b4bbc5 100%);
+  font: 8px "DM Mono", monospace;
+  text-align: left;
+  cursor: pointer;
+}
+
+.focus-piano-key.black {
+  z-index: 2;
+  width: 67%;
+  border-color: #06080b;
+  border-radius: 2px 0 0 2px;
+  color: #dde2e9;
+  background:
+    linear-gradient(90deg, #282e37 0%, #11151b 78%, #05070a 100%);
+  box-shadow: -2px 1px 3px rgb(0 0 0 / 38%);
+}
+
+.focus-piano-key:hover,
+.focus-piano-key:focus-visible {
+  filter: brightness(1.12);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.focus-piano-key span {
+  pointer-events: none;
 }
 
 .chord-sidebar {

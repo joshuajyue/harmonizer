@@ -10,7 +10,7 @@ import type {
   ComparisonView,
   SelectedNote,
 } from "../../store";
-import type { Rect } from "./rollGeometry";
+import type { Rect, RollLayout } from "./rollGeometry";
 
 export interface NoteHit {
   rect: Rect;
@@ -41,6 +41,7 @@ export interface DrawModel {
   loopStart: number;
   loopEnd: number;
   voiceVisibility: Record<VoiceName, boolean>;
+  layout: RollLayout;
 }
 
 export interface DrawResult {

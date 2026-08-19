@@ -1,4 +1,5 @@
 import type { VoiceName } from "../../../../contracts/types";
+import type { FocusedLane } from "../../store";
 import { clamp, VOICE_RANGES } from "../../utils/music";
 
 export type LaneName = "melody" | VoiceName;
@@ -18,6 +19,15 @@ export const ROLL_HEIGHT =
   RULER_HEIGHT + LANES.length * LANE_HEIGHT + CHORD_HEIGHT;
 export const NOTE_AREA_BOTTOM =
   RULER_HEIGHT + LANES.length * LANE_HEIGHT;
+export const MIN_FOCUS_ROLL_HEIGHT = 320;
+
+export interface RollLayout {
+  focusedLane?: FocusedLane;
+  lanes: LaneName[];
+  laneHeight: number;
+  noteAreaBottom: number;
+  rollHeight: number;
+}
 
 export interface Rect {
   x: number;
@@ -26,30 +36,89 @@ export interface Rect {
   height: number;
 }
 
-export function laneTop(lane: LaneName) {
-  return RULER_HEIGHT + LANES.indexOf(lane) * LANE_HEIGHT;
+export function createRollLayout(
+  focusedLane?: FocusedLane,
+  availableHeight = ROLL_HEIGHT,
+): RollLayout {
+  if (!focusedLane) {
+    return {
+      lanes: LANES,
+      laneHeight: LANE_HEIGHT,
+      noteAreaBottom: NOTE_AREA_BOTTOM,
+      rollHeight: ROLL_HEIGHT,
+    };
+  }
+  const rollHeight = Math.max(MIN_FOCUS_ROLL_HEIGHT, availableHeight);
+  const laneHeight = rollHeight - RULER_HEIGHT - CHORD_HEIGHT;
+  return {
+    focusedLane,
+    lanes: [focusedLane],
+    laneHeight,
+    noteAreaBottom: RULER_HEIGHT + laneHeight,
+    rollHeight,
+  };
 }
 
-export function laneCenter(lane: LaneName) {
-  return laneTop(lane) + LANE_HEIGHT / 2;
+export function laneTop(lane: LaneName, layout: RollLayout) {
+  const index = layout.lanes.indexOf(lane);
+  return RULER_HEIGHT + Math.max(0, index) * layout.laneHeight;
 }
 
-export function laneAtY(y: number): LaneName | undefined {
-  const index = Math.floor((y - RULER_HEIGHT) / LANE_HEIGHT);
-  return LANES[index];
+export function laneCenter(lane: LaneName, layout: RollLayout) {
+  return laneTop(lane, layout) + layout.laneHeight / 2;
 }
 
-export function pitchToY(lane: LaneName, pitch: number) {
+export function laneAtY(y: number, layout: RollLayout): LaneName | undefined {
+  if (y < RULER_HEIGHT || y > layout.noteAreaBottom) return undefined;
+  const index = Math.floor((y - RULER_HEIGHT) / layout.laneHeight);
+  return layout.lanes[index];
+}
+
+export function pitchStep(lane: LaneName, layout: RollLayout) {
   const range = VOICE_RANGES[lane];
-  const innerHeight = LANE_HEIGHT - 16;
+  return (layout.laneHeight - 16) / (range.max - range.min);
+}
+
+export function pitchToY(
+  lane: LaneName,
+  pitch: number,
+  layout: RollLayout,
+) {
+  const range = VOICE_RANGES[lane];
+  const innerHeight = layout.laneHeight - 16;
   const ratio = (range.max - pitch) / (range.max - range.min);
-  return laneTop(lane) + 8 + clamp(ratio, 0, 1) * innerHeight;
+  return laneTop(lane, layout) + 8 + clamp(ratio, 0, 1) * innerHeight;
 }
 
-export function yToPitch(lane: LaneName, y: number) {
+export function pitchRowRect(
+  lane: LaneName,
+  pitch: number,
+  layout: RollLayout,
+): Rect {
   const range = VOICE_RANGES[lane];
-  const innerHeight = LANE_HEIGHT - 16;
-  const ratio = clamp((y - laneTop(lane) - 8) / innerHeight, 0, 1);
+  const step = pitchStep(lane, layout);
+  const center = pitchToY(lane, pitch, layout);
+  const top =
+    pitch === range.max ? laneTop(lane, layout) : center - step / 2;
+  const bottom =
+    pitch === range.min
+      ? laneTop(lane, layout) + layout.laneHeight
+      : center + step / 2;
+  return { x: 0, y: top, width: SIDEBAR_WIDTH, height: bottom - top };
+}
+
+export function yToPitch(
+  lane: LaneName,
+  y: number,
+  layout: RollLayout,
+) {
+  const range = VOICE_RANGES[lane];
+  const innerHeight = layout.laneHeight - 16;
+  const ratio = clamp(
+    (y - laneTop(lane, layout) - 8) / innerHeight,
+    0,
+    1,
+  );
   return Math.round(range.max - ratio * (range.max - range.min));
 }
 

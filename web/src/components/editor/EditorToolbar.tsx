@@ -1,12 +1,15 @@
 import {
+  Maximize2,
   Minus,
   MousePointer2,
   Plus,
   RefreshCw,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { useHarmonize } from "../../hooks/useHarmonize";
 import { useStudioStore } from "../../store";
+import { voiceLabel } from "../../utils/music";
 import { SelectedNoteInspector } from "./SelectedNoteInspector";
 
 export function EditorToolbar() {
@@ -16,6 +19,8 @@ export function EditorToolbar() {
   const setSnap = useStudioStore((state) => state.setSnap);
   const viewMode = useStudioStore((state) => state.viewMode);
   const activeSlot = useStudioStore((state) => state.activeSlot);
+  const focusedLane = useStudioStore((state) => state.focusedLane);
+  const setFocusedLane = useStudioStore((state) => state.setFocusedLane);
   const setActiveSlot = useStudioStore((state) => state.setActiveSlot);
   const slots = useStudioStore((state) => state.slots);
   const melodyRevision = useStudioStore((state) => state.melodyRevision);
@@ -48,6 +53,25 @@ export function EditorToolbar() {
                 {value}
               </button>
             ))}
+          </div>
+        )}
+        {focusedLane && (
+          <div className="focus-mode-pill">
+            <Maximize2 size={12} />
+            <span>
+              {focusedLane === "melody"
+                ? "Melody"
+                : voiceLabel(focusedLane)}{" "}
+              focus
+            </span>
+            <button
+              type="button"
+              onClick={() => setFocusedLane(undefined)}
+              aria-label="Exit lane focus"
+              title="Exit focus (Escape)"
+            >
+              <X size={11} />
+            </button>
           </div>
         )}
         <div className="roll-tool-group">

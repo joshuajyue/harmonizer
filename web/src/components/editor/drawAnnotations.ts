@@ -4,8 +4,6 @@ import type {
 } from "../../../../contracts/types";
 import {
   CHORD_HEIGHT,
-  LANES,
-  LANE_HEIGHT,
   laneCenter,
   RULER_HEIGHT,
 } from "./rollGeometry";
@@ -19,7 +17,7 @@ export function drawChords(
   chords: Chord[],
   model: DrawModel,
 ) {
-  const top = RULER_HEIGHT + LANES.length * LANE_HEIGHT;
+  const top = model.layout.noteAreaBottom;
   context.fillStyle = "#0d1117";
   context.fillRect(0, top, model.duration * model.pxPerBeat, CHORD_HEIGHT);
   context.fillStyle = "#5d6675";
@@ -54,9 +52,20 @@ export function drawViolations(
 ) {
   for (const violation of result?.violations ?? []) {
     const x = violation.start * model.pxPerBeat;
-    const centers = violation.voices.map((voice) => laneCenter(voice));
-    const top = Math.min(...centers);
-    const bottom = Math.max(...centers);
+    const focusedLane = model.layout.focusedLane;
+    const centers = focusedLane
+      ? []
+      : violation.voices.map((voice) => laneCenter(voice, model.layout));
+    const focusRelevant =
+      focusedLane !== undefined &&
+      focusedLane !== "melody" &&
+      violation.voices.includes(focusedLane);
+    const top = focusedLane
+      ? RULER_HEIGHT + 7
+      : Math.min(...centers);
+    const bottom = focusedLane
+      ? top + (focusRelevant ? 34 : 22)
+      : Math.max(...centers);
     const color =
       violation.severity === "error"
         ? "#ff5e72"
@@ -66,6 +75,7 @@ export function drawViolations(
     context.strokeStyle = color;
     context.fillStyle = color;
     context.lineWidth = slot === "A" ? 1.5 : 1;
+    context.globalAlpha = focusedLane && !focusRelevant ? 0.64 : 1;
     context.setLineDash(slot === "B" ? [3, 3] : []);
     context.beginPath();
     context.moveTo(x, top);
@@ -82,6 +92,7 @@ export function drawViolations(
     context.textAlign = "center";
     context.fillText(slot, x, (top + bottom) / 2 + 2.5);
     context.textAlign = "start";
+    context.globalAlpha = 1;
     hits.push({
       rect: { x: x - 9, y: top - 8, width: 18, height: bottom - top + 16 },
       violation,

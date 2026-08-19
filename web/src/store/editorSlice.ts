@@ -36,6 +36,7 @@ export const createEditorSlice: StateCreator<
   voiceVisibility: { ...allEnabled },
   voiceMute: { ...allDisabled },
   voiceSolo: { ...allDisabled },
+  focusedLane: undefined,
   selectedNotes: [],
   inputTab: "piano",
   inputDockOpen:
@@ -64,6 +65,8 @@ export const createEditorSlice: StateCreator<
         [voice]: !state.voiceSolo[voice],
       },
     })),
+  setFocusedLane: (focusedLane) =>
+    set({ focusedLane, selectedNotes: [] }),
   setSelectedNotes: (selectedNotes) =>
     set({ selectedNotes: dedupeSelection(selectedNotes) }),
   clearSelection: () => set({ selectedNotes: [] }),

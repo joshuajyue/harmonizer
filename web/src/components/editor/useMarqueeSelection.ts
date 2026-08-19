@@ -6,10 +6,10 @@ import {
 } from "../../store/selection";
 import {
   intersects,
-  NOTE_AREA_BOTTOM,
   rectBetween,
   RULER_HEIGHT,
   type Rect,
+  type RollLayout,
 } from "./rollGeometry";
 import type { DrawResult, NoteHit } from "./rollTypes";
 
@@ -32,6 +32,7 @@ function selectionFromHit(hit: NoteHit): SelectedNote {
 
 export function useMarqueeSelection(
   drawResultRef: React.RefObject<DrawResult | undefined>,
+  layout: RollLayout,
 ) {
   const sessionRef = useRef<MarqueeSession | undefined>(undefined);
   const [marquee, setMarquee] = useState<Rect>();
@@ -49,7 +50,10 @@ export function useMarqueeSelection(
         : [...useStudioStore.getState().selectedNotes];
     const anchor = {
       x: point.x,
-      y: Math.max(RULER_HEIGHT, Math.min(NOTE_AREA_BOTTOM, point.y)),
+      y: Math.max(
+        RULER_HEIGHT,
+        Math.min(layout.noteAreaBottom, point.y),
+      ),
     };
     sessionRef.current = { anchor, base, mode };
     setSelectedNotes(base);
@@ -61,7 +65,10 @@ export function useMarqueeSelection(
     if (!session) return;
     const rectangle = rectBetween(session.anchor, {
       x: point.x,
-      y: Math.max(RULER_HEIGHT, Math.min(NOTE_AREA_BOTTOM, point.y)),
+      y: Math.max(
+        RULER_HEIGHT,
+        Math.min(layout.noteAreaBottom, point.y),
+      ),
     });
     const hits = (drawResultRef.current?.noteHits ?? [])
       .filter((hit) => hit.editable && intersects(hit.rect, rectangle))

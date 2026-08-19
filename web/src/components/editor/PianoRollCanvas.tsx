@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useStudioStore } from "../../store";
 import { drawRoll } from "./drawRoll";
-import { ROLL_HEIGHT } from "./rollGeometry";
+import type { RollLayout } from "./rollGeometry";
 import type { DrawModel } from "./rollTypes";
 import { useRollInteraction } from "./useRollInteraction";
 
 interface PianoRollCanvasProps {
   width: number;
   duration: number;
+  layout: RollLayout;
 }
 
 export function PianoRollCanvas({
   width,
   duration,
+  layout,
 }: PianoRollCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawResultRef = useRef<ReturnType<typeof drawRoll> | undefined>(
@@ -29,7 +31,7 @@ export function PianoRollCanvas({
   const loopStart = useStudioStore((state) => state.loopStart);
   const loopEnd = useStudioStore((state) => state.loopEnd);
   const voiceVisibility = useStudioStore((state) => state.voiceVisibility);
-  const interaction = useRollInteraction(drawResultRef, duration);
+  const interaction = useRollInteraction(drawResultRef, duration, layout);
 
   const model = useMemo<DrawModel>(
     () => ({
@@ -45,6 +47,7 @@ export function PianoRollCanvas({
       loopStart,
       loopEnd,
       voiceVisibility,
+      layout,
     }),
     [
       activeSlot,
@@ -52,6 +55,7 @@ export function PianoRollCanvas({
       loopEnabled,
       loopEnd,
       loopStart,
+      layout,
       melody,
       pxPerBeat,
       selectedNotes,
@@ -67,7 +71,7 @@ export function PianoRollCanvas({
     if (!canvas) return;
     const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
     const pixelWidth = Math.ceil(width * ratio);
-    const pixelHeight = Math.ceil(ROLL_HEIGHT * ratio);
+    const pixelHeight = Math.ceil(layout.rollHeight * ratio);
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
       canvas.width = pixelWidth;
       canvas.height = pixelHeight;
@@ -76,14 +80,17 @@ export function PianoRollCanvas({
     if (!context) return;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     drawResultRef.current = drawRoll(context, model);
-  }, [model, width]);
+  }, [layout.rollHeight, model, width]);
 
   return (
-    <div className="roll-canvas-wrap" style={{ width, height: ROLL_HEIGHT }}>
+    <div
+      className="roll-canvas-wrap"
+      style={{ width, height: layout.rollHeight }}
+    >
       <canvas
         ref={canvasRef}
         className="roll-canvas"
-        style={{ width, height: ROLL_HEIGHT }}
+        style={{ width, height: layout.rollHeight }}
         aria-label="Editable multi-voice piano roll. Drag empty space to select notes; drag the ruler to set the cycle range."
         role="application"
         tabIndex={0}

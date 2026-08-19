@@ -73,7 +73,8 @@ export function useKeyboardShortcuts() {
           ),
         );
       } else if (event.key === "Escape") {
-        state.clearSelection();
+        if (state.focusedLane) state.setFocusedLane(undefined);
+        else state.clearSelection();
       } else if (
         (event.key === "Delete" || event.key === "Backspace") &&
         state.selectedNotes.length > 0

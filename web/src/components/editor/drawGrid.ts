@@ -1,10 +1,8 @@
 import { VOICE_RANGES } from "../../utils/music";
 import {
-  LANES,
-  LANE_HEIGHT,
   laneTop,
+  pitchRowRect,
   pitchToY,
-  ROLL_HEIGHT,
   RULER_HEIGHT,
 } from "./rollGeometry";
 import type { DrawModel } from "./rollTypes";
@@ -21,18 +19,47 @@ export function drawGrid(
   };
   const barLength = signature.numerator * (4 / signature.denominator);
   context.fillStyle = "#10141b";
-  context.fillRect(0, 0, model.duration * model.pxPerBeat, ROLL_HEIGHT);
+  context.fillRect(
+    0,
+    0,
+    model.duration * model.pxPerBeat,
+    model.layout.rollHeight,
+  );
 
-  LANES.forEach((lane, laneIndex) => {
-    const top = laneTop(lane);
+  model.layout.lanes.forEach((lane, laneIndex) => {
+    const top = laneTop(lane, model.layout);
     context.fillStyle = laneIndex % 2 === 0 ? "#11161e" : "#0f141b";
-    context.fillRect(0, top, model.duration * model.pxPerBeat, LANE_HEIGHT);
+    context.fillRect(
+      0,
+      top,
+      model.duration * model.pxPerBeat,
+      model.layout.laneHeight,
+    );
     const range = VOICE_RANGES[lane];
     for (let pitch = range.min; pitch <= range.max; pitch += 1) {
-      if (!BLACK_KEYS.has(pitch % 12)) continue;
-      const y = pitchToY(lane, pitch);
-      context.fillStyle = "rgba(0, 0, 0, 0.13)";
-      context.fillRect(0, y - 2, model.duration * model.pxPerBeat, 4);
+      if (model.layout.focusedLane) {
+        const row = pitchRowRect(lane, pitch, model.layout);
+        if (BLACK_KEYS.has(pitch % 12)) {
+          context.fillStyle = "rgba(0, 0, 0, 0.21)";
+          context.fillRect(
+            0,
+            row.y,
+            model.duration * model.pxPerBeat,
+            row.height,
+          );
+        }
+        context.strokeStyle =
+          pitch % 12 === 0 ? "#384252" : "rgba(54, 63, 77, .42)";
+        context.lineWidth = pitch % 12 === 0 ? 1.2 : 1;
+        context.beginPath();
+        context.moveTo(0, row.y + 0.5);
+        context.lineTo(model.duration * model.pxPerBeat, row.y + 0.5);
+        context.stroke();
+      } else if (BLACK_KEYS.has(pitch % 12)) {
+        const y = pitchToY(lane, pitch, model.layout);
+        context.fillStyle = "rgba(0, 0, 0, 0.13)";
+        context.fillRect(0, y - 2, model.duration * model.pxPerBeat, 4);
+      }
     }
   });
 
@@ -49,7 +76,7 @@ export function drawGrid(
     context.lineWidth = isBar ? 1.4 : 1;
     context.beginPath();
     context.moveTo(x + 0.5, RULER_HEIGHT);
-    context.lineTo(x + 0.5, ROLL_HEIGHT);
+    context.lineTo(x + 0.5, model.layout.rollHeight);
     context.stroke();
     if (isBeat) {
       context.fillStyle = isBar ? "#c2c8d3" : "#737d8e";
@@ -64,8 +91,8 @@ export function drawGrid(
     }
   }
 
-  for (let index = 0; index <= LANES.length; index += 1) {
-    const y = RULER_HEIGHT + index * LANE_HEIGHT;
+  for (let index = 0; index <= model.layout.lanes.length; index += 1) {
+    const y = RULER_HEIGHT + index * model.layout.laneHeight;
     context.strokeStyle = "#252c38";
     context.beginPath();
     context.moveTo(0, y + 0.5);
