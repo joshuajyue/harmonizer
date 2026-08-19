@@ -17,6 +17,8 @@ from ml.engines.base import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_ENGINE_PACKAGES = ("ml.engines", "ml.reharm")
+
 
 class EngineUnavailableError(RuntimeError):
     def __init__(self, engine_id: str, message: str) -> None:
@@ -35,6 +37,7 @@ class EngineService:
         engines: list[HarmonyEngine] | None = None,
         engine_provider: Callable[[], list[HarmonyEngine]] = all_engines,
         engine_lookup: Callable[[str], HarmonyEngine] = get_engine,
+        engine_packages: tuple[str, ...] = DEFAULT_ENGINE_PACKAGES,
     ) -> None:
         self._enable_dev_engine = enable_dev_engine
         self._discover_modules = discover_modules
@@ -45,6 +48,7 @@ class EngineService:
         )
         self._engine_provider = engine_provider
         self._engine_lookup = engine_lookup
+        self._engine_packages = engine_packages
         self._discovered = False
         self._discovery_lock = threading.Lock()
 
@@ -56,16 +60,42 @@ class EngineService:
                 return
             if self._discover_modules:
                 importlib.invalidate_caches()
-                package = importlib.import_module("ml.engines")
-                prefix = f"{package.__name__}."
-                for module in pkgutil.iter_modules(package.__path__, prefix):
-                    short_name = module.name.rsplit(".", 1)[-1]
-                    if module.name.endswith(".base") or short_name.startswith("_"):
-                        continue
+                for package_name in self._engine_packages:
                     try:
-                        importlib.import_module(module.name)
+                        package = importlib.import_module(package_name)
+                    except ModuleNotFoundError as exc:
+                        if package_name == exc.name or package_name.startswith(
+                            f"{exc.name}."
+                        ):
+                            logger.debug(
+                                "Optional harmony engine package %s is not installed",
+                                package_name,
+                            )
+                        else:
+                            logger.exception(
+                                "Could not import harmony engine package %s",
+                                package_name,
+                            )
+                        continue
                     except Exception:
-                        logger.exception("Could not import harmony engine module %s", module.name)
+                        logger.exception(
+                            "Could not import harmony engine package %s",
+                            package_name,
+                        )
+                        continue
+
+                    prefix = f"{package.__name__}."
+                    for module in pkgutil.iter_modules(package.__path__, prefix):
+                        short_name = module.name.rsplit(".", 1)[-1]
+                        if module.name.endswith(".base") or short_name.startswith("_"):
+                            continue
+                        try:
+                            importlib.import_module(module.name)
+                        except Exception:
+                            logger.exception(
+                                "Could not import harmony engine module %s",
+                                module.name,
+                            )
             if self._enable_dev_engine:
                 from backend.app.dev_engine import register_development_engine
 

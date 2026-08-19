@@ -1,5 +1,10 @@
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
+
+import backend.app.services.engines as engine_module
+from backend.app.services.engines import EngineService
 
 
 def test_health(client: TestClient) -> None:
@@ -27,6 +32,48 @@ def test_engines_are_reflected_from_registry_adapter(
             }
         ]
     }
+
+
+def test_discovery_skips_absent_engine_package(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    imported: list[str] = []
+    present_package = SimpleNamespace(
+        __name__="example.engines",
+        __path__=["example-engines"],
+    )
+
+    def import_module(name: str) -> object:
+        imported.append(name)
+        if name == "example.absent":
+            raise ModuleNotFoundError(
+                "No module named 'example.absent'",
+                name="example.absent",
+            )
+        if name == "example.engines":
+            return present_package
+        if name == "example.engines.registered":
+            return object()
+        raise AssertionError(f"Unexpected import: {name}")
+
+    def iter_modules(path: list[str], prefix: str) -> list[SimpleNamespace]:
+        assert path == ["example-engines"]
+        assert prefix == "example.engines."
+        return [SimpleNamespace(name="example.engines.registered")]
+
+    monkeypatch.setattr(engine_module.importlib, "import_module", import_module)
+    monkeypatch.setattr(engine_module.pkgutil, "iter_modules", iter_modules)
+    service = EngineService(
+        engine_packages=("example.absent", "example.engines"),
+        engine_provider=lambda: [],
+    )
+
+    assert service.list_engines() == []
+    assert imported == [
+        "example.absent",
+        "example.engines",
+        "example.engines.registered",
+    ]
 
 
 def test_harmonize_maps_engine_result_to_contract(
