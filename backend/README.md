@@ -31,9 +31,10 @@ exists for realistic service smoke tests; all musical decisions belong in `ml/`.
   (tempo and complete meter are required)
 - `GET /api/v1/health`
 
-Engine modules are imported lazily from `ml.engines`; the API never owns an
-engine list or falls back to a different harmonizer. CPU-heavy harmonization,
-rendering, and pitch tracking run in FastAPI's worker thread pool.
+Engine modules are imported lazily from `ml.engines` and optional `ml.reharm`;
+the API never owns an engine list or falls back to a different harmonizer.
+CPU-heavy harmonization, rendering, and pitch tracking run in FastAPI's worker
+thread pool.
 
 ## Audio design
 
@@ -105,3 +106,64 @@ docker build --build-arg HARMONIZER_INSTALL_ML_EXTRAS=1 \
 | `HARMONIZER_MAX_RENDER_NOTES` | Render note limit (default 10,000) |
 | `HARMONIZER_MAX_RENDER_WORK_SECONDS` | Summed note-duration limit (default 1,440 note-seconds) |
 | `CORS_ORIGINS` | Optional comma-separated local-dev origins |
+
+## Project status
+
+### Built and verified
+
+- The complete contract API is implemented with registry-driven engine
+  discovery, clean 503 engine failures, response validation, and no disguised
+  harmony-engine fallback.
+- WAV rendering supports FluidSynth plus a guaranteed wavetable fallback.
+  Optional neural/WORLD backends load lazily, serialize model access, and
+  report every fallback through `X-HarmonAIzer-*` provenance headers.
+- WAV, MP3, and browser WebM/Opus transcription uses bundled FFmpeg and pYIN.
+  Register normalization shifts the whole contour by octaves toward MIDI 60-79
+  and reports both the shift and original median.
+- MIDI import/export preserves explicit tempo, meter, and key metadata. Import
+  preflight bounds event/note complexity before mido allocates message objects.
+- Request-body, render-span, note-count, and summed-note-duration limits bound
+  memory and CPU work. Optional response fields are omitted rather than emitted
+  as contract-incompatible `null`.
+- The Docker Compose stack has been built and exercised end to end: both
+  services became healthy, nginx preserved `/api/v1/*`, registry harmonization
+  completed through the web proxy, and FluidSynth produced valid WAV.
+- Current validation: 54 backend tests pass, the contract drift guard passes,
+  and the live API plus Vite proxy both return healthy responses.
+
+### Known limitations
+
+- High-quality voice synthesis is not bundled. `ddsp` needs an authorized,
+  separately installed adapter/model; WORLD needs `pyworld` and a configured
+  reference WAV. The base service remains fully functional without either.
+- The frozen contract has no voice-enrollment or reference-audio upload model,
+  so timbres are server-authorized IDs rather than user uploads.
+- Rendering is synchronous. Hard work limits keep preview requests bounded,
+  but a production neural deployment may still warrant an asynchronous job
+  API with polling.
+- Transcription is intentionally monophonic. Tempo estimation needs multiple
+  usable onsets; clients should send their known project tempo when possible.
+- Tests currently emit a Starlette deprecation warning for the legacy
+  `fastapi.testclient` compatibility import; behavior is passing and unaffected.
+
+### Recommended next work
+
+1. Build a licensed, deployment-specific DDSP-SVC or RVC adapter against the
+   documented seam and benchmark quality/latency before choosing a default.
+2. Add a real recorded-voice transcription corpus spanning registers, noise,
+   browsers, and microphones to tune pYIN segmentation and confidence handling.
+3. Add the already verified Compose smoke path to CI when Docker runners are
+   available.
+4. If the API contract expands, add explicit voice enrollment and asynchronous
+   render jobs rather than inventing undocumented request fields.
+
+### Decisions to preserve
+
+- Missing or failed harmony engines return an honest 503; they never silently
+  substitute another engine.
+- Musical register normalization is one global multiple-of-12 shift—never
+  note-wise clamping or non-octave transposition.
+- Neural dependencies and model weights stay optional and out of the base
+  image.
+- Fallbacks, substitutions, and normalization decisions are reported rather
+  than hidden.
