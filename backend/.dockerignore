@@ -1,5 +1,0 @@
-.venv/
-__pycache__/
-*.pyc
-models/*.pt
-!models/chord_harmonizer.pt

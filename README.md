@@ -1,74 +1,58 @@
 # HarmonAIzer
 
-A full-stack MIDI harmonizer: record or upload a melody in the browser, and get back a
-downloadable MIDI file with a generated chord accompaniment track.
+Give it a melody. It writes the other voices.
 
-Two harmonization engines are available behind the same API:
+Not a pitch-shifter. The commodity part of a harmonizer — timbre-preserving
+resynthesis — is a solved, downloadable problem. The unsolved part, and the whole
+point of this project, is the musical decision: **which notes should the
+accompanying voices actually sing.** Commercial harmonizers are dumb here. They
+lock to a scale, stack a fixed interval, and have no notion of harmonic function
+or voice leading.
 
-- **Creative Engine** - a deterministic music-theory engine. It detects the key, then
-  picks the best-fitting diatonic chord for each measure using chord-tone/passing-tone
-  scoring plus a bonus for common functional progressions (e.g. V -> I).
-- **Bach Neural Network** - a small bidirectional LSTM trained on ~400 Bach chorales.
-  Unlike a rule engine, it's trained on the *actual* 4-part harmony Bach wrote (extracted
-  via `music21`'s `chordify()`), not just melody heuristics, so it learns genuine
-  harmonic style rather than reproducing the Creative Engine's own rules.
+## Structure
 
-## Architecture
+| Path         | Owns                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| `contracts/` | The frozen API contract. `types.ts` and `schema.py` are mirrors — change together. |
+| `ml/`        | Harmony engines (rule-based and learned) plus the evaluation harness. |
+| `backend/`   | FastAPI service and the audio synthesis / transcription pipeline.     |
+| `web/`       | React + TypeScript studio UI.                                         |
 
-- `frontend/` - React 19 + TypeScript + Vite. Records melodies from a virtual/MIDI
-  keyboard onto a piano-roll grid, exports MIDI, and calls the backend to harmonize.
-- `backend/` - FastAPI service: MIDI upload -> key detection -> chord prediction -> MIDI
-  export with a generated accompaniment track.
-  - `data_processor.py` - melody feature extraction and the rule-based Creative Engine.
-  - `model.py` - the BiLSTM chord model architecture.
-  - `train.py` - trains the model on the Bach corpus and saves `models/chord_harmonizer.pt`.
-  - `midi_utils.py` - renders a predicted chord sequence into a MIDI accompaniment track.
+## Design commitments
 
-## Run with Docker Compose
+**Engines return voiced parts, not chord labels.** `ml/engines/base.py` defines
+one interface: melody in, fully voiced SATB out. v1 emitted a chord symbol per
+beat and delegated the actual notes to a fixed renderer, which meant voice leading
+was structurally unlearnable. Voice leading is the problem, so it lives inside the
+engine where it can be optimized and measured.
 
-The simplest way to run the whole stack:
+**Every engine is scored by the same harness.** A rule engine and a neural engine
+are directly comparable on identical held-out data and identical metrics
+(`ml/eval/`). v1 had no such harness, so "the rules beat the model" was a vibe
+rather than a measurement — and the per-beat accuracy it did report was inflated
+by unmasked padding.
 
-```powershell
+**Defects are surfaced, not hidden.** Parallel fifths, voice crossings, unresolved
+leading tones and spacing errors come back in the API response as `violations[]`
+and are drawn on the timeline. Showing *why* a harmonization is weak is something
+no commercial tool bothers to do.
+
+## Running it
+
+```bash
 docker compose up --build
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
+Frontend on <http://localhost:5173>, API on <http://localhost:8000>. nginx
+reverse-proxies `/api/*` to the backend, so there is no CORS setup.
 
-The frontend container serves the built app via nginx, which also reverse-proxies
-`/api/*` to the backend container - no CORS configuration needed.
+For development, see `backend/README.md` and `web/README.md`.
 
-## Run locally for development
+## History
 
-Python 3.12+ and Node.js 20+ are recommended.
-
-```powershell
-# Backend
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn main:app --reload
-
-# Frontend (new terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-Open http://localhost:5173 - Vite's dev server proxies `/api/*` to `http://localhost:8000`
-(see `vite.config.ts`), so the frontend and backend can run independently.
-
-## Retraining the Bach model
-
-The trained checkpoint is committed at `backend/models/chord_harmonizer.pt`, so this step
-is optional. To retrain from scratch:
-
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-python train.py
-```
-
-This reprocesses the Bach corpus bundled with `music21`, trains for up to a few hundred
-epochs with early stopping, and overwrites `models/chord_harmonizer.pt`.
+v1 lives on the `main` branch and is kept only as a post-mortem. Its failure
+modes are documented in `ml/eval/REPORT.md`; briefly, the learned model lost to
+its own rule engine because the representation destroyed the signal — absolute
+pitch classes against tonic-relative labels, a 7-triad vocabulary that could not
+represent the training corpus, unmasked padding in the loss, and no transition
+model at all.
