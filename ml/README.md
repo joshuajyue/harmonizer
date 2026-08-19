@@ -27,8 +27,26 @@ tests/       Unit tests, plus a contract suite every registered engine must pass
 |-----------------|---------|------------|
 | `fixed_thirds`  | no      | Scale-locked parallel intervals — the commercial-harmonizer baseline, present as the floor of the comparison. |
 | `rules`         | no      | Functional-harmony Viterbi over a full chord vocabulary, then a voice-leading Viterbi over actual SATB voicings. |
-| `neural`        | yes     | Masked model over all four voices, tonic-relative, decoded by annealed blocked Gibbs. |
-| `neural_refine` | yes     | The same model seeded with the rule engine's draft, acting as a reviser. |
+| `neural`        | yes     | Masked model over all four voices, tonic-relative, decoded by annealed blocked Gibbs. Kept unpolished as the scientific control. |
+| `neural_vl`     | yes     | The same model, then each voice re-solved by Viterbi under the voice-leading rules. **The one to ship.** |
+| `neural_refine` | yes     | The same model seeded with the rule engine's draft, acting as a reviser. A negative result, kept because it is informative. |
+
+Results on the 61 held-out chorales (full detail in `eval/REPORT.md`):
+
+|                | voice-leading errors / 100 chords | chord-bigram divergence from Bach | s/piece |
+|----------------|-----------------------------------|-----------------------------------|---------|
+| `fixed_thirds` | 159.84                            | 0.421                             | 0.02    |
+| `rules`        | 0.03                              | 0.202                             | 0.20    |
+| `neural`       | 10.47                             | 0.060                             | 2.85    |
+| `neural_vl`    | 0.12                              | 0.073                             | 1.72    |
+| Bach himself   | 3.73                              | 0.056                             | —       |
+
+The two systems fail orthogonally. The rule engine is a flawless contrapuntist
+with a narrow harmonic imagination; the learned model has Bach's harmonic
+vocabulary and writes parallel fifths at twenty times his rate. `neural_vl`
+composes them as constraint-plus-model and keeps both halves. Note that
+held-out Bach differs from training Bach by 0.056 — so `neural`'s 0.060 is not
+"close to Bach", it is indistinguishable from Bach at this sample size.
 
 Engines return **fully voiced parts**, not a chord label per beat. Chord labels
 are metadata derived from the voices. That is the central correction to v1,
@@ -46,6 +64,7 @@ python -m ml.training.calibrate_rules    # refit chord priors from the training 
 python -m ml.training.tune_rules         # tune rule weights against the harness
 python -m ml.training.train_neural       # train the shipped checkpoint
 python -m ml.training.train_neural --ablation   # the representation experiment
+python -m ml.training.v1_diagnosis       # rebuild v1 and flip one factor at a time
 ```
 
 Everything runs on a laptop CPU. Training the shipped model takes roughly half
@@ -69,20 +88,27 @@ any number in it:
 v1's BiLSTM lost to v1's own rule engine. Four concrete reasons, each verified
 against `git show main:backend/`, and each closed structurally here:
 
-1. **Padding polluted the loss.** v1 padded every piece to 32 quarter notes and
-   labelled the padding as tonic, with no mask in the loss or in `evaluate()`.
-   Here sequences carry an explicit `valid` mask and pieces are kept whole.
+1. **Padding polluted the loss — but truncation was the real cost.** The padding
+   bug is real (`chord_padding[:, 0] = 1`, no mask in the loss or in
+   `evaluate()`), but measured against the corpus it fired on 1 of 368 chorales,
+   0.07% of the training grid. The same code path's truncation to 32 quarter
+   notes hid **41.2% of the corpus**. Here sequences carry an explicit `valid`
+   mask *and* pieces are kept whole. Worth +28% in the reconstruction.
 2. **The representation deleted the signal.** Inputs were absolute pitch classes;
    targets were tonic-relative scale degrees. The network had to induce the
    tonic across all twelve transpositions from ~400 chorales given a single
    `is_minor` bit — while the rule engine was handed `key.tonic` for free.
-   Everything here is tonic-relative by construction. `--ablation` measures
-   exactly what that was worth.
+   Everything here is tonic-relative by construction. Worth **+68%** in v1's
+   setting — the dominant term. But `--ablation` shows it is worth only 1.5%
+   perplexity for *this* architecture, because v2 predicts pitches from pitches
+   and the target is already in the input's frame. The real fix was never "use
+   tonic-relative pitch"; it was "make the target expressible from the input".
 3. **The label space could not represent the data.** Seven diatonic triads, with
    every seventh chord, secondary dominant and borrowed chord projected onto the
-   nearest one by a `+1/-1` pitch-class vote. Here the model predicts the notes
-   themselves and chord labels are derived afterwards, so there is no label
-   space to be too small.
+   nearest one by a `+1/-1` pitch-class vote — which preserves the chord root
+   only 84.5% of the time and the exact chord only 68.9%. Here the model predicts
+   the notes themselves and chord labels are derived afterwards, so there is no
+   label space to be too small.
 4. **There was no transition model.** Independent per-beat softmax and argmax,
    against a rule engine that had an explicit functional grammar. Here decoding
    is iterative and bidirectional: the model revises its own output.
