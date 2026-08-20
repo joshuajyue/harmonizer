@@ -1,0 +1,569 @@
+{
+  "key": {
+    "tonic": 0,
+    "mode": "major",
+    "confidence": 0.97
+  },
+  "chords": [
+    {
+      "start": 0.0,
+      "duration": 2.0,
+      "roman": "I",
+      "root": 0,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 2.0,
+      "duration": 2.0,
+      "roman": "I",
+      "root": 0,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 4.0,
+      "duration": 2.0,
+      "roman": "V6",
+      "root": 7,
+      "quality": "maj",
+      "inversion": 1,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 6.0,
+      "duration": 2.0,
+      "roman": "I",
+      "root": 0,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 8.0,
+      "duration": 1.0,
+      "roman": "IV",
+      "root": 5,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 9.0,
+      "duration": 1.0,
+      "roman": "I",
+      "root": 0,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 10.0,
+      "duration": 2.0,
+      "roman": "V",
+      "root": 7,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 12.0,
+      "duration": 4.0,
+      "roman": "I",
+      "root": 0,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 16.0,
+      "duration": 2.0,
+      "roman": "I",
+      "root": 0,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 18.0,
+      "duration": 2.0,
+      "roman": "V6",
+      "root": 7,
+      "quality": "maj",
+      "inversion": 1,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 20.0,
+      "duration": 2.0,
+      "roman": "IV6",
+      "root": 5,
+      "quality": "maj",
+      "inversion": 1,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 22.0,
+      "duration": 2.0,
+      "roman": "V",
+      "root": 7,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 24.0,
+      "duration": 1.0,
+      "roman": "IV6",
+      "root": 5,
+      "quality": "maj",
+      "inversion": 1,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 25.0,
+      "duration": 1.0,
+      "roman": "I",
+      "root": 0,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 26.0,
+      "duration": 2.0,
+      "roman": "V6",
+      "root": 7,
+      "quality": "maj",
+      "inversion": 1,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    },
+    {
+      "start": 28.0,
+      "duration": 4.0,
+      "roman": "I",
+      "root": 0,
+      "quality": "maj",
+      "inversion": 0,
+      "secondaryOf": null,
+      "extensions": [],
+      "substitutionOf": null,
+      "substitutionKind": null
+    }
+  ],
+  "voices": [
+    {
+      "name": "soprano",
+      "notes": [
+        {
+          "pitch": 60,
+          "start": 0.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 64,
+          "start": 2.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 67,
+          "start": 4.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 64,
+          "start": 6.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 65,
+          "start": 8.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 64,
+          "start": 9.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 62,
+          "start": 10.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 60,
+          "start": 12.0,
+          "duration": 4.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 64,
+          "start": 16.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 67,
+          "start": 18.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 69,
+          "start": 20.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 67,
+          "start": 22.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 65,
+          "start": 24.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 64,
+          "start": 25.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 62,
+          "start": 26.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 60,
+          "start": 28.0,
+          "duration": 4.0,
+          "velocity": 76
+        }
+      ]
+    },
+    {
+      "name": "alto",
+      "notes": [
+        {
+          "pitch": 55,
+          "start": 0.0,
+          "duration": 8.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 57,
+          "start": 8.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 60,
+          "start": 9.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 59,
+          "start": 10.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 55,
+          "start": 12.0,
+          "duration": 8.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 60,
+          "start": 20.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 59,
+          "start": 22.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 60,
+          "start": 24.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 55,
+          "start": 25.0,
+          "duration": 7.0,
+          "velocity": 76
+        }
+      ]
+    },
+    {
+      "name": "tenor",
+      "notes": [
+        {
+          "pitch": 52,
+          "start": 0.0,
+          "duration": 4.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 50,
+          "start": 4.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 52,
+          "start": 6.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 48,
+          "start": 8.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 55,
+          "start": 9.0,
+          "duration": 3.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 52,
+          "start": 12.0,
+          "duration": 6.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 50,
+          "start": 18.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 53,
+          "start": 20.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 50,
+          "start": 22.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 53,
+          "start": 24.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 60,
+          "start": 25.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 50,
+          "start": 26.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 52,
+          "start": 28.0,
+          "duration": 4.0,
+          "velocity": 76
+        }
+      ]
+    },
+    {
+      "name": "bass",
+      "notes": [
+        {
+          "pitch": 48,
+          "start": 0.0,
+          "duration": 4.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 47,
+          "start": 4.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 48,
+          "start": 6.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 41,
+          "start": 8.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 48,
+          "start": 9.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 43,
+          "start": 10.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 48,
+          "start": 12.0,
+          "duration": 6.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 47,
+          "start": 18.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 45,
+          "start": 20.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 43,
+          "start": 22.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 45,
+          "start": 24.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 48,
+          "start": 25.0,
+          "duration": 1.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 47,
+          "start": 26.0,
+          "duration": 2.0,
+          "velocity": 76
+        },
+        {
+          "pitch": 48,
+          "start": 28.0,
+          "duration": 4.0,
+          "velocity": 76
+        }
+      ]
+    }
+  ],
+  "violations": [
+    {
+      "kind": "parallel_fifths",
+      "severity": "error",
+      "start": 9.0,
+      "voices": [
+        "tenor",
+        "bass"
+      ],
+      "message": "Bass and tenor move F2-C3 to C3-G3, a perfect fifth in parallel motion."
+    },
+    {
+      "kind": "parallel_octaves",
+      "severity": "error",
+      "start": 22.0,
+      "voices": [
+        "soprano",
+        "bass"
+      ],
+      "message": "Soprano and bass move A4-A2 to G4-G2, an octave in parallel motion."
+    },
+    {
+      "kind": "voice_crossing",
+      "severity": "warning",
+      "start": 25.0,
+      "voices": [
+        "alto",
+        "tenor"
+      ],
+      "message": "Tenor (C4) rises above alto (G3)."
+    }
+  ],
+  "engine": "rules",
+  "latencyMs": 12.4
+}

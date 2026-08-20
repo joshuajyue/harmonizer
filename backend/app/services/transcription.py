@@ -1,0 +1,386 @@
+from __future__ import annotations
+
+import logging
+import shutil
+import subprocess
+from dataclasses import dataclass
+from io import BytesIO
+from math import ceil, floor
+from statistics import median
+
+import numpy as np
+import soundfile as sf
+
+from contracts.schema import Melody, Note, TimeSignature
+
+logger = logging.getLogger(__name__)
+
+MELODY_PITCH_MIN = 60
+MELODY_PITCH_MAX = 79
+
+
+class AudioDecodeError(ValueError):
+    pass
+
+
+class TranscriptionError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class OctaveNormalization:
+    notes: list[Note]
+    octave_shift: int
+    detected_median_pitch: float
+
+
+@dataclass(frozen=True)
+class TranscriptionResult:
+    melody: Melody
+    octave_shift: int
+    detected_median_pitch: float
+
+
+class TranscriptionService:
+    def __init__(
+        self,
+        *,
+        max_upload_bytes: int,
+        max_audio_seconds: float,
+        analysis_sample_rate: int = 22_050,
+    ) -> None:
+        self._max_upload_bytes = max_upload_bytes
+        self._max_audio_seconds = max_audio_seconds
+        self._analysis_sample_rate = analysis_sample_rate
+
+    def transcribe(
+        self,
+        data: bytes,
+        *,
+        tempo: float | None,
+        time_signature: TimeSignature,
+        normalize_octave: bool = True,
+        octave_shift: int | None = None,
+    ) -> TranscriptionResult:
+        samples = self._decode(data)
+        resolved_tempo = tempo if tempo is not None else self._detect_tempo(samples)
+        notes = self._track_pitch(samples, resolved_tempo)
+        if not notes:
+            raise TranscriptionError("No stable monophonic pitch was detected.")
+        normalization = normalize_melody_octaves(
+            notes,
+            enabled=normalize_octave,
+            forced_octave_shift=octave_shift,
+        )
+        return TranscriptionResult(
+            melody=Melody(
+                notes=normalization.notes,
+                tempo=resolved_tempo,
+                timeSignature=time_signature,
+            ),
+            octave_shift=normalization.octave_shift,
+            detected_median_pitch=normalization.detected_median_pitch,
+        )
+
+    def _detect_tempo(self, samples: np.ndarray) -> float:
+        import librosa
+
+        hop_length = 512
+        onset_envelope = librosa.onset.onset_strength(
+            y=samples,
+            sr=self._analysis_sample_rate,
+            hop_length=hop_length,
+        )
+        onset_frames = librosa.onset.onset_detect(
+            onset_envelope=onset_envelope,
+            sr=self._analysis_sample_rate,
+            hop_length=hop_length,
+            units="frames",
+        )
+        if onset_frames.size < 2:
+            raise TranscriptionError(
+                "Could not detect tempo from the audio; provide tempo explicitly."
+            )
+        onset_intervals = (
+            np.diff(onset_frames) * hop_length / self._analysis_sample_rate
+        )
+        onset_intervals = onset_intervals[onset_intervals > 0]
+        if onset_intervals.size == 0:
+            raise TranscriptionError(
+                "Could not detect tempo from the audio; provide tempo explicitly."
+            )
+        tempo = float(60.0 / np.median(onset_intervals))
+        if not np.isfinite(tempo) or not 20.0 <= tempo <= 300.0:
+            raise TranscriptionError(
+                "Could not detect a plausible tempo; provide tempo explicitly."
+            )
+        return tempo
+
+    def _decode(self, data: bytes) -> np.ndarray:
+        if not data:
+            raise AudioDecodeError("The uploaded audio file is empty.")
+        if len(data) > self._max_upload_bytes:
+            raise AudioDecodeError("The uploaded audio file is too large.")
+
+        samples: np.ndarray
+        sample_rate: int
+        try:
+            with sf.SoundFile(BytesIO(data)) as audio:
+                sample_rate = audio.samplerate
+                max_frames = round(self._max_audio_seconds * sample_rate)
+                if len(audio) > max_frames:
+                    raise AudioDecodeError(
+                        f"Audio may not be longer than {self._max_audio_seconds:g} seconds."
+                    )
+                decoded = audio.read(
+                    frames=max_frames + 1,
+                    dtype="float32",
+                    always_2d=True,
+                )
+            samples = np.mean(decoded, axis=1, dtype=np.float32)
+        except AudioDecodeError:
+            raise
+        except Exception:
+            samples, sample_rate = self._decode_with_ffmpeg(data)
+
+        if sample_rate <= 0 or samples.size == 0:
+            raise AudioDecodeError("The uploaded audio file contains no samples.")
+        if samples.size / sample_rate > self._max_audio_seconds:
+            raise AudioDecodeError(
+                f"Audio may not be longer than {self._max_audio_seconds:g} seconds."
+            )
+
+        samples = np.nan_to_num(samples, copy=False)
+        samples -= np.mean(samples, dtype=np.float64)
+        if sample_rate != self._analysis_sample_rate:
+            import librosa
+
+            samples = librosa.resample(
+                samples,
+                orig_sr=sample_rate,
+                target_sr=self._analysis_sample_rate,
+            ).astype(np.float32, copy=False)
+        return np.ascontiguousarray(samples, dtype=np.float32)
+
+    def _decode_with_ffmpeg(self, data: bytes) -> tuple[np.ndarray, int]:
+        ffmpeg = _ffmpeg_executable()
+        command = [
+            ffmpeg,
+            "-v",
+            "error",
+            "-i",
+            "pipe:0",
+            "-t",
+            str(self._max_audio_seconds + 1),
+            "-f",
+            "f32le",
+            "-acodec",
+            "pcm_f32le",
+            "-ac",
+            "1",
+            "-ar",
+            str(self._analysis_sample_rate),
+            "pipe:1",
+        ]
+        try:
+            completed = subprocess.run(
+                command,
+                input=data,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+                timeout=max(30.0, self._max_audio_seconds * 2),
+            )
+        except (subprocess.SubprocessError, OSError) as exc:
+            logger.info("ffmpeg could not decode uploaded audio: %s", exc)
+            raise AudioDecodeError(
+                "The uploaded file is not valid WAV, MP3, or WebM audio."
+            ) from exc
+        samples = np.frombuffer(completed.stdout, dtype="<f4").copy()
+        return samples, self._analysis_sample_rate
+
+    def _track_pitch(self, samples: np.ndarray, tempo: float) -> list[Note]:
+        import librosa
+
+        frame_length = 2048
+        hop_length = 256
+        if samples.size < frame_length:
+            samples = np.pad(samples, (0, frame_length - samples.size))
+
+        f0, voiced, voiced_probability = librosa.pyin(
+            samples,
+            fmin=float(librosa.note_to_hz("C2")),
+            fmax=float(librosa.note_to_hz("C7")),
+            sr=self._analysis_sample_rate,
+            frame_length=frame_length,
+            hop_length=hop_length,
+            fill_na=np.nan,
+        )
+        rms = librosa.feature.rms(
+            y=samples,
+            frame_length=frame_length,
+            hop_length=hop_length,
+        )[0]
+        frame_count = min(len(f0), len(rms))
+        if frame_count == 0:
+            return []
+        return _frames_to_notes(
+            f0=f0[:frame_count],
+            voiced=voiced[:frame_count],
+            voiced_probability=voiced_probability[:frame_count],
+            rms=rms[:frame_count],
+            sample_rate=self._analysis_sample_rate,
+            hop_length=hop_length,
+            tempo=tempo,
+        )
+
+
+def normalize_melody_octaves(
+    notes: list[Note],
+    *,
+    enabled: bool = True,
+    forced_octave_shift: int | None = None,
+) -> OctaveNormalization:
+    if not notes:
+        raise TranscriptionError("No stable monophonic pitch was detected.")
+
+    pitches = [note.pitch for note in notes]
+    detected_median = float(median(pitches))
+    minimum_shift = ceil(-min(pitches) / 12)
+    maximum_shift = floor((127 - max(pitches)) / 12)
+
+    if forced_octave_shift is not None:
+        shift = forced_octave_shift
+    elif not enabled or all(
+        MELODY_PITCH_MIN <= pitch <= MELODY_PITCH_MAX for pitch in pitches
+    ):
+        shift = 0
+    else:
+        target_center = (MELODY_PITCH_MIN + MELODY_PITCH_MAX) / 2
+
+        def score(candidate: int) -> tuple[int, int, float, int]:
+            shifted = [pitch + 12 * candidate for pitch in pitches]
+            outside_count = sum(
+                pitch < MELODY_PITCH_MIN or pitch > MELODY_PITCH_MAX
+                for pitch in shifted
+            )
+            outside_distance = sum(
+                max(MELODY_PITCH_MIN - pitch, 0, pitch - MELODY_PITCH_MAX)
+                for pitch in shifted
+            )
+            return (
+                outside_count,
+                outside_distance,
+                abs(detected_median + 12 * candidate - target_center),
+                abs(candidate),
+            )
+
+        shift = min(range(minimum_shift, maximum_shift + 1), key=score)
+
+    if not minimum_shift <= shift <= maximum_shift:
+        raise TranscriptionError(
+            f"octaveShift={shift} would place a detected pitch outside MIDI range "
+            f"0-127; choose a shift from {minimum_shift} to {maximum_shift}."
+        )
+
+    semitone_shift = 12 * shift
+    shifted_notes = [
+        note.model_copy(update={"pitch": note.pitch + semitone_shift})
+        for note in notes
+    ]
+    return OctaveNormalization(
+        notes=shifted_notes,
+        octave_shift=shift,
+        detected_median_pitch=detected_median,
+    )
+
+
+def _frames_to_notes(
+    *,
+    f0: np.ndarray,
+    voiced: np.ndarray,
+    voiced_probability: np.ndarray,
+    rms: np.ndarray,
+    sample_rate: int,
+    hop_length: int,
+    tempo: float,
+) -> list[Note]:
+    peak_rms = float(np.max(rms, initial=0.0))
+    if peak_rms <= 1e-6:
+        return []
+    rms_floor = max(1e-4, peak_rms * 0.025)
+    pitches: list[int | None] = []
+    for frequency, is_voiced, probability, frame_rms in zip(
+        f0,
+        voiced,
+        voiced_probability,
+        rms,
+        strict=True,
+    ):
+        if (
+            not is_voiced
+            or not np.isfinite(frequency)
+            or probability < 0.5
+            or frame_rms < rms_floor
+        ):
+            pitches.append(None)
+            continue
+        midi_pitch = int(np.clip(np.rint(69 + 12 * np.log2(frequency / 440.0)), 0, 127))
+        pitches.append(midi_pitch)
+
+    for index in range(1, len(pitches) - 1):
+        before, current, after = pitches[index - 1 : index + 2]
+        if before == after and current != before:
+            pitches[index] = before
+
+    frame_seconds = hop_length / sample_rate
+    minimum_frames = max(2, round(0.08 / frame_seconds))
+    raw_segments: list[tuple[int, int, int]] = []
+    segment_pitch: int | None = None
+    segment_start = 0
+    for index, pitch in enumerate([*pitches, None]):
+        if pitch == segment_pitch:
+            continue
+        if segment_pitch is not None and index - segment_start >= minimum_frames:
+            raw_segments.append((segment_start, index, segment_pitch))
+        segment_pitch = pitch
+        segment_start = index
+
+    merged: list[tuple[int, int, int]] = []
+    max_merge_gap = max(1, round(0.06 / frame_seconds))
+    for start, end, pitch in raw_segments:
+        if merged and merged[-1][2] == pitch and start - merged[-1][1] <= max_merge_gap:
+            previous_start, _, _ = merged[-1]
+            merged[-1] = (previous_start, end, pitch)
+        else:
+            merged.append((start, end, pitch))
+
+    seconds_to_beats = tempo / 60.0
+    notes: list[Note] = []
+    for start, end, pitch in merged:
+        local_rms = float(np.mean(rms[start:end]))
+        loudness = np.sqrt(max(0.0, local_rms / peak_rms))
+        velocity = int(np.clip(round(35 + 85 * loudness), 1, 127))
+        notes.append(
+            Note(
+                pitch=pitch,
+                start=start * frame_seconds * seconds_to_beats,
+                duration=(end - start) * frame_seconds * seconds_to_beats,
+                velocity=velocity,
+            )
+        )
+    return notes
+
+
+def _ffmpeg_executable() -> str:
+    system_ffmpeg = shutil.which("ffmpeg")
+    if system_ffmpeg is not None:
+        return system_ffmpeg
+    try:
+        from imageio_ffmpeg import get_ffmpeg_exe
+
+        return get_ffmpeg_exe()
+    except (ImportError, RuntimeError, OSError) as exc:
+        raise AudioDecodeError(
+            "No FFmpeg decoder is available; reinstall backend requirements."
+        ) from exc

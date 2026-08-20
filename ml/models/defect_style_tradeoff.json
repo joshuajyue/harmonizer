@@ -1,0 +1,84 @@
+{
+  "oracle": {
+    "hard_errors": 1.964,
+    "chord_bigram_js": 0.0954,
+    "cadence_js": 0.0036,
+    "chord_classes_per_piece": 15.83,
+    "tonic_dominant_share": 0.4631,
+    "sonority_changes_per_100_beats": 138.8
+  },
+  "sweep": {
+    "0.0": {
+      "hard_errors": 8.561,
+      "parallel_fifths": 3.857,
+      "parallel_octaves": 4.186,
+      "chord_bigram_js": 0.0749,
+      "cadence_js": 0.0049,
+      "chord_unigram_js": 0.0214,
+      "chord_changes_per_100_beats": 73.3,
+      "sonority_changes_per_100_beats": 152.5,
+      "chord_classes_per_piece": 12.54,
+      "tonic_dominant_share": 0.5014
+    },
+    "0.15": {
+      "hard_errors": 0.416,
+      "parallel_fifths": 0.0,
+      "parallel_octaves": 0.0,
+      "chord_bigram_js": 0.0706,
+      "cadence_js": 0.0047,
+      "chord_unigram_js": 0.0192,
+      "chord_changes_per_100_beats": 73.8,
+      "sonority_changes_per_100_beats": 155.0,
+      "chord_classes_per_piece": 12.75,
+      "tonic_dominant_share": 0.5116
+    },
+    "0.3": {
+      "hard_errors": 0.459,
+      "parallel_fifths": 0.0,
+      "parallel_octaves": 0.0,
+      "chord_bigram_js": 0.071,
+      "cadence_js": 0.0087,
+      "chord_unigram_js": 0.0194,
+      "chord_changes_per_100_beats": 73.9,
+      "sonority_changes_per_100_beats": 156.5,
+      "chord_classes_per_piece": 12.88,
+      "tonic_dominant_share": 0.5152
+    },
+    "0.5": {
+      "hard_errors": 0.325,
+      "parallel_fifths": 0.0,
+      "parallel_octaves": 0.0,
+      "chord_bigram_js": 0.0724,
+      "cadence_js": 0.0037,
+      "chord_unigram_js": 0.0199,
+      "chord_changes_per_100_beats": 73.5,
+      "sonority_changes_per_100_beats": 154.7,
+      "chord_classes_per_piece": 13.17,
+      "tonic_dominant_share": 0.5152
+    },
+    "1.0": {
+      "hard_errors": 0.33,
+      "parallel_fifths": 0.0,
+      "parallel_octaves": 0.0,
+      "chord_bigram_js": 0.0729,
+      "cadence_js": 0.0043,
+      "chord_unigram_js": 0.0196,
+      "chord_changes_per_100_beats": 73.5,
+      "sonority_changes_per_100_beats": 152.1,
+      "chord_classes_per_piece": 12.88,
+      "tonic_dominant_share": 0.521
+    },
+    "2.0": {
+      "hard_errors": 0.475,
+      "parallel_fifths": 0.0,
+      "parallel_octaves": 0.0,
+      "chord_bigram_js": 0.0795,
+      "cadence_js": 0.0095,
+      "chord_unigram_js": 0.0198,
+      "chord_changes_per_100_beats": 73.5,
+      "sonority_changes_per_100_beats": 151.1,
+      "chord_classes_per_piece": 12.96,
+      "tonic_dominant_share": 0.513
+    }
+  }
+}

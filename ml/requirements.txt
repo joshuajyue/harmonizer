@@ -1,0 +1,12 @@
+# ML / harmony-intelligence dependencies.
+#
+# torch is pinned below 2.3 and numpy below 2 because the last PyTorch wheel
+# published for macOS x86_64 is 2.2.2, which is built against the NumPy 1.x ABI.
+# Everything here runs on a laptop CPU; there is no GPU-only code path.
+torch>=2.0,<2.3
+numpy>=1.24,<2
+music21>=9.1
+pydantic>=2.5
+
+# Test-only
+pytest>=7.4

@@ -1,0 +1,124 @@
+{
+  "label_space_fidelity": {
+    "beats": 19810,
+    "root_preserved": 0.8453,
+    "chord_preserved_exactly": 0.6886,
+    "true_seventh_chords": 0.1577,
+    "true_applied_chords": 0.119
+  },
+  "sequence_coverage": {
+    "pieces": 368,
+    "median_beats": 48,
+    "max_beats": 193,
+    "pieces_shorter_than_window": 1,
+    "padded_fraction_of_training_grid": 0.0007,
+    "mean_fraction_of_piece_seen": 0.644,
+    "fraction_of_corpus_never_seen": 0.4116
+  },
+  "arms": [
+    {
+      "arm": "absolute/v1_triads/v1",
+      "representation": "absolute",
+      "labels": "v1_triads",
+      "sequence": "v1",
+      "classes": 7,
+      "root_accuracy": 0.3465,
+      "root_accuracy_first_32_beats": 0.3468,
+      "label_accuracy_honest": 0.3975,
+      "label_accuracy_unmasked": 0.6914,
+      "epochs": 55,
+      "val_loss": 1.6847
+    },
+    {
+      "arm": "absolute/v1_triads/masked",
+      "representation": "absolute",
+      "labels": "v1_triads",
+      "sequence": "masked",
+      "classes": 7,
+      "root_accuracy": 0.4437,
+      "root_accuracy_first_32_beats": 0.4319,
+      "label_accuracy_honest": 0.4718,
+      "label_accuracy_unmasked": 0.6744,
+      "epochs": 78,
+      "val_loss": 1.5579
+    },
+    {
+      "arm": "absolute/rich/v1",
+      "representation": "absolute",
+      "labels": "rich",
+      "sequence": "v1",
+      "classes": 120,
+      "root_accuracy": 0.3209,
+      "root_accuracy_first_32_beats": 0.3171,
+      "label_accuracy_honest": 0.2044,
+      "label_accuracy_unmasked": 0.4558,
+      "epochs": 102,
+      "val_loss": 2.7242
+    },
+    {
+      "arm": "absolute/rich/masked",
+      "representation": "absolute",
+      "labels": "rich",
+      "sequence": "masked",
+      "classes": 120,
+      "root_accuracy": 0.3706,
+      "root_accuracy_first_32_beats": 0.3673,
+      "label_accuracy_honest": 0.3364,
+      "label_accuracy_unmasked": 0.6165,
+      "epochs": 93,
+      "val_loss": 2.7071
+    },
+    {
+      "arm": "tonic_relative/v1_triads/v1",
+      "representation": "tonic_relative",
+      "labels": "v1_triads",
+      "sequence": "v1",
+      "classes": 7,
+      "root_accuracy": 0.5823,
+      "root_accuracy_first_32_beats": 0.5768,
+      "label_accuracy_honest": 0.6165,
+      "label_accuracy_unmasked": 0.7906,
+      "epochs": 45,
+      "val_loss": 1.115
+    },
+    {
+      "arm": "tonic_relative/v1_triads/masked",
+      "representation": "tonic_relative",
+      "labels": "v1_triads",
+      "sequence": "masked",
+      "classes": 7,
+      "root_accuracy": 0.5975,
+      "root_accuracy_first_32_beats": 0.585,
+      "label_accuracy_honest": 0.6345,
+      "label_accuracy_unmasked": 0.7904,
+      "epochs": 54,
+      "val_loss": 1.0628
+    },
+    {
+      "arm": "tonic_relative/rich/v1",
+      "representation": "tonic_relative",
+      "labels": "rich",
+      "sequence": "v1",
+      "classes": 120,
+      "root_accuracy": 0.5946,
+      "root_accuracy_first_32_beats": 0.5978,
+      "label_accuracy_honest": 0.5266,
+      "label_accuracy_unmasked": 0.6991,
+      "epochs": 82,
+      "val_loss": 1.8983
+    },
+    {
+      "arm": "tonic_relative/rich/masked",
+      "representation": "tonic_relative",
+      "labels": "rich",
+      "sequence": "masked",
+      "classes": 120,
+      "root_accuracy": 0.6424,
+      "root_accuracy_first_32_beats": 0.6399,
+      "label_accuracy_honest": 0.5832,
+      "label_accuracy_unmasked": 0.7212,
+      "epochs": 81,
+      "val_loss": 1.8699
+    }
+  ]
+}

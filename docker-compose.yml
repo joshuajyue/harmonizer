@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      HARMONIZER_SOUNDFONT: /usr/share/sounds/sf2/TimGM6mb.sf2
+      HARMONIZER_TIMBRE_DIR: /app/backend/timbres
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/timbres:/app/backend/timbres:ro
+
+  web:
+    build:
+      context: ./web
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy

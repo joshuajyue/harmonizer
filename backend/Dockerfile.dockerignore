@@ -1,0 +1,15 @@
+*
+!backend/
+!backend/**
+!contracts/
+!contracts/**
+!ml/
+!ml/**
+
+**/.runtime/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/*.pyc
+backend/tests/
+ml/tests/
